@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Cookie Clicker </title>
+    <style>
+        body {
+            background-color: #1c1d22;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none;
+            overflow: hidden; /* Prevents scrollbars when Golden Cookie spawns */
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: row;
+            gap: 40px;
+            background: #282a36;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-height: 85vh;
+        }
+
+        /* Left side: The clicker zone */
+        .clicker-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 250px;
+        }
+
+        #cookie {
+            font-size: 100px;
+            cursor: pointer;
+            transition: transform 0.05s ease;
+            margin: 20px 0;
+            filter: drop-shadow(0 0 20px rgba(255, 184, 108, 0.2));
+        }
+
+        #cookie:active {
+            transform: scale(0.92);
+        }
+
+        #cookie-count {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        #cps-display {
+            font-size: 1rem;
+            color: #bd93f9;
+        }
+
+        /* Right side: The shop zone */
+        .shop-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 350px;
+            border-left: 2px solid #44475a;
+            padding-left: 40px;
+            overflow-y: auto; /* Allows scrolling for many upgrades */
+            padding-right: 10px;
+        }
+
+        /* Custom Scrollbar for the shop */
+        .shop-section::-webkit-scrollbar { width: 8px; }
+        .shop-section::-webkit-scrollbar-track { background: #282a36; }
+        .shop-section::-webkit-scrollbar-thumb { background: #6272a4; border-radius: 4px; }
+
+        h2 {
+            margin-top: 0;
+            color: #ff79c6;
+            position: sticky;
+            top: 0;
+            background: #282a36;
+            padding-bottom: 10px;
+            z-index: 10;
+        }
+
+        .upgrade-btn {
+            background: #44475a;
+            border: 2px solid #6272a4;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .upgrade-btn:hover:not(:disabled) {
+            background: #6272a4;
+            transform: translateY(-2px);
+        }
+
+        .upgrade-btn:disabled {
+            background: #282a36;
+            border-color: #44475a;
+            color: #6272a4;
+            cursor: not-allowed;
+        }
+
+        .upgrade-title { font-weight: bold; font-size: 1.05rem; }
+        .upgrade-cost { color: #f1fa8c; font-size: 0.9rem; }
+        .upgrade-desc { color: #ffb86c; font-size: 0.8rem; }
+        
+        /* Golden Cookie Styles */
+        #golden-cookie {
+            display: none;
+            position: absolute;
+            font-size: 70px;
+            cursor: pointer;
+            z-index: 100;
+            animation: pulse 1.5s infinite;
+            filter: drop-shadow(0 0 30px #f1fa8c);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.15) rotate(5deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        #notification {
+            position: absolute;
+            top: 20px;
+            font-weight: bold;
+            color: #f1fa8c;
+            font-size: 1.5rem;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="golden-cookie">🌟</div>
+    <div id="notification">Lucky! +1000 cookies!</div>
+
+    <div class="game-container">
+        <div class="clicker-section">
+            <div id="cookie-count">0 cookies</div>
+            <div id="cps-display">0.0 CPS</div>
+            <div id="cookie">🍪</div>
+            <p style="color: #6272a4; font-size: 0.85rem; text-align:center;">Click the cookie!</p>
+        </div>
+
+        <div class="shop-section">
+            <h2>Upgrades Shop</h2>
+            
+            <button class="upgrade-btn" id="buy-click-upgrade">
+                <span class="upgrade-title">Reinforced Thumbs 👍 (+1/click)</span>
+                <span class="upgrade-cost">Cost: <span id="click-cost">50</span></span>
+                <span class="upgrade-desc">Increases your personal click value</span>
+            </button>
+
+            <button class="upgrade-btn" id="buy-pointer">
+                <span class="upgrade-title">Pointer Hand 🖐️ (<span id="pointer-count">0</span>)</span>
+                <span class="upgrade-cost">Cost: <span id="pointer-cost">15</span></span>
+                <span class="upgrade-desc">Generates 0.5 CPS</span>
+            </button>
+
+            <button class="upgrade-btn" id="buy-grandma">
+                <span class="upgrade-title">Grandma 👵 (<span id="grandma-count">0</span>)</span>
+                <span class="upgrade-cost">Cost: <span id="grandma-cost">100</span></span>
+                <span class="upgrade-desc">A nice grandma to bake more cookies. Generates 4 CPS</span>
+            </button>
+
+            <button class="upgrade-btn" id="buy-farm">
+                <span class="upgrade-title">Cookie Farm 🧑‍🌾 (<span id="farm-count">0</span>)</span>
+                <span class="upgrade-cost">Cost: <span id="farm-cost">1100</span></span>
+                <span class="upgrade-desc">Grows cookie plants from cookie seeds. Generates 16 CPS</span>
+            </button>
+            
+            <button class="upgrade-btn" id="buy-factory">
+                <span class="upgrade-title">Factory 🏭 (<span id="factory-count">0</span>)</span>
+                <span class="upgrade-cost">Cost: <span id="factory-cost">12000</span></span>
+                <span class="upgrade-desc">Produces large quantities of cookies. Generates 65 CPS</span>
+            </button>
+
+            <button class="upgrade-btn" id="buy-golden-upgrade">
+                <span class="upgrade-title">Lucky Charm 🍀 (Lvl <span id="golden-level">0</span>)</span>
+                <span class="upgrade-cost">Cost: <span id="golden-cost">777</span></span>
+                <span class="upgrade-desc">Makes Golden Cookies spawn 20% faster</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- GAME STATE VARIABLES ---
+        let cookies = 0;
+        let cps = 0; // Cookies Per Second
+        let clickValue = 1;
+        let clickUpgradeCost = 50;
+
+        // Buildings: [Count, Base Cost, CPS Generated, Cost Multiplier, DOM Elements]
+        const buildings = {
+            pointer: { count: 0, cost: 15, cps: 0.5, mult: 1.15 },
+            grandma: { count: 0, cost: 100, cps: 4, mult: 1.15 },
+            farm:    { count: 0, cost: 1100, cps: 16, mult: 1.15 },
+            factory: { count: 0, cost: 12000, cps: 65, mult: 1.15 }
+        };
+
+        // Golden Cookie State
+        let goldenLevel = 0;
+        let goldenCost = 777;
+        let goldenActive = false;
+        let goldenTimeout;
+
+        // --- DOM ELEMENTS ---
+        const cookieDisplay = document.getElementById("cookie-count");
+        const cpsDisplay = document.getElementById("cps-display");
+        const cookieBtn = document.getElementById("cookie");
+        const clickBtn = document.getElementById("buy-click-upgrade");
+        const clickCostDisplay = document.getElementById("click-cost");
+        
+        const goldenCookieBtn = document.getElementById("golden-cookie");
+        const notification = document.getElementById("notification");
+        const goldenUpgradeBtn = document.getElementById("buy-golden-upgrade");
+        const goldenLevelDisplay = document.getElementById("golden-level");
+        const goldenCostDisplay = document.getElementById("golden-cost");
+
+        // --- CORE LOGIC ---
+
+        // Manual Click
+        cookieBtn.addEventListener("click", () => {
+            cookies += clickValue;
+            updateDisplay();
+        });
+
+        // Click Upgrade
+        clickBtn.addEventListener("click", () => {
+            if (cookies >= clickUpgradeCost) {
+                cookies -= clickUpgradeCost;
+                clickValue++;
+                clickUpgradeCost = Math.floor(clickUpgradeCost * 1.5);
+                updateDisplay();
+            }
+        });
+
+        // Generic Building Buy Logic
+        function setupBuilding(id) {
+            const btn = document.getElementById(`buy-${id}`);
+            btn.addEventListener("click", () => {
+                let b = buildings[id];
+                if (cookies >= b.cost) {
+                    cookies -= b.cost;
+                    b.count++;
+                    b.cost = Math.floor(b.cost * b.mult); // Scale cost
+                    calculateCPS();
+                    updateDisplay();
+                }
+            });
+        }
+
+        // Initialize Buildings
+        Object.keys(buildings).forEach(id => setupBuilding(id));
+
+        // Golden Cookie Upgrade
+        goldenUpgradeBtn.addEventListener("click", () => {
+            if (cookies >= goldenCost) {
+                cookies -= goldenCost;
+                goldenLevel++;
+                goldenCost = Math.floor(goldenCost * 3); // Scales very fast
+                updateDisplay();
+            }
+        });
+
+        // Golden Cookie Logic
+        goldenCookieBtn.addEventListener("click", () => {
+            if (!goldenActive) return;
+            
+            // Reward: 15 minutes of CPS, or minimum 500 cookies
+            let reward = Math.max(500, cps * 60 * 15); 
+            cookies += reward;
+            
+            // Hide it
+            goldenCookieBtn.style.display = "none";
+            goldenActive = false;
+            
+            // Show notification
+            notification.innerText = `Lucky! +${Math.floor(reward).toLocaleString()} cookies!`;
+            notification.style.opacity = 1;
+            setTimeout(() => { notification.style.opacity = 0; }, 3000);
+            
+            updateDisplay();
+        });
+
+        function spawnGoldenCookie() {
+            if (goldenActive) return;
+            goldenActive = true;
+            
+            // Random position on screen, keeping it away from absolute edges
+            let x = 50 + Math.random() * (window.innerWidth - 150);
+            let y = 50 + Math.random() * (window.innerHeight - 150);
+            
+            goldenCookieBtn.style.left = `${x}px`;
+            goldenCookieBtn.style.top = `${y}px`;
+            goldenCookieBtn.style.display = 'block';
+
+            // Disappears if not clicked in 10 seconds
+            goldenTimeout = setTimeout(() => {
+                goldenCookieBtn.style.display = 'none';
+                goldenActive = false;
+            }, 10000);
+        }
+
+        function queueGoldenCookie() {
+            // Base time: 30 to 60 seconds
+            let baseTime = Math.random() * 30000 + 30000; 
+            // Golden Upgrade reduces wait time by 20% per level
+            let timeToWait = baseTime * Math.pow(0.8, goldenLevel); 
+            
+            setTimeout(() => {
+                spawnGoldenCookie();
+                queueGoldenCookie(); // Queue the next one
+            }, timeToWait);
+        }
+
+        // Math Equation to calculate total CPS
+        function calculateCPS() {
+            let total = 0;
+            for (let id in buildings) {
+                total += buildings[id].count * buildings[id].cps;
+            }
+            cps = total;
+        }
+
+        // Automatic engine tick (Runs 10 times a second)
+        function gameTick() {
+            cookies += cps / 10; // Add 1/10th of your CPS every 100ms
+            updateDisplay();
+        }
+
+        // Updates UI and handles button graying
+        function updateDisplay() {
+            // Math.floor ensures we don't show decimals for total cookies
+            cookieDisplay.innerText = `${Math.floor(cookies).toLocaleString()} cookies`;
+            cpsDisplay.innerText = `${cps.toFixed(1)} CPS`;
+
+            clickCostDisplay.innerText = clickUpgradeCost;
+            clickBtn.disabled = (cookies < clickUpgradeCost);
+
+            goldenCostDisplay.innerText = goldenCost;
+            goldenLevelDisplay.innerText = goldenLevel;
+            goldenUpgradeBtn.disabled = (cookies < goldenCost);
+
+            for (let id in buildings) {
+                let b = buildings[id];
+                document.getElementById(`${id}-count`).innerText = b.count;
+                document.getElementById(`${id}-cost`).innerText = b.cost;
+                document.getElementById(`buy-${id}`).disabled = (cookies < b.cost);
+            }
+        }
+
+        // Boot system core loops
+        setInterval(gameTick, 100);
+        queueGoldenCookie();
+        updateDisplay();
+    </script>
+</body>
+</html>

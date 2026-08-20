@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Unit Converter</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            background: #1e1e24; 
+            color: #fff; 
+            padding-top: 40px; 
+            margin: 0;
+        }
+        .container { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+            width: 100%; 
+            max-width: 420px; 
+            padding: 25px;
+            background: #2f3640;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.4);
+            box-sizing: border-box;
+        }
+        h2 { margin: 0; color: #00b4d8; text-align: center; }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        label { font-size: 0.9rem; color: #a0aec0; }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            background: #1e1e24;
+            border: 2px solid #4a5568;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1.1rem;
+            outline: none;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus { border-color: #00b4d8; }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .results {
+            background: #1e1e24;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            border: 2px solid #4a5568;
+        }
+        .results span { font-size: 0.9rem; color: #a0aec0; }
+        #outputValue {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #00b4d8;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Unit Converter</h2>
+        
+        <div class="input-group">
+            <label>Conversion Type</label>
+            <select id="categorySelect">
+                <option value="length">Length</option>
+                <option value="weight">Weight / Mass</option>
+                <option value="temp">Temperature</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Value to Convert</label>
+            <input type="number" id="inputValue" value="1" step="any">
+        </div>
+
+        <div class="row">
+            <div class="input-group">
+                <label>From</label>
+                <select id="fromUnit"></select>
+            </div>
+            <div class="input-group">
+                <label>To</label>
+                <select id="toUnit"></select>
+            </div>
+        </div>
+
+        <div class="results">
+            <span>Converted Result</span>
+            <div id="outputValue">0</div>
+        </div>
+    </div>
+
+    <script>
+        const categorySelect = document.getElementById('categorySelect');
+        const inputValue = document.getElementById('inputValue');
+        const fromUnit = document.getElementById('fromUnit');
+        const toUnit = document.getElementById('toUnit');
+        const outputValue = document.getElementById('outputValue');
+
+        const units = {
+            length: {
+                name: 'Length',
+                units: { m: 'Meters', cm: 'Centimeters', mm: 'Millimeters', km: 'Kilometers', inch: 'Inches', ft: 'Feet', mi: 'Miles' },
+                base: 'm',
+                toBase: { m: 1, cm: 0.01, mm: 0.001, km: 1000, inch: 0.0254, ft: 0.3048, mi: 1609.34 }
+            },
+            weight: {
+                name: 'Weight',
+                units: { kg: 'Kilograms', g: 'Grams', mg: 'Milligrams', lb: 'Pounds', oz: 'Ounces' },
+                base: 'kg',
+                toBase: { kg: 1, g: 0.001, mg: 0.000001, lb: 0.453592, oz: 0.0283495 }
+            },
+            temp: {
+                name: 'Temperature',
+                units: { c: 'Celsius', f: 'Fahrenheit', k: 'Kelvin' }
+            }
+        };
+
+        function updateUnits() {
+            const cat = categorySelect.value;
+            const unitList = units[cat].units;
+            
+            fromUnit.innerHTML = '';
+            toUnit.innerHTML = '';
+
+            for (const key in unitList) {
+                fromUnit.add(new Option(unitList[key], key));
+                toUnit.add(new Option(unitList[key], key));
+            }
+            if (toUnit.options.length > 1) {
+                toUnit.selectedIndex = 1;
+            }
+            convert();
+        }
+
+        function convert() {
+            const cat = categorySelect.value;
+            const val = parseFloat(inputValue.value);
+            const from = fromUnit.value;
+            const to = toUnit.value;
+
+            if (isNaN(val)) {
+                outputValue.innerText = '0';
+                return;
+            }
+
+            let result = 0;
+
+            if (cat === 'temp') {
+                // Temperature specific conversion logic
+                let celsius = val;
+                if (from === 'f') celsius = (val - 32) * 5/9;
+                if (from === 'k') celsius = val - 273.15;
+
+                if (to === 'c') result = celsius;
+                if (to === 'f') result = (celsius * 9/5) + 32;
+                if (to === 'k') result = celsius + 273.15;
+            } else {
+                // Standard multiplier conversion logic
+                const config = units[cat];
+                const baseValue = val * config.toBase[from];
+                result = baseValue / config.toBase[to];
+            }
+
+            // Format output nicely (max 4 decimal places if needed)
+            outputValue.innerText = Number(result.toFixed(4));
+        }
+
+        categorySelect.addEventListener('change', updateUnits);
+        inputValue.addEventListener('input', convert);
+        fromUnit.addEventListener('change', convert);
+        toUnit.addEventListener('change', convert);
+
+        // Initial setup
+        updateUnits();
+    </script>
+</body>
+</html>

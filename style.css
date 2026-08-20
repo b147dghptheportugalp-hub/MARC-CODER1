@@ -1,0 +1,170 @@
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #1e1e24;
+    color: #fff;
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 40px 0;
+}
+
+.lobby-container {
+    text-align: center;
+    width: 100%;
+    max-width: 800px;
+    padding: 20px;
+}
+
+h1 {
+    font-size: 3rem;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    color: #888;
+    margin-bottom: 40px;
+}
+
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 20px;
+}
+
+.game-card {
+    background-color: #2a2a35;
+    border: 2px solid #3a3a4c;
+    border-radius: 12px;
+    padding: 30px 20px;
+    color: #fff;
+    text-decoration: none;
+    font-size: 1.1rem;
+    font-weight: bold;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    transition: transform 0.2s, background-color 0.2s, border-color 0.2s;
+}
+
+.game-card .icon {
+    font-size: 3rem;
+}
+
+.game-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Color glowing accents on hover */
+.chess-theme:hover { background-color: #769656; border-color: #96bc4b; }
+.dino-theme:hover { background-color: #e65100; border-color: #ff9800; }
+.snake-theme:hover { background-color: #0288d1; border-color: #03a9f4; }
+.tracker-theme:hover { background-color: #7b1fa2; border-color: #9c27b0; } 
+
+/* --- Added Minesweeper Theme --- */
+.minesweeper-theme:hover { 
+    background-color: #4e4e5a; 
+    border-color: #808096; 
+    box-shadow: 0 8px 20px rgba(128, 128, 150, 0.4);
+}
+
+.cookie-theme {
+    background: linear-gradient(135deg, #ffb86c 0%, #ff79c6 100%);
+}
+.cookie-theme:hover {
+    box-shadow: 0 8px 20px rgba(255, 184, 108, 0.4);
+}
+
+.darts-theme {
+    background: linear-gradient(135deg, #ff5555 0%, #bd93f9 100%);
+}
+.darts-theme:hover {
+    box-shadow: 0 8px 20px rgba(255, 85, 85, 0.4);
+}
+
+/* --- Added Tic-Tac-Toe Theme --- */
+.tictactoe-theme {
+    background: linear-gradient(135deg, #2196F3 0%, #F44336 100%);
+}
+.tictactoe-theme:hover {
+    box-shadow: 0 8px 20px rgba(139, 78, 201, 0.5);
+}/* --- Added Blackjack Theme --- */
+.blackjack-theme {
+    background: linear-gradient(135deg, #006400 0%, #d4af37 100%);
+}
+
+.blackjack-theme:hover {
+    background: linear-gradient(135deg, #008000 0%, #ffd700 100%);
+    border-color: #ffd700;
+    box-shadow: 0 8px 20px rgba(212, 175, 55, 0.5);
+}.poxel-theme {
+    background: linear-gradient(135deg, #00a896, #ff007f); /* Teal to Pink gradient */
+    color: white;
+}/* Custom theme color for Flappy Bird card */
+.flappy-theme {
+    background: linear-gradient(135deg, #70c5ce, #00a896); /* Sky Blue to Teal gradient */
+    color: white;
+}/* Custom theme color for ERRUNERS card */
+.erruners-theme {
+    background: linear-gradient(135deg, #111118, #ff007f); /* Dark cyber-grid to hot pink */
+    color: #ffd700; /* Gold text to match the game logo */
+    border: 1px solid #00f0ff; /* Neon blue border glow */
+}.whack-theme{
+    background: linear-gradient(135deg,#8B4513,#A0522D);
+    color:white;
+}
+
+.whack-theme:hover{
+    transform:translateY(-6px) scale(1.03);
+    box-shadow:0 10px 25px rgba(0,0,0,.35);
+}.reaction-theme{
+    background: linear-gradient(135deg,#ff9800,#ff5722);
+    color: white;
+}
+
+.reaction-theme:hover{
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 10px 25px rgba(0,0,0,.35);
+}.pong-theme{
+    background: linear-gradient(135deg,#00bcd4,#0066ff);
+    color:white;
+}
+
+.pong-theme:hover{
+    transform:translateY(-6px) scale(1.03);
+    box-shadow:0 10px 25px rgba(0,0,0,.35);
+}.tetris-theme{
+    background:linear-gradient(135deg,#00c6ff,#0072ff);
+    color:white;
+}
+
+.tetris-theme:hover{
+    transform:translateY(-6px) scale(1.03);
+    box-shadow:0 10px 25px rgba(0,0,0,.35);
+}/* tkwars Card Custom Theme Styling */
+.tkwars-theme {
+    background: linear-gradient(135deg, #111e16 0%, #002b1b 100%);
+    color: #00ffaa;
+    border: 2px solid #00ffcc;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tkwars-theme:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 255, 170, 0.3);
+}
+.palmon-theme {
+    background: linear-gradient(135deg, #6a11cb, #2575fc);
+    border-color: #6a11cb;
+}
+
+.palmon-theme:hover {
+    box-shadow: 0 0 15px rgba(106, 17, 203, 0.6);
+}

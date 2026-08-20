@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Python Runner</title>
+
+<style>
+body{
+    font-family:Arial;
+    background:#222;
+    color:white;
+    padding:20px;
+}
+
+textarea{
+    width:100%;
+    height:250px;
+    background:#111;
+    color:#00ff00;
+    font-size:16px;
+    padding:10px;
+}
+
+button{
+    padding:10px 20px;
+    font-size:18px;
+    cursor:pointer;
+}
+
+pre{
+    background:black;
+    padding:15px;
+    min-height:100px;
+    color:#00ff88;
+}
+</style>
+
+</head>
+
+<body>
+
+<h1>Python Runner</h1>
+
+<textarea id="code">
+print("Hello World!")
+
+for i in range(5):
+    print(i)
+</textarea>
+
+<br><br>
+
+<button onclick="runPython()">▶ Run</button>
+
+<h2>Output:</h2>
+<pre id="output"></pre>
+
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+
+<script>
+
+let pyodide;
+
+async function loadPython(){
+    pyodide = await loadPyodide();
+    document.getElementById("output").innerHTML="Python Ready!";
+}
+
+loadPython();
+
+
+async function runPython(){
+
+    let code = document.getElementById("code").value;
+    let output = "";
+
+    pyodide.setStdout({
+        batched:(text)=>{
+            output += text;
+        }
+    });
+
+    try{
+        await pyodide.runPythonAsync(code);
+        document.getElementById("output").innerHTML = output;
+    }
+    catch(error){
+        document.getElementById("output").innerHTML = error;
+    }
+
+}
+
+</script>
+
+</body>
+</html>

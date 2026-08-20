@@ -1,0 +1,3503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+<title>Cyber Grid Arena LV43</title>
+
+<style>
+
+body,html{
+margin:0;
+padding:0;
+overflow:hidden;
+background:#080c16;
+font-family:"Courier New",monospace;
+user-select:none;
+touch-action:none;
+width:100%;
+height:100%;
+position:fixed;
+}
+
+#canvas{
+display:block;
+background:#0f1423;
+}
+
+
+/* HUD */
+
+#hud{
+
+position:absolute;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+
+width:350px;
+
+padding:15px;
+
+background:rgba(10,15,30,.9);
+
+border:2px solid #00ffcc;
+
+border-radius:10px;
+
+color:white;
+
+text-align:center;
+
+z-index:5;
+
+box-shadow:0 0 20px #00ffcc;
+
+}
+
+
+#player-lvl{
+
+font-size:15px;
+font-weight:bold;
+color:#ffff00;
+
+}
+
+
+#tank-desc{
+
+font-size:12px;
+color:#aaa;
+
+margin:5px;
+
+}
+
+
+
+#xp-bar-container{
+
+height:12px;
+
+background:#222;
+
+border:1px solid #00ffcc;
+
+border-radius:5px;
+
+overflow:hidden;
+
+}
+
+
+#xp-bar{
+
+height:100%;
+
+width:0%;
+
+background:#00ffcc;
+
+}
+
+
+
+
+
+/* Upgrade panel */
+
+#upgrades{
+
+position:absolute;
+
+left:20px;
+bottom:20px;
+
+display:flex;
+
+flex-direction:column;
+
+gap:6px;
+
+z-index:5;
+
+}
+
+
+.stat-row{
+
+background:rgba(10,15,30,.9);
+
+padding:8px;
+
+color:white;
+
+border:1px solid #334;
+
+}
+
+
+.stat-btn{
+
+background:#ff007f;
+
+border:none;
+
+color:white;
+
+width:25px;
+
+height:25px;
+
+}
+
+
+
+
+
+/* Abilities */
+
+
+#ability-deck{
+
+position:absolute;
+
+right:20px;
+
+bottom:20px;
+
+display:flex;
+
+flex-direction:column;
+
+gap:10px;
+
+z-index:5;
+
+}
+
+
+
+.ability-btn{
+
+background:#101828;
+
+border:2px solid orange;
+
+color:orange;
+
+padding:12px;
+
+font-weight:bold;
+
+}
+
+
+
+
+
+/* Dev */
+
+
+#dev-panel{
+
+position:absolute;
+
+top:20px;
+
+left:20px;
+
+z-index:5;
+
+}
+
+
+.dev-btn{
+
+background:#ffff00;
+
+padding:10px;
+
+font-weight:bold;
+
+border:none;
+
+}
+
+
+
+
+
+/* minimap */
+
+
+#minimap-container{
+
+position:absolute;
+
+right:20px;
+
+top:20px;
+
+width:130px;
+
+height:130px;
+
+border:2px solid #555;
+
+background:#111;
+
+z-index:5;
+
+}
+
+
+#minimap{
+
+width:100%;
+height:100%;
+
+}
+
+
+/* MOBILE UI */
+
+#mobile-buttons{
+display:none;
+position:absolute;
+bottom:20px;
+right:20px;
+z-index:10;
+gap:10px;
+flex-direction:column;
+}
+
+.mobile-btn{
+background:rgba(255,128,0,0.8);
+border:2px solid #ff8000;
+color:white;
+padding:15px 20px;
+font-weight:bold;
+border-radius:8px;
+font-size:14px;
+cursor:pointer;
+min-width:60px;
+text-align:center;
+}
+
+.mobile-btn:active{
+background:rgba(255,128,0,1);
+transform:scale(0.95);
+}
+
+#joystick-visual{
+display:none;
+position:fixed;
+bottom:80px;
+left:80px;
+width:100px;
+height:100px;
+background:rgba(0,255,200,0.1);
+border:2px solid rgba(0,255,200,0.3);
+border-radius:50%;
+z-index:10;
+}
+
+#joystick-visual::after{
+content:'';
+position:absolute;
+width:40px;
+height:40px;
+background:rgba(0,255,200,0.5);
+border-radius:50%;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+}
+
+</style>
+
+</head>
+<a href="../index.html" id="back-btn">← MENU</a>
+
+<body>
+
+
+
+<div id="dev-panel">
+
+<button class="dev-btn" onclick="devLevelUp()">
+⚡ FORCE LEVEL UP
+</button>
+
+</div>
+
+
+
+<div id="upgrades">
+
+
+<div id="points-counter">
+CORE UPGRADES:0
+</div>
+
+
+<div class="stat-row">
+<button class="stat-btn" onclick="upgradeStat('speed')">+</button>
+Speed
+<span id="lbl-speed">0</span>
+</div>
+
+
+<div class="stat-row">
+<button class="stat-btn" onclick="upgradeStat('reload')">+</button>
+Reload
+<span id="lbl-reload">0</span>
+</div>
+
+
+<div class="stat-row">
+<button class="stat-btn" onclick="upgradeStat('bspeed')">+</button>
+Bullet Speed
+<span id="lbl-bspeed">0</span>
+</div>
+
+
+<div class="stat-row">
+<button class="stat-btn" onclick="upgradeStat('health')">+</button>
+Health
+<span id="lbl-health">0</span>
+</div>
+
+
+</div>
+
+
+
+
+<div id="ability-deck">
+
+
+<button class="ability-btn" onclick="triggerInvis()" id="btn-cloak">
+[Q] CLOAK
+</button>
+
+
+<button class="ability-btn" onclick="triggerDash()" id="btn-dash">
+[E] DASH
+</button>
+
+
+</div>
+
+
+
+
+<div id="hud">
+
+
+<div id="player-lvl">
+BASIC TANK LV1
+</div>
+
+
+<div id="tank-desc">
+Starter tank
+</div>
+
+
+
+<div id="xp-bar-container">
+
+<div id="xp-bar"></div>
+
+</div>
+
+
+
+<div id="player-hp">
+SHIELD 100/100
+</div>
+
+
+</div>
+
+
+
+
+
+<div id="minimap-container">
+
+<canvas id="minimap"></canvas>
+
+</div>
+
+
+
+<canvas id="canvas"></canvas>
+
+<div id="mobile-buttons">
+<button class="mobile-btn" onclick="triggerInvis()" id="mobile-q">Q<br>CLOAK</button>
+<button class="mobile-btn" onclick="triggerDash()" id="mobile-e">E<br>DASH</button>
+</div>
+
+<div id="joystick-visual"></div>
+
+<script>
+
+
+
+const canvas=document.getElementById("canvas");
+
+const ctx=canvas.getContext("2d");
+
+
+
+const minimapCanvas=document.getElementById("minimap");
+
+const mctx=minimapCanvas.getContext("2d");
+
+
+
+function resize(){
+
+canvas.width=innerWidth;
+
+canvas.height=innerHeight;
+
+minimapCanvas.width=130;
+
+minimapCanvas.height=130;
+
+}
+
+
+resize();
+
+window.onresize=resize;
+
+
+
+
+
+/*
+===========================
+TANK EVOLUTION DATABASE
+LV1 - LV43
+===========================
+*/
+
+
+const TANK_PRESETS={
+
+
+1:{
+name:"BASIC TANK LV1",
+desc:"Starter cannon tank"
+},
+
+
+2:{
+name:"MINI BARREL LV2",
+desc:"Fast firing tank"
+},
+
+
+3:{
+name:"DOUBLE BARREL LV3",
+desc:"Two cannon system"
+},
+
+
+4:{
+name:"SCATTER TANK LV4",
+desc:"Shotgun spread attacks"
+},
+
+
+5:{
+name:"SPIKE TANK LV5",
+desc:"Charging melee tank"
+},
+
+
+6:{
+name:"TRIPLE BARREL LV6",
+desc:"Three cannon power"
+},
+
+
+7:{
+name:"BURST TANK LV7",
+desc:"Explosive rounds"
+},
+
+
+8:{
+name:"RAIL TANK LV8",
+desc:"High speed rail shots"
+},
+
+
+9:{
+name:"ORBIT TANK LV9",
+desc:"Orbiting weapons"
+},
+
+
+10:{
+name:"CYCLONE LV10",
+desc:"Rotating cannon"
+},
+
+
+11:{
+name:"QUAD TANK LV11",
+desc:"Four barrel tank"
+},
+
+
+12:{
+name:"PULSE TANK LV12",
+desc:"Energy waves"
+},
+
+
+13:{
+name:"SPLITSHOT LV13",
+desc:"Splitting bullets"
+},
+
+
+14:{
+name:"DRONE SWARM LV14",
+desc:"Drone army"
+},
+
+
+15:{
+name:"LASER TANK LV15",
+desc:"Laser cannon"
+},
+
+
+16:{
+name:"VORTEX LV16",
+desc:"Gravity weapon"
+},
+
+
+17:{
+name:"NOVA LV17",
+desc:"Star explosions"
+},
+
+
+18:{
+name:"PHANTOM LV18",
+desc:"Stealth tank"
+},
+
+
+19:{
+name:"ULTRA LV19",
+desc:"Six barrel monster"
+},
+
+
+20:{
+name:"OMEGA LV20",
+desc:"Dual weapon mode"
+},
+
+
+21:{
+name:"TITAN LV21",
+desc:"Heavy armor"
+},
+
+
+22:{
+name:"ECLIPSE LV22",
+desc:"Void energy"
+},
+
+
+23:{
+name:"SUPREME LV23",
+desc:"Legendary evolution"
+},
+
+
+24:{
+name:"METEOR TANK LV24",
+desc:"Burning meteor shots"
+},
+
+
+25:{
+name:"SHREDDER TANK LV25",
+desc:"Spinning saw blade"
+},
+
+
+26:{
+name:"PRISM TANK LV26",
+desc:"Crystal splitting shots"
+},
+
+
+27:{
+name:"AVALANCHE LV27",
+desc:"Rolling destruction"
+},
+
+
+28:{
+name:"VOLT TANK LV28",
+desc:"Chain lightning"
+},
+
+
+29:{
+name:"WARP TANK LV29",
+desc:"Teleport attacks"
+},
+
+
+30:{
+name:"HYDRA TANK LV30",
+desc:"Four headed cannon"
+},
+
+
+31:{
+name:"FROSTBITE LV31",
+desc:"Ice weapons"
+},
+
+
+32:{
+name:"MAGMA CORE LV32",
+desc:"Molten cannon"
+},
+
+
+33:{
+name:"TORNADO LV33",
+desc:"Vortex control"
+},
+
+
+34:{
+name:"ECHO LV34",
+desc:"Delayed explosions"
+},
+
+
+35:{
+name:"BARRAGE LV35",
+desc:"Missile waves"
+},
+
+
+36:{
+name:"GUARDIAN LV36",
+desc:"Shield drones"
+},
+
+
+37:{
+name:"PULSE BEAM LV37",
+desc:"Power beam"
+},
+
+
+38:{
+name:"GRAVITY LV38",
+desc:"Gravity wells"
+},
+
+
+39:{
+name:"MIRAGE LV39",
+desc:"Hologram clones"
+},
+
+
+40:{
+name:"BLITZ LV40",
+desc:"Dash destroyer"
+},
+
+
+41:{
+name:"JUGGERNAUT LV41",
+desc:"Maximum armor"
+},
+
+
+42:{
+name:"NEBULA LV42",
+desc:"Cosmic energy"
+},
+
+
+43:{
+name:"OMEGA BURST LV43",
+desc:"Ultimate explosion"
+}
+
+
+};
+
+
+
+
+
+/*
+====================
+TANK SKINS
+====================
+*/
+
+
+const TANK_SKINS={};
+
+
+const skinColors=[
+
+"#00ffcc",
+"#22ff88",
+"#00ffaa",
+"#ffee00",
+"#ff6600",
+"#00ddff",
+"#ff0055",
+"#ffffff",
+"#9933ff",
+"#ff0099",
+"#00ff00",
+"#00ccff",
+"#ffcc00",
+"#00ffff",
+"#ffff00",
+"#6600ff",
+"#ff00ff",
+"#555555",
+"#ff3300",
+"#333333",
+"#884400",
+"#220044",
+"#ffffff",
+"#ff4400",
+"#222222",
+"#00ffff",
+"#996633",
+"#ffff00",
+"#8800ff",
+"#0066ff",
+"#99ffff",
+"#ff3300",
+"#6600cc",
+"#00ff99",
+"#ff0000",
+"#cccccc",
+"#00ffff",
+"#2222ff",
+"#cc00ff",
+"#ff9900",
+"#444444",
+"#001133",
+"#ff0000"
+
+];
+
+
+for(let i=1;i<=43;i++){
+
+TANK_SKINS[i]={
+
+body:skinColors[i-1],
+
+glow:skinColors[i-1]
+
+};
+
+}
+
+
+// =============================
+// GAME DATA
+// =============================
+
+const MAP_SIZE = 3000;
+
+const MAX_BOTS = 50; // total tanks (incl. player + clones) allowed at once
+const MIN_SPAWN_DIST = 220; // min distance a new bot must spawn from existing tanks
+const MAX_TOTAL_DRONES = 150; // hard ceiling on drones, regardless of per-bot caps
+
+let tanks=[];
+let bullets=[];
+let shapes=[];
+let particles=[];
+let drones=[];
+
+let keys={};
+
+let mouse={
+x:0,
+y:0,
+down:false
+};
+
+let lastBotSpawn=0;
+
+let isMobile=false;
+
+let touchState={
+joystick:{active:false,startX:0,startY:0,curX:0,curY:0,vx:0,vy:0,id:null},
+aim:{active:false,x:0,y:0,id:null}
+};
+
+
+const BOT_PREFIXES=["Vortex","Spectre","Zenith","Quantum","Apex","Matrix","Cipher","Phantom","Gorgon","Hydra","Neon","Glyph","Glitch","Reaper","Omega"];
+const BOT_SUFFIXES=["X","Alpha","Zero","Omega","404","Prime","MK_I","Nexus","Void","Fury","V8","Sync","Stryker","Titan"];
+
+function generateBotName(){
+let p=BOT_PREFIXES[Math.floor(Math.random()*BOT_PREFIXES.length)];
+let s=BOT_SUFFIXES[Math.floor(Math.random()*BOT_SUFFIXES.length)];
+let n=Math.floor(Math.random()*900)+100;
+return `${p}_${s}_${n}`;
+}
+
+
+// =============================
+// TANK CLASS
+// =============================
+
+
+class Tank{
+
+
+constructor(x,y,isBot=false,name="PLAYER"){
+
+
+this.x=x;
+this.y=y;
+
+
+this.isBot=isBot;
+
+
+this.name=isBot ?
+generateBotName()
+:name;
+
+
+
+this.level=1;
+
+this.xp=0;
+
+this.nextXp=50;
+
+
+this.points=0;
+
+
+
+this.skin=TANK_SKINS[1];
+
+this.color=this.skin.body;
+
+
+
+this.hp=100;
+
+this.maxHp=100;
+
+
+
+this.angle=0;
+
+
+this.lastShot=0;
+
+
+
+this.stats={
+
+speed:0,
+reload:0,
+bspeed:0,
+health:0
+
+};
+
+
+
+this.target=null;
+
+
+this.vx=0;
+this.vy=0;
+
+
+this.actionTimer=0;
+
+
+
+this.dashCooldown=0;
+
+this.cloakCooldown=0;
+
+this.cloneCooldown=0;
+
+
+this.isInvis=false;
+
+
+
+this.hasRevive=true;
+
+
+
+}
+
+
+
+
+// =============================
+// UPDATE
+// =============================
+
+
+update(){
+
+
+
+if(this.hp<=0)return;
+
+
+
+if(this.dashCooldown>0)
+this.dashCooldown--;
+
+
+if(this.cloakCooldown>0)
+this.cloakCooldown--;
+
+
+if(this.cloneCooldown>0)
+
+this.cloneCooldown--;
+
+
+if(this.hp<this.maxHp)
+
+this.hp+=0.05;
+
+
+
+
+if(this.isBot)
+
+this.botAI();
+
+else
+
+this.playerMove();
+
+
+
+this.shoot();
+
+
+
+}
+
+
+
+
+
+// =============================
+// PLAYER MOVEMENT
+// =============================
+
+
+playerMove(){
+
+
+let speed=3+
+(this.stats.speed*.5);
+
+
+
+let mx=0;
+let my=0;
+
+
+
+if(keys["w"]||keys["arrowup"])
+my=-1;
+
+
+if(keys["s"]||keys["arrowdown"])
+my=1;
+
+
+if(keys["a"]||keys["arrowleft"])
+mx=-1;
+
+
+if(keys["d"]||keys["arrowright"])
+mx=1;
+
+
+if(isMobile && touchState.joystick.active){
+mx=touchState.joystick.vx;
+my=touchState.joystick.vy;
+}
+
+
+this.x+=mx*speed;
+
+this.y+=my*speed;
+
+
+if(isMobile && touchState.aim.active){
+this.angle=Math.atan2(
+touchState.aim.y-canvas.height/2,
+touchState.aim.x-canvas.width/2
+);
+}else{
+this.angle=Math.atan2(
+
+mouse.y-canvas.height/2,
+
+mouse.x-canvas.width/2
+
+);
+}
+
+
+
+}
+
+
+
+// =============================
+// BOT AI
+// =============================
+
+
+botAI(){
+
+
+this.actionTimer--;
+
+
+if(this.actionTimer<=0){
+
+
+this.actionTimer=80;
+
+
+let a=Math.random()*Math.PI*2;
+
+
+this.vx=Math.cos(a);
+
+this.vy=Math.sin(a);
+
+
+}
+
+
+
+this.x+=this.vx*2;
+
+this.y+=this.vy*2;
+
+
+
+let target=this.findTarget();
+
+
+
+if(target){
+
+
+this.angle=Math.atan2(
+
+target.y-this.y,
+
+target.x-this.x
+
+);
+
+
+this.target=target;
+
+
+
+}
+
+
+}
+
+
+
+
+findTarget(){
+
+
+let best=null;
+
+let dist=500;
+
+
+
+tanks.forEach(t=>{
+
+
+if(t!==this && t.hp>0){
+
+
+let d=Math.hypot(
+
+t.x-this.x,
+
+t.y-this.y
+
+);
+
+
+
+if(d<dist){
+
+dist=d;
+
+best=t;
+
+}
+
+
+
+}
+
+
+});
+
+
+return best;
+
+
+}
+
+
+
+
+
+
+// =============================
+// XP + LEVEL SYSTEM
+// =============================
+
+
+addXp(amount){
+
+
+this.xp+=amount;
+
+
+
+if(this.xp>=this.nextXp && this.level<43){
+
+
+this.xp-=this.nextXp;
+
+
+this.level++;
+
+
+this.points++;
+
+
+
+this.nextXp=
+Math.floor(this.nextXp*1.25+20);
+
+
+
+// CHANGE SKIN
+
+this.skin=TANK_SKINS[this.level];
+
+this.color=this.skin.body;
+
+
+
+this.maxHp=
+100+
+(this.level*15);
+
+
+
+this.hp=this.maxHp;
+
+
+
+if(!this.isBot)
+
+updateUI();
+
+
+
+createExplosion(
+
+this.x,
+
+this.y,
+
+this.skin.glow,
+
+30
+
+);
+
+
+
+}
+
+
+
+}
+
+
+
+
+
+
+// =============================
+// SHOOTING
+// =============================
+
+
+shoot(){
+
+
+
+let canShoot=
+
+this.isBot ?
+
+this.target!=null:
+
+(mouse.down || (isMobile && touchState.aim.active));
+
+
+
+if(!canShoot)return;
+
+
+
+let delay=
+500-
+(this.stats.reload*40);
+
+
+
+if(Date.now()-this.lastShot<delay)
+return;
+
+
+
+this.weapon();
+
+
+
+this.lastShot=Date.now();
+
+
+
+}
+
+
+
+
+// =============================
+// WEAPON CONTROLLER
+// =============================
+
+
+weapon(){
+
+
+let lvl=this.level;
+
+
+
+// basic placeholder
+// Chunk 3 adds all LV1-43 weapons
+
+
+fireBullet.call(
+this,
+this.angle,
+0
+);
+
+
+
+}
+
+
+
+}
+
+
+
+
+// =============================
+// BULLET FUNCTION
+// =============================
+
+
+function fireBullet(angle){
+
+
+let speed=
+8+
+(this.stats.bspeed);
+
+
+
+bullets.push({
+
+x:this.x,
+
+y:this.y,
+
+vx:Math.cos(angle)*speed,
+
+vy:Math.sin(angle)*speed,
+
+
+damage:
+10+this.level,
+
+
+size:6,
+
+
+owner:this,
+
+
+color:this.skin.glow,
+
+
+life:100
+
+
+});
+
+
+}
+
+
+
+
+
+// =============================
+// CREATE EXPLOSION
+// =============================
+
+
+function createExplosion(x,y,color,count=10){
+
+
+
+for(let i=0;i<count;i++){
+
+
+let a=Math.random()*Math.PI*2;
+
+
+particles.push({
+
+x:x,
+
+y:y,
+
+
+vx:Math.cos(a)*3,
+
+vy:Math.sin(a)*3,
+
+
+size:Math.random()*5+2,
+
+
+life:30,
+
+
+color:color
+
+
+});
+
+
+}
+
+
+}
+
+
+
+
+
+// =============================
+// PLAYER SPAWN
+// =============================
+
+
+let playerObj=
+new Tank(
+
+MAP_SIZE/2,
+
+MAP_SIZE/2,
+
+false,
+
+"NEXUS_CORE"
+
+);
+
+
+
+tanks.push(playerObj);
+
+
+
+
+
+// =============================
+// DEV LEVEL BUTTON
+// =============================
+
+
+function devLevelUp(){
+
+if(!playerObj)return;
+
+if(playerObj.level<43){
+
+
+playerObj.level++;
+
+
+playerObj.points++;
+
+
+
+playerObj.skin=
+TANK_SKINS[playerObj.level];
+
+
+playerObj.color=
+playerObj.skin.body;
+
+
+
+playerObj.maxHp=
+100+
+playerObj.level*15;
+
+
+playerObj.hp=
+playerObj.maxHp;
+
+
+
+updateUI();
+
+
+createExplosion(
+
+playerObj.x,
+
+playerObj.y,
+
+playerObj.skin.glow,
+
+40
+
+);
+
+
+
+}
+
+
+}
+
+
+
+
+// =============================
+// UI UPDATE
+// =============================
+
+
+function updateUI(){
+
+if(!playerObj)return;
+
+let data=
+TANK_PRESETS[playerObj.level];
+
+
+
+document.getElementById(
+"player-lvl"
+).innerText=data.name;
+
+
+
+document.getElementById(
+"tank-desc"
+).innerText=data.desc;
+
+
+
+document.getElementById(
+"xp-bar"
+).style.width=
+
+(playerObj.xp/playerObj.nextXp*100)
++"%";
+
+
+
+document.getElementById(
+"player-hp"
+).innerText=
+
+"SHIELD "+
+Math.floor(playerObj.hp)
++
+"/"+
+playerObj.maxHp;
+
+
+
+document.getElementById(
+"points-counter"
+).innerText=
+
+"CORE UPGRADES:"
++
+playerObj.points;
+
+
+}
+
+
+
+
+// =====================================
+// ADVANCED LV1 - LV43 WEAPON SYSTEM
+// =====================================
+
+
+Tank.prototype.weapon=function(){
+
+
+let lvl=this.level;
+
+
+
+// BASIC
+
+if(lvl===1){
+
+this.fireAdvancedBullet(this.angle,10);
+
+}
+
+
+
+// MINI BARREL
+
+else if(lvl===2){
+
+this.fireAdvancedBullet(this.angle,8);
+
+this.fireAdvancedBullet(this.angle+0.1,8);
+
+}
+
+
+
+// DOUBLE BARREL
+
+else if(lvl===3){
+
+this.fireAdvancedBullet(this.angle-0.15,12);
+
+this.fireAdvancedBullet(this.angle+0.15,12);
+
+}
+
+
+
+// SCATTER
+
+else if(lvl===4){
+
+for(let i=-2;i<=2;i++)
+
+this.fireAdvancedBullet(
+this.angle+i*.15,
+8
+);
+
+}
+
+
+
+// SPIKE
+
+else if(lvl===5){
+
+this.fireAdvancedBullet(
+this.angle,
+25,
+18
+);
+
+}
+
+
+
+// TRIPLE
+
+else if(lvl===6){
+
+for(let i=-1;i<=1;i++)
+
+this.fireAdvancedBullet(
+this.angle+i*.2,
+12
+);
+
+}
+
+
+
+// BURST
+
+else if(lvl===7){
+
+this.fireAdvancedBullet(
+this.angle,
+40,
+22
+);
+
+}
+
+
+
+// RAIL
+
+else if(lvl===8){
+
+this.fireAdvancedBullet(
+this.angle,
+60,
+5,
+true
+);
+
+}
+
+
+
+// ORBIT
+
+else if(lvl===9){
+
+for(let i=0;i<3;i++)
+
+this.fireAdvancedBullet(
+this.angle+i*2,
+12
+);
+
+}
+
+
+
+// CYCLONE
+
+else if(lvl===10){
+
+for(let i=0;i<6;i++)
+
+this.fireAdvancedBullet(
+this.angle+i*.8,
+8
+);
+
+}
+
+
+
+// QUAD
+
+else if(lvl===11){
+
+for(let i=0;i<4;i++)
+
+this.fireAdvancedBullet(
+this.angle+i*Math.PI/2,
+15
+);
+
+}
+
+
+
+// PULSE
+
+else if(lvl===12){
+
+for(let i=0;i<6;i++)
+
+this.fireAdvancedBullet(
+this.angle+i*.62,
+12
+);
+
+}
+
+
+
+// SPLIT
+
+else if(lvl===13){
+
+this.fireAdvancedBullet(
+this.angle,
+18,
+8,
+false,
+"split"
+);
+
+}
+
+
+
+// DRONES
+
+else if(lvl===14){
+
+this.maintainDrones();
+
+this.fireAdvancedBullet(
+this.angle,
+15
+);
+
+}
+
+
+
+// LASER
+
+else if(lvl===15){
+
+this.fireAdvancedBullet(
+this.angle,
+50,
+4,
+true,
+"laser"
+);
+
+}
+
+
+
+// VORTEX
+
+else if(lvl===16){
+
+this.fireAdvancedBullet(
+this.angle,
+30,
+20,
+false,
+"vortex"
+);
+
+}
+
+
+
+// NOVA
+
+else if(lvl===17){
+
+for(let i=0;i<10;i++)
+
+this.fireAdvancedBullet(
+i*.62,
+20
+);
+
+}
+
+
+
+// PHANTOM
+
+else if(lvl===18){
+
+this.isInvis=true;
+
+this.fireAdvancedBullet(
+this.angle,
+20
+);
+
+}
+
+
+
+// ULTRA
+
+else if(lvl===19){
+
+for(let i=0;i<6;i++)
+
+this.fireAdvancedBullet(
+this.angle+i,
+20
+);
+
+}
+
+
+
+// OMEGA
+
+else if(lvl===20){
+
+this.fireAdvancedBullet(
+this.angle,
+70,
+25
+);
+
+}
+
+
+
+// TITAN
+
+else if(lvl===21){
+
+this.fireAdvancedBullet(
+this.angle,
+100,
+35
+);
+
+}
+
+
+
+// ECLIPSE
+
+else if(lvl===22){
+
+this.fireAdvancedBullet(
+this.angle,
+80,
+15,
+false,
+"void"
+);
+
+}
+
+
+
+// SUPREME
+
+else if(lvl===23){
+
+for(let i=0;i<8;i++)
+
+this.fireAdvancedBullet(
+this.angle+i*.78,
+35
+);
+
+}
+
+
+
+// =================================
+// NEW EVOLUTIONS
+// =================================
+
+
+// METEOR
+
+else if(lvl===24){
+
+this.fireAdvancedBullet(
+this.angle,
+60,
+20,
+false,
+"meteor"
+);
+
+}
+
+
+
+// SHREDDER
+
+else if(lvl===25){
+
+this.meleeSpin=true;
+
+createExplosion(
+this.x,
+this.y,
+"#ff0000",
+20
+);
+
+
+}
+
+
+
+// PRISM
+
+else if(lvl===26){
+
+this.fireAdvancedBullet(
+this.angle,
+40,
+10,
+false,
+"prism"
+);
+
+
+}
+
+
+
+// AVALANCHE
+
+else if(lvl===27){
+
+this.fireAdvancedBullet(
+this.angle,
+100,
+30,
+false,
+"rock"
+);
+
+
+}
+
+
+
+// VOLT
+
+else if(lvl===28){
+
+this.fireAdvancedBullet(
+this.angle,
+55,
+10,
+false,
+"electric"
+);
+
+
+}
+
+
+
+// WARP
+
+else if(lvl===29){
+
+this.x+=Math.cos(this.angle)*120;
+
+this.y+=Math.sin(this.angle)*120;
+
+
+this.fireAdvancedBullet(
+this.angle,
+70
+);
+
+
+}
+
+
+
+// HYDRA
+
+else if(lvl===30){
+
+for(let i=-1;i<=1;i++)
+
+this.fireAdvancedBullet(
+this.angle+i*.5,
+35
+);
+
+}
+
+
+
+// FROSTBITE
+
+else if(lvl===31){
+
+this.fireAdvancedBullet(
+this.angle,
+40,
+15,
+false,
+"ice"
+);
+
+
+}
+
+
+
+// MAGMA
+
+else if(lvl===32){
+
+this.fireAdvancedBullet(
+this.angle,
+100,
+35,
+false,
+"magma"
+);
+
+
+}
+
+
+
+// TORNADO
+
+else if(lvl===33){
+
+this.fireAdvancedBullet(
+this.angle,
+30,
+25,
+false,
+"tornado"
+);
+
+
+}
+
+
+
+// ECHO
+
+else if(lvl===34){
+
+this.fireAdvancedBullet(
+this.angle,
+60,
+20,
+false,
+"echo"
+);
+
+
+}
+
+
+
+// BARRAGE
+
+else if(lvl===35){
+
+for(let i=0;i<6;i++)
+
+this.fireAdvancedBullet(
+this.angle+Math.random()-.5,
+25
+);
+
+
+}
+
+
+
+// GUARDIAN
+
+else if(lvl===36){
+
+this.maintainDrones();
+
+}
+
+
+
+// PULSE BEAM
+
+else if(lvl===37){
+
+this.fireAdvancedBullet(
+this.angle,
+120,
+10,
+true
+);
+
+
+}
+
+
+
+// GRAVITY
+
+else if(lvl===38){
+
+this.fireAdvancedBullet(
+this.angle,
+50,
+25,
+false,
+"gravity"
+);
+
+
+}
+
+
+
+// MIRAGE
+
+else if(lvl===39){
+
+if(this.cloneCooldown<=0){
+
+let myClones=tanks.filter(t=>t.isBot && t!==this && t.level===39 && Math.hypot(t.x-this.x,t.y-this.y)<200);
+
+if(myClones.length<12 && tanks.length<MAX_BOTS){
+
+let spawnCount=Math.min(3, MAX_BOTS-tanks.length);
+
+for(let c=0;c<spawnCount;c++){
+
+let clone=new Tank(
+
+this.x+Math.cos(Math.random()*Math.PI*2)*80,
+
+this.y+Math.sin(Math.random()*Math.PI*2)*80,
+
+true
+
+);
+
+
+clone.level=this.level;
+
+clone.skin=this.skin;
+
+clone.cloneCooldown=400; // clones can't immediately re-clone, avoids runaway chains
+
+
+tanks.push(clone);
+
+}
+
+this.cloneCooldown=400;
+
+}
+
+}
+
+
+}
+
+
+
+// BLITZ
+
+else if(lvl===40){
+
+
+this.x+=Math.cos(this.angle)*200;
+
+
+this.fireAdvancedBullet(
+this.angle,
+100,
+15,
+true
+);
+
+
+}
+
+
+
+// JUGGERNAUT
+
+else if(lvl===41){
+
+this.fireAdvancedBullet(
+this.angle,
+150,
+40
+);
+
+
+}
+
+
+
+// NEBULA
+
+else if(lvl===42){
+
+this.fireAdvancedBullet(
+this.angle,
+120,
+30,
+false,
+"nebula"
+);
+
+
+}
+
+
+
+// OMEGA BURST
+
+else if(lvl===43){
+
+
+for(let i=0;i<12;i++)
+
+this.fireAdvancedBullet(
+i*.52,
+80,
+18
+);
+
+
+createExplosion(
+this.x,
+this.y,
+"#ff0000",
+30
+);
+
+
+}
+
+
+};
+
+
+
+
+
+// =====================================
+// MAINTAIN DRONES
+// =====================================
+
+Tank.prototype.maintainDrones=function(){
+
+if(drones.length>=MAX_TOTAL_DRONES)return;
+
+let maxDrones=3+Math.floor(this.level/5);
+
+let myDrones=drones.filter(d=>d.owner===this);
+
+if(myDrones.length<maxDrones){
+
+drones.push({
+x:this.x+Math.random()*50-25,
+y:this.y+Math.random()*50-25,
+owner:this,
+angle:Math.random()*Math.PI*2,
+life:Infinity
+});
+}
+
+};
+
+
+
+// =====================================
+// BULLET CREATION
+// =====================================
+
+
+Tank.prototype.fireAdvancedBullet=function(
+angle,
+damage=10,
+size=8,
+pierce=false,
+type=""
+){
+
+
+let speed=8;
+
+
+
+bullets.push({
+
+x:this.x,
+
+y:this.y,
+
+
+vx:Math.cos(angle)*speed,
+
+vy:Math.sin(angle)*speed,
+
+
+damage:damage,
+
+size:size,
+
+
+owner:this,
+
+
+life:100,
+
+
+type:type,
+
+
+pierce:pierce,
+
+
+color:this.skin.glow
+
+
+
+});
+
+
+};
+
+
+
+// =====================================
+// RENDERING + GAME LOOP
+// =====================================
+
+
+
+function drawTank(t,camX,camY){
+
+
+ctx.save();
+
+
+
+let x=t.x-camX;
+
+let y=t.y-camY;
+
+
+
+ctx.shadowBlur=25;
+
+ctx.shadowColor=t.skin.glow;
+
+
+
+// tank body
+
+ctx.fillStyle=t.skin.body;
+
+ctx.beginPath();
+
+ctx.arc(
+x,
+y,
+25,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+
+
+// outline
+
+ctx.strokeStyle="#ffffff";
+
+ctx.lineWidth=3;
+
+ctx.stroke();
+
+
+
+
+
+// barrel
+
+
+ctx.save();
+
+ctx.translate(x,y);
+
+ctx.rotate(t.angle);
+
+
+ctx.fillStyle=t.skin.glow;
+
+
+ctx.fillRect(
+0,
+-6,
+45,
+12
+);
+
+
+ctx.restore();
+
+
+
+
+
+// level text
+
+
+ctx.shadowBlur=0;
+
+
+ctx.fillStyle="white";
+
+ctx.font="12px monospace";
+
+ctx.textAlign="center";
+
+
+ctx.fillText(
+
+t.name+" LV"+t.level,
+
+x,
+
+y-40
+
+);
+
+
+
+
+
+// hp bar
+
+
+ctx.fillStyle="#222";
+
+ctx.fillRect(
+
+x-25,
+
+y-32,
+
+50,
+
+5
+
+);
+
+
+
+ctx.fillStyle=t.skin.glow;
+
+
+ctx.fillRect(
+
+x-25,
+
+y-32,
+
+50*(t.hp/t.maxHp),
+
+5
+
+);
+
+
+
+
+ctx.restore();
+
+
+}
+
+
+
+
+
+// =====================================
+// OBJECT SPAWNING
+// =====================================
+
+
+function spawnShapes(){
+
+
+while(shapes.length<120){
+
+
+
+let size=
+Math.random()*20+10;
+
+
+
+shapes.push({
+
+x:Math.random()*MAP_SIZE,
+
+y:Math.random()*MAP_SIZE,
+
+
+size:size,
+
+
+hp:size*3,
+
+
+xp:
+Math.floor(size*5),
+
+
+color:
+
+size>25?
+
+"#00ffff":
+
+"#ff00ff"
+
+
+});
+
+
+}
+
+
+
+}
+
+
+
+
+
+
+// =====================================
+// BOTS
+// =====================================
+
+
+function spawnBots(){
+
+if(Date.now()-lastBotSpawn<500)return;
+
+lastBotSpawn=Date.now();
+
+
+while(tanks.length<MAX_BOTS){
+
+
+let pos=findSpreadSpawnPoint();
+
+let bot=new Tank(
+
+pos.x,
+
+pos.y,
+
+true
+
+);
+
+
+let maxLevel=Math.min(20,playerObj.level);
+
+bot.level=
+Math.floor(Math.random()*maxLevel)+1;
+
+
+bot.skin=
+TANK_SKINS[bot.level];
+
+
+bot.color=
+bot.skin.body;
+
+
+
+bot.maxHp=
+100+
+bot.level*15;
+
+
+bot.hp=
+bot.maxHp;
+
+
+
+tanks.push(bot);
+
+
+}
+
+
+
+}
+
+// Tries a handful of random points and picks the one furthest from
+// existing tanks, so new bots don't spawn on top of each other.
+function findSpreadSpawnPoint(){
+
+let best=null, bestDist=-1;
+
+for(let attempt=0; attempt<8; attempt++){
+
+let cx=Math.random()*MAP_SIZE;
+
+let cy=Math.random()*MAP_SIZE;
+
+let nearestDist=Infinity;
+
+for(let t of tanks){
+
+let d=Math.hypot(t.x-cx, t.y-cy);
+
+if(d<nearestDist) nearestDist=d;
+
+}
+
+if(nearestDist>=MIN_SPAWN_DIST) return {x:cx, y:cy};
+
+if(nearestDist>bestDist){ bestDist=nearestDist; best={x:cx, y:cy}; }
+
+}
+
+return best || {x:Math.random()*MAP_SIZE, y:Math.random()*MAP_SIZE};
+
+}
+
+
+
+
+
+
+
+
+
+
+
+// =====================================
+// BULLET UPDATE
+// =====================================
+
+
+function updateBullets(camX,camY){
+
+
+
+for(let i=bullets.length-1;i>=0;i--){
+
+
+let b=bullets[i];
+
+let bulletRemoved=false;
+
+
+b.x+=b.vx;
+
+b.y+=b.vy;
+
+
+
+b.life--;
+
+
+
+
+
+ctx.shadowBlur=15;
+
+ctx.shadowColor=b.color;
+
+
+ctx.fillStyle=b.color;
+
+
+ctx.beginPath();
+
+
+ctx.arc(
+
+b.x-camX,
+
+b.y-camY,
+
+b.size,
+
+0,
+
+Math.PI*2
+
+);
+
+
+ctx.fill();
+
+
+ctx.shadowBlur=0;
+
+
+
+
+
+// hit objects
+
+
+for(let j=shapes.length-1;j>=0;j--){
+
+
+let s=shapes[j];
+
+
+
+if(Math.hypot(
+b.x-s.x,
+b.y-s.y
+)
+<s.size+b.size){
+
+
+
+s.hp-=b.damage;
+
+
+
+createExplosion(
+s.x,
+s.y,
+s.color,
+5
+);
+
+
+
+if(s.hp<=0){
+
+
+b.owner.addXp(
+s.xp
+);
+
+
+
+shapes.splice(j,1);
+
+
+
+}
+
+
+
+if(!b.pierce){
+
+bullets.splice(i,1);
+
+bulletRemoved=true;
+
+break;
+
+}
+
+
+
+}
+
+
+
+
+}
+
+if(bulletRemoved)continue;
+
+
+
+
+// hit tanks
+
+
+for(let j=tanks.length-1;j>=0;j--){
+
+let t=tanks[j];
+
+
+
+if(
+t!==b.owner &&
+t.hp>0
+){
+
+
+
+if(Math.hypot(
+b.x-t.x,
+b.y-t.y
+)
+<30+b.size){
+
+
+
+t.hp-=b.damage;
+
+
+
+createExplosion(
+t.x,
+t.y,
+t.skin.glow,
+8
+);
+
+
+
+if(t.hp<=0){
+
+
+
+b.owner.addXp(
+t.level*50
+);
+
+if(t===playerObj){
+playerObj=new Tank(MAP_SIZE/2,MAP_SIZE/2,false,"NEXUS_CORE");
+tanks[j]=playerObj;
+}else{
+tanks.splice(j,1);
+}
+
+}
+
+
+
+if(!b.pierce){
+
+
+bullets.splice(i,1);
+
+bulletRemoved=true;
+
+break;
+
+
+}
+
+
+
+
+}
+
+
+
+}
+
+
+
+}
+
+if(!bulletRemoved && b.life<=0)
+
+bullets.splice(i,1);
+
+
+
+}
+
+
+
+}
+
+
+
+
+
+
+
+
+// =====================================
+// PARTICLES
+// =====================================
+
+
+function updateParticles(camX,camY){
+
+
+for(let i=particles.length-1;i>=0;i--){
+
+
+
+let p=particles[i];
+
+
+p.x+=p.vx;
+
+p.y+=p.vy;
+
+
+p.life--;
+
+
+
+ctx.fillStyle=p.color;
+
+
+ctx.fillRect(
+
+p.x-camX,
+
+p.y-camY,
+
+p.size,
+
+p.size
+
+);
+
+
+
+if(p.life<=0)
+
+particles.splice(i,1);
+
+
+
+}
+
+
+
+}
+
+
+
+
+
+
+// =====================================
+// INPUT
+// =====================================
+
+
+
+window.addEventListener(
+"keydown",
+e=>{
+
+
+keys[e.key.toLowerCase()]=true;
+
+
+
+if(e.key==="l")
+
+devLevelUp();
+
+
+
+if(e.key==="q")
+
+triggerInvis();
+
+
+
+if(e.key==="e")
+
+triggerDash();
+
+
+
+});
+
+
+
+window.addEventListener(
+"keyup",
+e=>{
+
+keys[e.key.toLowerCase()]=false;
+
+});
+
+
+
+
+
+window.addEventListener(
+"mousemove",
+e=>{
+
+
+mouse.x=e.clientX;
+
+mouse.y=e.clientY;
+
+
+});
+
+
+
+
+
+window.addEventListener(
+"mousedown",
+()=>mouse.down=true
+);
+
+
+
+window.addEventListener(
+"mouseup",
+()=>mouse.down=false
+);
+
+
+// =====================================
+// MOBILE TOUCH SUPPORT
+// =====================================
+
+window.addEventListener("touchstart",(e)=>{
+e.preventDefault();
+isMobile=true;
+
+for(let i=0;i<e.changedTouches.length;i++){
+let touch=e.changedTouches[i];
+
+if(touch.clientX<canvas.width/2 && !touchState.joystick.active){
+touchState.joystick.active=true;
+touchState.joystick.startX=touch.clientX;
+touchState.joystick.startY=touch.clientY;
+touchState.joystick.curX=touch.clientX;
+touchState.joystick.curY=touch.clientY;
+touchState.joystick.id=touch.identifier;
+}else if(touch.clientX>=canvas.width/2 && !touchState.aim.active){
+touchState.aim.active=true;
+touchState.aim.x=touch.clientX;
+touchState.aim.y=touch.clientY;
+touchState.aim.id=touch.identifier;
+}
+}
+},{passive:false});
+
+window.addEventListener("touchmove",(e)=>{
+e.preventDefault();
+
+for(let i=0;i<e.touches.length;i++){
+let touch=e.touches[i];
+
+if(touchState.joystick.active && touch.identifier===touchState.joystick.id){
+touchState.joystick.curX=touch.clientX;
+touchState.joystick.curY=touch.clientY;
+let dx=touchState.joystick.curX-touchState.joystick.startX;
+let dy=touchState.joystick.curY-touchState.joystick.startY;
+let dist=Math.hypot(dx,dy);
+if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;}
+touchState.joystick.vx=dx/50;
+touchState.joystick.vy=dy/50;
+}else if(touchState.aim.active && touch.identifier===touchState.aim.id){
+touchState.aim.x=touch.clientX;
+touchState.aim.y=touch.clientY;
+}
+}
+},{passive:false});
+
+window.addEventListener("touchend",(e)=>{
+e.preventDefault();
+
+for(let i=0;i<e.changedTouches.length;i++){
+let touch=e.changedTouches[i];
+
+if(touchState.joystick.active && touch.identifier===touchState.joystick.id){
+touchState.joystick.active=false;
+touchState.joystick.vx=0;
+touchState.joystick.vy=0;
+touchState.joystick.id=null;
+}else if(touchState.aim.active && touch.identifier===touchState.aim.id){
+touchState.aim.active=false;
+touchState.aim.id=null;
+}
+}
+},{passive:false});
+
+
+
+
+
+
+
+// =====================================
+// ABILITIES
+// =====================================
+
+
+
+function triggerInvis(){
+
+if(!playerObj)return;
+
+playerObj.isInvis=
+!playerObj.isInvis;
+
+
+}
+
+
+
+
+
+function triggerDash(){
+
+if(!playerObj)return;
+
+if(playerObj.dashCooldown>0)
+return;
+
+
+
+playerObj.x+=
+Math.cos(playerObj.angle)*150;
+
+
+
+playerObj.y+=
+Math.sin(playerObj.angle)*150;
+
+
+
+playerObj.dashCooldown=120;
+
+
+
+createExplosion(
+
+playerObj.x,
+
+playerObj.y,
+
+"#ffff00",
+
+20
+
+);
+
+
+
+}
+
+
+
+
+
+
+
+
+
+// =====================================
+// UPGRADE SYSTEM
+// =====================================
+
+
+
+function upgradeStat(stat){
+
+if(!playerObj)return;
+
+if(playerObj.points<=0)
+return;
+
+
+
+if(playerObj.stats[stat]>=7)
+return;
+
+
+
+playerObj.stats[stat]++;
+
+playerObj.points--;
+
+
+
+updateUI();
+
+
+}
+
+
+
+
+
+
+
+
+// =====================================
+// MAIN LOOP
+// =====================================
+
+
+
+function loop(){
+
+
+
+ctx.clearRect(
+0,
+0,
+canvas.width,
+canvas.height
+);
+
+
+
+spawnShapes();
+
+spawnBots();
+
+
+
+let camX=0;
+
+let camY=0;
+
+if(playerObj){
+
+camX=
+playerObj.x-
+canvas.width/2;
+
+camY=
+playerObj.y-
+canvas.height/2;
+
+}
+
+
+
+
+
+// grid
+
+
+ctx.strokeStyle="#182033";
+
+
+for(
+let x=-camX%50;
+x<canvas.width;
+x+=50
+){
+
+
+ctx.beginPath();
+
+ctx.moveTo(x,0);
+
+ctx.lineTo(x,canvas.height);
+
+ctx.stroke();
+
+
+}
+
+
+
+
+for(
+let y=-camY%50;
+y<canvas.height;
+y+=50
+){
+
+
+ctx.beginPath();
+
+ctx.moveTo(0,y);
+
+ctx.lineTo(canvas.width,y);
+
+ctx.stroke();
+
+
+}
+
+
+
+
+
+// update tanks
+
+
+for(let i=tanks.length-1;i>=0;i--){
+
+if(tanks[i])tanks[i].update();
+
+}
+
+
+
+
+
+// draw objects
+
+
+for(let s of shapes){
+
+
+
+ctx.fillStyle=s.color;
+
+
+ctx.beginPath();
+
+
+ctx.arc(
+
+s.x-camX,
+
+s.y-camY,
+
+s.size,
+
+0,
+
+Math.PI*2
+
+);
+
+
+ctx.fill();
+
+
+}
+
+
+
+
+
+// draw tanks
+
+
+for(let i=0;i<tanks.length;i++){
+
+let t=tanks[i];
+
+if(t && t.hp>0)
+
+drawTank(
+t,
+camX,
+camY
+);
+
+}
+
+
+
+
+
+
+updateBullets(camX,camY);
+
+
+updateParticles(camX,camY);
+
+
+
+updateUI();
+
+// Mobile UI handling
+if(isMobile){
+document.getElementById('mobile-buttons').style.display='flex';
+document.getElementById('joystick-visual').style.display='block';
+
+if(touchState.joystick.active){
+let visual=document.getElementById('joystick-visual');
+let offsetX=touchState.joystick.vx*30;
+let offsetY=touchState.joystick.vy*30;
+visual.style.setProperty('--offset-x',offsetX+'px');
+visual.style.setProperty('--offset-y',offsetY+'px');
+visual.style.transform=`translate(${offsetX}px,${offsetY}px)`;
+}
+}else{
+document.getElementById('mobile-buttons').style.display='none';
+document.getElementById('joystick-visual').style.display='none';
+}
+
+requestAnimationFrame(loop);
+
+
+}
+
+
+
+
+
+updateUI();
+
+loop();
+
+
+
+</script>
+
+</body>
+
+</html>

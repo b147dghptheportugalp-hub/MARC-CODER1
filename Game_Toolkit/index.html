@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Game Toolkit</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+</head>
+
+
+<body>
+
+
+    <!-- =========================================
+         HEADER
+    ========================================== -->
+
+    <header class="topbar">
+
+        <div class="logo">
+            🎮 Game Toolkit
+        </div>
+
+
+        <nav class="main-nav">
+
+            <button
+                class="nav-button active"
+                data-section="home"
+            >
+                🏠 Home
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-section="create"
+            >
+                🧱 Create
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-section="systems"
+            >
+                ⚔️ Game Systems
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-section="world"
+            >
+                🌎 World Building
+            </button>
+
+
+            <button
+                class="nav-button"
+                data-section="coding"
+            >
+                💻 Coding
+            </button>
+
+        </nav>
+
+    </header>
+
+
+
+    <!-- =========================================
+         MAIN CONTENT
+    ========================================== -->
+
+    <main>
+
+
+        <!-- =====================================
+             HOME
+        ====================================== -->
+
+        <section
+            id="home"
+            class="page-section active"
+        >
+
+            <div class="hero">
+
+                <div class="hero-icon">
+                    🎮
+                </div>
+
+
+                <h1>
+                    Game Dev Toolkit
+                </h1>
+
+
+                <p>
+                    Everything you need to create
+                    your own games.
+                </p>
+
+
+                <button class="start-button">
+                    🚀 Start Creating
+                </button>
+
+            </div>
+
+
+
+            <div class="section-title">
+
+                <h2>
+                    🛠️ Tools
+                </h2>
+
+
+                <p>
+                    Choose a tool to get started.
+                </p>
+
+            </div>
+
+
+
+            <div class="tool-grid">
+
+
+                <!-- PIXEL ART -->
+
+                <div
+                    class="tool-card"
+                    data-tool="pixel-art"
+                >
+
+                    <div class="tool-icon">
+                        🎨
+                    </div>
+
+
+                    <h3>
+                        Pixel Art Editor
+                    </h3>
+
+
+                    <p>
+                        Create pixel art and sprites.
+                    </p>
+
+                </div>
+
+
+
+                <!-- MAP EDITOR -->
+
+                <div
+                    class="tool-card"
+                    data-tool="map-editor"
+                >
+
+                    <div class="tool-icon">
+                        🗺️
+                    </div>
+
+
+                    <h3>
+                        Map Editor
+                    </h3>
+
+
+                    <p>
+                        Create maps and levels.
+                    </p>
+
+                </div>
+
+
+
+                <!-- ENEMY CREATOR -->
+
+                <div
+                    class="tool-card"
+                    data-tool="enemy-creator"
+                >
+
+                    <div class="tool-icon">
+                        👾
+                    </div>
+
+
+                    <h3>
+                        Enemy Creator
+                    </h3>
+
+
+                    <p>
+                        Create enemies and stats.
+                    </p>
+
+                </div>
+
+
+
+                <!-- ITEM CREATOR -->
+
+                <div
+                    class="tool-card"
+                    data-tool="item-creator"
+                >
+
+                    <div class="tool-icon">
+                        🧰
+                    </div>
+
+
+                    <h3>
+                        Item Creator
+                    </h3>
+
+
+                    <p>
+                        Create weapons and items.
+                    </p>
+
+                </div>
+
+
+
+                <!-- LOOT GENERATOR -->
+
+                <div
+                    class="tool-card"
+                    data-tool="loot-generator"
+                >
+
+                    <div class="tool-icon">
+                        🎲
+                    </div>
+
+
+                    <h3>
+                        Loot Generator
+                    </h3>
+
+
+                    <p>
+                        Create random loot tables.
+                    </p>
+
+                </div>
+
+
+
+                <!-- QUEST GENERATOR -->
+
+                <div
+                    class="tool-card"
+                    data-tool="quest-generator"
+                >
+
+                    <div class="tool-icon">
+                        📜
+                    </div>
+
+
+                    <h3>
+                        Quest Generator
+                    </h3>
+
+
+                    <p>
+                        Create quests for your game.
+                    </p>
+
+                </div>
+
+
+
+                <!-- NPC GENERATOR -->
+
+                <div
+                    class="tool-card"
+                    data-tool="npc-generator"
+                >
+
+                    <div class="tool-icon">
+                        🧙
+                    </div>
+
+
+                    <h3>
+                        NPC Generator
+                    </h3>
+
+
+                    <p>
+                        Create characters and NPCs.
+                    </p>
+
+                </div>
+
+
+
+                <!-- SKILL TREE -->
+
+                <div
+                    class="tool-card"
+                    data-tool="skill-tree"
+                >
+
+                    <div class="tool-icon">
+                        🌳
+                    </div>
+
+
+                    <h3>
+                        Skill Tree
+                    </h3>
+
+
+                    <p>
+                        Build your game's skill system.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================
+             CREATE
+        ====================================== -->
+
+        <section
+            id="create"
+            class="page-section"
+        >
+
+            <div class="page-header">
+
+                <h1>
+                    🧱 Create
+                </h1>
+
+
+                <p>
+                    Create assets and content
+                    for your games.
+                </p>
+
+            </div>
+
+
+
+            <div class="tool-grid">
+
+
+                <div
+                    class="tool-card"
+                    data-tool="pixel-art"
+                >
+
+                    <div class="tool-icon">
+                        🎨
+                    </div>
+
+
+                    <h3>
+                        Pixel Art Editor
+                    </h3>
+
+
+                    <p>
+                        Create sprites and pixel art.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        🖼️
+                    </div>
+
+
+                    <h3>
+                        Sprite Sheet Maker
+                    </h3>
+
+
+                    <p>
+                        Create sprite sheets.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        🗺️
+                    </div>
+
+
+                    <h3>
+                        Tilemap Editor
+                    </h3>
+
+
+                    <p>
+                        Create tile-based levels.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        🧍
+                    </div>
+
+
+                    <h3>
+                        Character Creator
+                    </h3>
+
+
+                    <p>
+                        Create playable characters.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================
+             GAME SYSTEMS
+        ====================================== -->
+
+        <section
+            id="systems"
+            class="page-section"
+        >
+
+            <div class="page-header">
+
+                <h1>
+                    ⚔️ Game Systems
+                </h1>
+
+
+                <p>
+                    Build the systems behind
+                    your game.
+                </p>
+
+            </div>
+
+
+
+            <div class="tool-grid">
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        💥
+                    </div>
+
+
+                    <h3>
+                        Damage Calculator
+                    </h3>
+
+
+                    <p>
+                        Calculate weapon damage.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        ❤️
+                    </div>
+
+
+                    <h3>
+                        Stats Calculator
+                    </h3>
+
+
+                    <p>
+                        Calculate player and enemy stats.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        ⭐
+                    </div>
+
+
+                    <h3>
+                        XP Calculator
+                    </h3>
+
+
+                    <p>
+                        Create XP and level systems.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        🎲
+                    </div>
+
+
+                    <h3>
+                        RNG Generator
+                    </h3>
+
+
+                    <p>
+                        Create random drops and rewards.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        🌳
+                    </div>
+
+
+                    <h3>
+                        Skill Tree Builder
+                    </h3>
+
+
+                    <p>
+                        Create branching skill trees.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================
+             WORLD BUILDING
+        ====================================== -->
+
+        <section
+            id="world"
+            class="page-section"
+        >
+
+            <div class="page-header">
+
+                <h1>
+                    🌎 World Building
+                </h1>
+
+
+                <p>
+                    Build worlds, maps, characters
+                    and quests.
+                </p>
+
+            </div>
+
+
+
+            <div class="tool-grid">
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        🏞️
+                    </div>
+
+
+                    <h3>
+                        World Generator
+                    </h3>
+
+
+                    <p>
+                        Generate random game worlds.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        🏰
+                    </div>
+
+
+                    <h3>
+                        Dungeon Generator
+                    </h3>
+
+
+                    <p>
+                        Create random dungeons.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        📜
+                    </div>
+
+
+                    <h3>
+                        Quest Generator
+                    </h3>
+
+
+                    <p>
+                        Generate quests.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        🧙
+                    </div>
+
+
+                    <h3>
+                        NPC Generator
+                    </h3>
+
+
+                    <p>
+                        Create NPCs and characters.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================
+             CODING
+        ====================================== -->
+
+        <section
+            id="coding"
+            class="page-section"
+        >
+
+            <div class="page-header">
+
+                <h1>
+                    💻 Coding
+                </h1>
+
+
+                <p>
+                    Tools for creating and working
+                    with game code.
+                </p>
+
+            </div>
+
+
+
+            <div class="tool-grid">
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        &lt;/&gt;
+                    </div>
+
+
+                    <h3>
+                        HTML/CSS/JS Playground
+                    </h3>
+
+
+                    <p>
+                        Write and test game code.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        🧹
+                    </div>
+
+
+                    <h3>
+                        Code Formatter
+                    </h3>
+
+
+                    <p>
+                        Clean up your code.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        { }
+                    </div>
+
+
+                    <h3>
+                        JSON Formatter
+                    </h3>
+
+
+                    <p>
+                        Format and validate JSON.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+
+
+                <div class="tool-card">
+
+                    <div class="tool-icon">
+                        🔤
+                    </div>
+
+
+                    <h3>
+                        Base64 Encoder
+                    </h3>
+
+
+                    <p>
+                        Encode and decode Base64.
+                    </p>
+
+
+                    <button class="open-tool">
+                        Open
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+
+    <!-- =========================================
+         TOOL WINDOW
+    ========================================== -->
+
+    <div
+        id="tool-window"
+        class="tool-window"
+    >
+
+        <div class="tool-window-header">
+
+            <span id="tool-window-title">
+                Tool
+            </span>
+
+
+            <button
+                id="close-tool"
+                aria-label="Close tool"
+            >
+                ✕
+            </button>
+
+        </div>
+
+
+        <div id="tool-window-content">
+
+            <!-- Tool content gets inserted here -->
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================
+         FOOTER
+    ========================================== -->
+
+    <footer>
+
+        <p>
+            🎮 Game Toolkit
+        </p>
+
+        
+
+        <p>
+            Game development tools in your browser.
+        </p>
+
+    </footer>
+
+
+
+    <!-- =========================================
+         JAVASCRIPT
+    ========================================== -->
+
+    <!-- Pixel Art Editor -->
+    <script src="tools/pixel-art.js"></script>
+
+    <!-- Main Toolkit JavaScript -->
+    <script src="script.js"></script>
+
+
+</body>
+
+</html>

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Classic Pong</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    background:#000;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    overflow:hidden;
+    touch-action:none;
+    font-family:Arial,sans-serif;
+}
+
+canvas{
+    width:95vw;
+    max-width:900px;
+    height:auto;
+    background:#000;
+    border:4px solid #fff;
+    touch-action:none;
+}
+</style>
+</head>
+<body>
+
+<canvas id="game" width="900" height="500"></canvas>
+
+<script>
+
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+const paddleWidth=18;
+const paddleHeight=120;
+
+const player={
+    x:30,
+    y:190,
+    score:0
+};
+
+const ai={
+    x:canvas.width-48,
+    y:190,
+    score:0
+};
+
+const ball={
+    x:canvas.width/2,
+    y:canvas.height/2,
+    size:12,
+    speed:6,
+    dx:6,
+    dy:2
+};
+
+function movePaddle(clientY){
+
+    const rect=canvas.getBoundingClientRect();
+    const scaleY=canvas.height/rect.height;
+
+    player.y=(clientY-rect.top)*scaleY-paddleHeight/2;
+
+    if(player.y<0)
+        player.y=0;
+
+    if(player.y>canvas.height-paddleHeight)
+        player.y=canvas.height-paddleHeight;
+}
+
+canvas.addEventListener("mousemove",e=>{
+    movePaddle(e.clientY);
+});
+
+canvas.addEventListener("touchstart",e=>{
+    e.preventDefault();
+    movePaddle(e.touches[0].clientY);
+},{passive:false});
+
+canvas.addEventListener("touchmove",e=>{
+    e.preventDefault();
+    movePaddle(e.touches[0].clientY);
+},{passive:false});
+
+function resetBall(){
+
+    ball.x=canvas.width/2;
+    ball.y=canvas.height/2;
+
+    ball.speed=6;
+
+    ball.dx=(Math.random()>0.5?1:-1)*ball.speed;
+    ball.dy=(Math.random()*4)-2;
+}
+
+function update(){
+
+    ball.x+=ball.dx;
+    ball.y+=ball.dy;
+
+    if(ball.y<ball.size){
+
+        ball.y=ball.size;
+        ball.dy*=-1;
+
+    }
+
+    if(ball.y>canvas.height-ball.size){
+
+        ball.y=canvas.height-ball.size;
+        ball.dy*=-1;
+
+    }
+
+    // Player collision
+    if(
+        ball.x-ball.size<player.x+paddleWidth &&
+        ball.y+ball.size>player.y &&
+        ball.y-ball.size<player.y+paddleHeight
+    ){
+
+        let hit=(ball.y-(player.y+paddleHeight/2))/(paddleHeight/2);
+
+        ball.speed+=0.25;
+
+        ball.dx=ball.speed;
+        ball.dy=hit*ball.speed;
+
+        ball.x=player.x+paddleWidth+ball.size;
+
+    }
+
+    // AI collision
+    if(
+        ball.x+ball.size>ai.x &&
+        ball.y+ball.size>ai.y &&
+        ball.y-ball.size<ai.y+paddleHeight
+    ){
+
+        let hit=(ball.y-(ai.y+paddleHeight/2))/(paddleHeight/2);
+
+        ball.speed+=0.25;
+
+        ball.dx=-ball.speed;
+        ball.dy=hit*ball.speed;
+
+        ball.x=ai.x-ball.size;
+
+    }
+
+    ai.y+=(ball.y-(ai.y+paddleHeight/2))*0.08;
+
+    if(ai.y<0)
+        ai.y=0;
+
+    if(ai.y>canvas.height-paddleHeight)
+        ai.y=canvas.height-paddleHeight;
+
+    if(ball.x<-30){
+
+        ai.score++;
+        resetBall();
+
+    }
+
+    if(ball.x>canvas.width+30){
+
+        player.score++;
+        resetBall();
+
+    }
+
+}
+
+function drawPaddle(x,y){
+
+    ctx.fillStyle="white";
+
+    ctx.beginPath();
+
+    ctx.roundRect(
+        x,
+        y,
+        paddleWidth,
+        paddleHeight,
+        8
+    );
+
+    ctx.fill();
+
+}function draw(){
+
+    // Background
+    ctx.fillStyle="black";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // Centre dashed line
+    ctx.fillStyle="white";
+
+    for(let y=0;y<canvas.height;y+=20){
+
+        ctx.fillRect(
+            canvas.width/2-2,
+            y,
+            4,
+            10
+        );
+
+    }
+
+    // Top border
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        4
+    );
+
+    // Bottom border
+    ctx.fillRect(
+        0,
+        canvas.height-4,
+        canvas.width,
+        4
+    );
+
+    // Draw paddles
+    drawPaddle(
+        player.x,
+        player.y
+    );
+
+    drawPaddle(
+        ai.x,
+        ai.y
+    );
+
+    // Ball (square like classic Pong)
+    ctx.fillStyle="white";
+
+    ctx.fillRect(
+        ball.x-ball.size/2,
+        ball.y-ball.size/2,
+        ball.size,
+        ball.size
+    );
+
+    // Scores
+    ctx.font="70px monospace";
+    ctx.textAlign="center";
+    ctx.textBaseline="top";
+
+    ctx.fillText(
+        player.score,
+        canvas.width/4,
+        20
+    );
+
+    ctx.fillText(
+        ai.score,
+        canvas.width*3/4,
+        20
+    );
+
+}
+
+function gameLoop(){
+
+    update();
+    draw();
+
+    requestAnimationFrame(gameLoop);
+
+}
+
+resetBall();
+gameLoop();
+
+</script>
+
+</body>
+</html>

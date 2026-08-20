@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Block Blast Style Tetris</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            background-color: #0f111a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden; color: #fff;
+            touch-action: none;
+        }
+        .game-container {
+            display: flex; flex-direction: column; align-items: center;
+            background: #181c2e; padding: 20px; border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid #2f3857;
+        }
+        .header {
+            display: flex; justify-content: space-between; width: 100%;
+            max-width: 300px; margin-bottom: 15px; font-weight: bold;
+        }
+        .score-box {
+            background: #252b45; padding: 8px 16px; border-radius: 12px;
+            border: 1px solid #3d466e; text-align: center; min-width: 80px;
+        }
+        .score-box span { display: block; font-size: 20px; color: #00ffcc; margin-top: 2px; }
+        #canvas {
+            background: #111422; border-radius: 12px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+            border: 2px solid #252b45; display: block;
+        }
+        /* Touch Layout Support Controls Grid */
+        .controls-container {
+            display: grid; width: 100%; max-width: 320px;
+            grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px;
+        }
+        .control-btn {
+            background: #252b45; border: 2px solid #3d466e; color: white;
+            padding: 18px 0; border-radius: 12px; font-size: 20px; font-weight: bold;
+            text-align: center; cursor: pointer; -webkit-user-select: none; user-select: none;
+        }
+        .control-btn:active { background: #00ffcc; color: #111422; border-color: #fff; }
+    </style>
+</head>
+<body>
+
+
+    <div class="game-container">
+        <div class="header">
+            <div class="score-box">SCORE<span id="score">0</span></div>
+            <div class="score-box">LINES<span id="lines">0</span></div>
+        </div>
+        <canvas id="canvas"></canvas>
+        <div class="controls-container">
+            <div class="control-btn" id="btn-left">◀</div>
+            <div class="control-btn" id="btn-rot">🔄</div>
+            <div class="control-btn" id="btn-right">▶</div>
+            <div class="control-btn" id="btn-drop">▼</div>
+        </div>
+    </div>
+<a href="../index.html" id="back-btn">← MENU</a>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const linesEl = document.getElementById('lines');
+
+        const ROW = 20;
+        const COL = 10;
+        const SQ = 30; 
+        canvas.width = COL * SQ;
+        canvas.height = ROW * SQ;
+
+        let score = 0;
+        let linesCleared = 0;
+
+        const COLORS = {
+            1: { main: '#ff3366', inner: '#ff6688' }, // Z
+            2: { main: '#33ccff', inner: '#66ddff' }, // J
+            3: { main: '#ffaa00', inner: '#ffbb33' }, // O
+            4: { main: '#33ff77', inner: '#66ff99' }, // S
+            5: { main: '#cc33ff', inner: '#dd66ff' }, // T
+            6: { main: '#ff3333', inner: '#ff6666' }, // L
+            7: { main: '#00ffff', inner: '#66ffff' }  // I
+        };
+
+        const PIECES = [
+            [[[1,1,0],[0,1,1],[0,0,0]], [[0,0,1],[0,1,1],[0,1,0]], [[1,1,0],[0,1,1],[0,0,0]], [[0,0,1],[0,1,1],[0,1,0]]], 
+            [[[2,0,0],[2,2,2],[0,0,0]], [[0,2,2],[0,2,0],[0,2,0]], [[2,2,2],[0,0,2],[0,0,0]], [[0,2,0],[0,2,0],[2,2,0]]], 
+            [[[3,3],[3,3]], [[3,3],[3,3]], [[3,3],[3,3]], [[3,3],[3,3]]],                                             
+            [[[0,4,4],[4,4,0],[0,0,0]], [[0,4,0],[0,4,4],[0,0,4]], [[0,4,4],[4,4,0],[0,0,0]], [[0,4,0],[0,4,4],[0,0,4]]], 
+            [[[0,5,0],[5,5,5],[0,0,0]], [[0,5,0],[0,5,5],[0,5,0]], [[5,5,5],[0,5,0],[0,0,0]], [[0,5,0],[5,5,0],[0,5,0]]], 
+            [[[0,0,6],[6,6,6],[0,0,0]], [[0,6,0],[0,6,0],[0,6,6]], [[6,6,2],[0,0,0],[0,0,0]], [[6,6,0],[0,6,0],[0,6,0]]], 
+            [[[0,0,0,0],[7,7,7,7],[0,0,0,0],[0,0,0,0]], [[0,0,7,0],[0,0,7,0],[0,0,7,0],[0,0,7,0]], [[0,0,0,0],[7,7,7,7],[0,0,0,0],[0,0,0,0]], [[0,0,7,0],[0,0,7,0],[0,0,7,0],[0,0,7,0]]] 
+        ];
+
+        let board = [];
+        for(let r = 0; r < ROW; r++){
+            board[r] = [];
+            for(let c = 0; c < COL; c++){
+                board[r][c] = 0;
+            }
+        }
+
+        function drawRoundRect(x, y, width, height, radius, fill) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            if (fill) ctx.fill();
+        }
+
+        function drawSquare(x, y, colorId, isGhost = false) {
+            if(colorId === 0) return;
+            const colors = COLORS[colorId];
+            
+            ctx.save();
+            if (isGhost) {
+                ctx.globalAlpha = 0.15;
+                ctx.fillStyle = colors.main;
+                drawRoundRect(x*SQ + 2, y*SQ + 2, SQ - 4, SQ - 4, 6, true);
+            } else {
+                ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                drawRoundRect(x*SQ + 3, y*SQ + 3, SQ - 4, SQ - 4, 6, true);
+
+                ctx.fillStyle = colors.main;
+                drawRoundRect(x*SQ + 1, y*SQ + 1, SQ - 2, SQ - 2, 6, true);
+
+                ctx.fillStyle = colors.inner;
+                drawRoundRect(x*SQ + 5, y*SQ + 5, SQ - 10, SQ - 10, 4, true);
+            }
+            ctx.restore();
+        }
+
+        function drawBoard(){
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#1d2238';
+            ctx.lineWidth = 1;
+            for(let r = 0; r < ROW; r++) {
+                for(let c = 0; c < COL; c++) {
+                    ctx.strokeRect(c*SQ, r*SQ, SQ, SQ);
+                }
+            }
+
+            for(let r = 0; r < ROW; r++){
+                for(let c = 0; c < COL; c++){
+                    drawSquare(c, r, board[r][c]);
+                }
+            }
+        }
+
+        class Piece {
+            constructor(tetromino, colorId) {
+                this.tetromino = tetromino;
+                this.colorId = colorId;
+                this.activePattern = 0;
+                this.layout = this.tetromino[this.activePattern];
+                this.x = 3;
+                this.y = 0; // Spawns directly visible on board track boundary
+            }
+
+            draw() {
+                for(let r = 0; r < this.layout.length; r++){
+                    for(let c = 0; c < this.layout[r].length; c++){
+                        if(this.layout[r][c]){
+                            drawSquare(this.x + c, this.y + r, this.colorId);
+                        }
+                    }
+                }
+            }
+
+            drawGhost() {
+                let ghostY = this.y;
+                while(!this.collision(this.x, ghostY + 1, this.layout)) {
+                    ghostY++;
+                }
+                for(let r = 0; r < this.layout.length; r++){
+                    for(let c = 0; c < this.layout[r].length; c++){
+                        if(this.layout[r][c] && ghostY + r >= 0){
+                            drawSquare(this.x + c, ghostY + r, this.colorId, true);
+                        }
+                    }
+                }
+            }
+
+            collision(x, y, piece) {
+                for(let r = 0; r < piece.length; r++){
+                    for(let c = 0; c < piece[r].length; c++){
+                        if(!piece[r][c]) continue;
+                        let newX = x + c;
+                        let newY = y + r;
+                        if(newX < 0 || newX >= COL || newY >= ROW) return true;
+                        if(newY < 0) continue;
+                        if(board[newY][newX] !== 0) return true;
+                    }
+                }
+                return false;
+            }
+
+            moveLeft() {
+                if(!this.collision(this.x - 1, this.y, this.layout)){
+                    this.x--;
+                }
+            }
+
+            moveRight() {
+                if(!this.collision(this.x + 1, this.y, this.layout)){
+                    this.x++;
+                }
+            }
+
+            rotate() {
+                let nextPattern = (this.activePattern + 1) % this.tetromino.length;
+                let nextLayout = this.tetromino[nextPattern];
+                let kick = 0;
+                
+                if(this.collision(this.x, this.y, nextLayout)){
+                    kick = this.x > COL / 2 ? -1 : 1; 
+                }
+                
+                if(!this.collision(this.x + kick, this.y, nextLayout)){
+                    this.x += kick;
+                    this.activePattern = nextPattern;
+                    this.layout = nextLayout;
+                }
+            }
+
+            moveDown() {
+                if(!this.collision(this.x, this.y + 1, this.layout)){
+                    this.y++;
+                } else {
+                    this.lock();
+                    generateNextPiece();
+                }
+            }
+
+            lock() {
+                for(let r = 0; r < this.layout.length; r++){
+                    for(let c = 0; c < this.layout[r].length; c++){
+                        if(!this.layout[r][c]) continue;
+                        if(this.y + r <= 0){
+                            alert("Game Over! Score Reset.");
+                            board = board.map(row => row.fill(0));
+                            score = 0; linesCleared = 0;
+                            return;
+                        }
+                        board[this.y + r][this.x + c] = this.colorId;
+                    }
+                }
+                
+                let localLines = 0;
+                for(let r = 0; r < ROW; r++){
+                    if(board[r].every(val => val !== 0)){
+                        board.splice(r, 1);
+                        board.unshift(new Array(COL).fill(0));
+                        localLines++;
+                    }
+                }
+                if(localLines > 0) {
+                    linesCleared += localLines;
+                    score += localLines * 100 * localLines; 
+                    scoreEl.innerText = score;
+                    linesEl.innerText = linesCleared;
+                }
+            }
+        }
+
+        function randomPiece() {
+            let r = Math.floor(Math.random() * PIECES.length);
+            return new Piece(PIECES[r], r + 1);
+        }
+
+        let p = randomPiece();
+        function generateNextPiece() { p = randomPiece(); }
+
+        let dropStart = Date.now();
+        function update() {
+            let now = Date.now();
+            let delta = now - dropStart;
+            if(delta > 1000){ // Balanced downward fall speed
+                p.moveDown();
+                dropStart = Date.now();
+            }
+            drawBoard();
+            p.drawGhost();
+            p.draw();
+            requestAnimationFrame(update);
+        }
+
+        // Desktop Command Matrix
+        document.addEventListener('keydown', (e) => {
+            if(e.code === 'ArrowLeft') p.moveLeft();
+            if(e.code === 'ArrowUp') p.rotate();
+            if(e.code === 'ArrowRight') p.moveRight();
+            if(e.code === 'ArrowDown') p.moveDown();
+        });
+
+        // Universal Pointer-Down Events (Handles Mobile & Multi-Touch Tapping Smoothly)
+        document.getElementById('btn-left').addEventListener('pointerdown', (e) => { e.preventDefault(); p.moveLeft(); });
+        document.getElementById('btn-rot').addEventListener('pointerdown', (e) => { e.preventDefault(); p.rotate(); });
+        document.getElementById('btn-right').addEventListener('pointerdown', (e) => { e.preventDefault(); p.moveRight(); });
+        document.getElementById('btn-drop').addEventListener('pointerdown', (e) => { e.preventDefault(); p.moveDown(); });
+
+        update();
+    </script>
+</body>
+</html>

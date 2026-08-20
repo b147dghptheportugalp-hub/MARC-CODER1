@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Cyber-Grid Arena: 23-Matrix Evolution</title>
+<style>
+body, html {
+margin: 0; padding: 0;
+width: 100%; height: 100%;
+overflow: hidden; background-color: #0b0f19;
+font-family: 'Courier New', monospace;
+user-select: none; touch-action: none;
+}
+#canvas { display: block; background-color: #0f1423; }
+
+/* UI HUD Layout */
+#hud {
+position: absolute; bottom: 20px; left: 50%;
+transform: translateX(-50%); text-align: center;
+background: rgba(15, 20, 35, 0.9); padding: 14px 24px;
+border-radius: 8px; color: #00ffcc; pointer-events: none;
+z-index: 10; font-size: 14px;
+border: 2px solid #00ffcc;
+box-shadow: 0 0 15px rgba(0,255,204,0.3);
+width: 340px;
+}
+#tank-desc {
+font-size: 11px; color: #a0aec0; margin-top: 4px;
+line-height: 1.3; font-style: italic;
+}
+#xp-bar-container {
+width: 100%; height: 10px; background: #1a233d;
+border-radius: 4px; margin: 8px auto; overflow: hidden;
+border: 1px solid #00ffcc;
+}
+#xp-bar { width: 0%; height: 100%; background: #00ffcc; }
+
+/* Upgrade Panels */
+#upgrades {
+position: absolute; bottom: 20px; left: 20px;
+display: flex; flex-direction: column; gap: 6px;
+z-index: 10;
+}
+.stat-row {
+display: flex; align-items: center; background: rgba(15, 20, 35, 0.85);
+padding: 6px 12px; border-radius: 4px; color: #fff; font-size: 12px;
+border: 1px solid #3b4a75;
+}
+.stat-btn {
+background: #ff007f; border: 1px solid #ff007f; border-radius: 3px;
+color: white; font-weight: bold; width: 22px; height: 22px;
+margin-right: 10px; cursor: pointer; display: flex;
+align-items: center; justify-content: center;
+}
+.stat-btn:disabled { background: #2c354d; border-color: #2c354d; color: #555; cursor: default; }
+
+/* Dev Tools Options */
+#dev-panel {
+position: absolute; top: 20px; left: 20px;
+display: flex; flex-direction: column; gap: 6px; z-index: 10;
+}
+.dev-btn {
+background: #ffff00; border: 2px solid #ffff00; color: #000;
+padding: 8px 12px; font-weight: bold; border-radius: 4px;
+cursor: pointer; font-size: 11px; text-shadow: none;
+}
+.dev-btn:hover { background: #fff; border-color: #fff; }
+
+/* Ability Control Deck */
+#ability-deck {
+position: absolute; bottom: 20px; right: 20px;
+display: flex; flex-direction: column; gap: 10px; z-index: 10;
+}
+.ability-btn {
+background: rgba(15, 20, 35, 0.85); border: 2px solid #ffaa00;
+color: #ffaa00; padding: 12px 16px; font-weight: bold;
+border-radius: 6px; cursor: pointer; font-size: 12px;
+text-shadow: 0 0 5px rgba(255,170,0,0.5);
+text-align: left; min-width: 160px;
+}
+.ability-btn:active { background: #ffaa00; color: #000; }
+
+/* Minimap Layout */
+#minimap-container {
+position: absolute; top: 20px; right: 20px;
+width: 130px; height: 130px;
+background: rgba(15, 20, 35, 0.6);
+border: 2px solid #3b4a75;
+border-radius: 4px; overflow: hidden;
+pointer-events: none; z-index: 10;
+}
+#minimap { width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+
+<div id="dev-panel">
+<button class="dev-btn" onclick="devLevelUp()">⚡ FORCE LEVEL UP [L]</button>
+</div>
+
+<div id="upgrades">
+<div style="color: #00ffcc; font-weight: bold; margin-bottom: 4px; font-size: 12px;" id="points-counter">CORE UPGRADES: 0</div>
+<div class="stat-row"><button class="stat-btn" onclick="upgradeStat('speed')" id="btn-speed">+</button> Thrusters (<span id="lbl-speed">0</span>/7)</div>
+<div class="stat-row"><button class="stat-btn" onclick="upgradeStat('reload')" id="btn-reload">+</button> Hyperdrive (<span id="lbl-reload">0</span>/7)</div>
+<div class="stat-row"><button class="stat-btn" onclick="upgradeStat('bspeed')" id="btn-bspeed">+</button> Photon Velocity (<span id="lbl-bspeed">0</span>/7)</div>
+<div class="stat-row"><button class="stat-btn" onclick="upgradeStat('health')" id="btn-health">+</button> Matrix Shield (<span id="lbl-health">0</span>/7)</div>
+</div>
+
+<div id="ability-deck">
+<button class="ability-btn" onclick="triggerInvis()" id="btn-cloak">[Q] CLOAK: READY</button>
+<button class="ability-btn" onclick="triggerDash()" id="btn-dash">[E] DASH: READY</button>
+</div>
+
+<div id="hud">
+<div id="player-lvl" style="font-weight: bold; font-size: 13px; letter-spacing: 1px; color: #ffff00;">BASIC TANK (LV 1)</div>
+<div id="tank-desc">Starter tank with a single cannon and simple movement.</div>
+<div id="xp-bar-container"><div id="xp-bar"></div></div>
+<div id="player-hp">SHIELD: 100 / 100</div>
+<div id="player-revives" style="font-size: 11px; color: #ffaa00; margin-top: 4px;">REVIVE CHARGE: READY</div>
+</div>
+
+<div id="minimap-container">
+<canvas id="minimap"></canvas>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const minimapCanvas = document.getElementById('minimap');
+const mctx = minimapCanvas.getContext('2d');
+
+// Linear Evolution Array Config Mapping 1-23
+const TANK_PRESETS = {
+1: { name: "Basic Tank (LV 1)", desc: "Starter tank with a single cannon and simple movement." },
+2: { name: "Mini Barrel Tank (LV 2)", desc: "Small fast‑firing cannon with light recoil and quick mobility." },
+3: { name: "Double Barrel Tank (LV 3)", desc: "Two parallel barrels for rapid‑fire damage and balanced control." },
+4: { name: "Scatter Tank (LV 4)", desc: "Shotgun‑style spread shots that burst at close range." },
+5: { name: "Spike Tank (LV 5)", desc: "Front spiked melee wheel that charges forward to deal heavy impact damage." },
+6: { name: "Triple Barrel Tank (LV 6)", desc: "Three cannons arranged in a triangular pattern for high DPS." },
+7: { name: "Burst Tank (LV 7)", desc: "Short thick barrel firing explosive burst shots with shockwave rings." },
+8: { name: "Rail Tank (LV 8)", desc: "Long railgun barrel firing high‑speed piercing energy shots." },
+9: { name: "Orbit Tank (LV 9)", desc: "Three mini‑turrets orbit around the main body and fire automatically." },
+10: { name: "Cyclone Tank (LV 10)", desc: "Spinning multi‑barrel turret that sprays rapid projectiles." },
+11: { name: "Quad Tank (LV 11)", desc: "Four barrels arranged in a square formation for heavy multi‑shot fire." },
+12: { name: "Pulse Tank (LV 12)", desc: "Fires expanding energy pulses that create circular shockwaves." },
+13: { name: "Splitshot Tank (LV 13)", desc: "Shots split into multiple projectiles mid‑air for wide coverage." },
+14: { name: "Drone Swarm Tank (LV 14)", desc: "Deploys multiple small drones that chase and attack targets." },
+15: { name: "Laser Tank (LV 15)", desc: "Fires continuous neon laser beams with heat distortion effects." },
+16: { name: "Vortex Tank (LV 16)", desc: "Rotating energy funnel that absorbs projectiles and fires them back." },
+17: { name: "Nova Tank (LV 17)", desc: "Star‑shaped turret firing radial explosive shots outward." },
+18: { name: "Phantom Tank (LV 18)", desc: "Semi‑transparent armor with ghost‑like movement trails and stealth." },
+19: { name: "Ultra Tank (LV 19)", desc: "Six rotating barrels in a hex pattern for massive sustained damage." },
+20: { name: "Omega Tank (LV 20)", desc: "Heavy armor with a dual‑mode cannon (beam mode + projectile mode)." },
+21: { name: "Titan Tank (LV 21)", desc: "Large reinforced chassis with slow but extremely powerful shots." },
+22: { name: "Eclipse Tank (LV 22)", desc: "Dark energy core firing void‑like projectiles that expand on impact." },
+23: { name: "SUPREME TANK (LV 23)", desc: "Legendary multi‑form tank with 8 rotating barrels, central laser core, orbiting drones, and shockwave pulses." }
+};
+
+const BOT_PREFIXES = ["Vortex", "Spectre", "Zenith", "Quantum", "Apex", "Matrix", "Cipher", "Phantom", "Gorgon", "Hydra", "Neon", "Glyph", "Glitch", "Reaper", "Omega"];
+const BOT_SUFFIXES = ["X", "Alpha", "Zero", "Omega", "404", "Prime", "MK_I", "Nexus", "Void", "Fury", "V8", "Sync", "Stryker", "Titan"];
+
+function generateBotName() {
+let p = BOT_PREFIXES[Math.floor(Math.random() * BOT_PREFIXES.length)];
+let s = BOT_SUFFIXES[Math.floor(Math.random() * BOT_SUFFIXES.length)];
+return `${p}_${s}`;
+}
+
+function resize() {
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+minimapCanvas.width = 130;
+minimapCanvas.height = 130;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const MAP_SIZE = 3000;
+let keys = {};
+let shapes = [];
+let bullets = [];
+let tanks = [];
+let particles = [];
+let drones = [];
+
+let isMobile = false;
+let joystick = { active: false, startX: 0, startY: 0, curX: 0, curY: 0, vx: 0, vy: 0 };
+let aimTouch = { active: false, id: null, x: 0, y: 0 };
+let mouse = { x: 0, y: 0, down: false };
+
+class Tank {
+constructor(x, y, isBot = true, name = "Player") {
+box: this;
+this.x = x;
+this.y = y;
+this.isBot = isBot;
+this.name = isBot ? generateBotName() : name;
+this.level = 1;
+this.xp = 0;
+this.nextXp = 45;
+this.points = 0;
+this.hp = 100;
+this.maxHp = 100;
+this.angle = 0;
+this.lastShot = 0;
+this.color = isBot ? '#ff0055' : '#00ffcc';
+this.stats = { speed: 0, reload: 0, bspeed: 0, health: 0 };
+
+this.isInvis = false;
+this.hasRevive = true;
+this.dashCooldown = 0;
+this.cloakCooldown = 0;
+this.cycloneRot = 0;
+
+this.target = null;
+this.actionTimer = 0;
+this.vx = 0;
+this.vy = 0;
+}
+
+update() {
+if (this.dashCooldown > 0) this.dashCooldown--;
+if (this.cloakCooldown > 0) this.cloakCooldown--;
+if (this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + 0.08);
+
+if(this.level === 18) {
+this.isInvis = true;
+}
+
+if (!this.isBot) {
+this.handlePlayerMovement();
+} else {
+this.handleBotAI();
+}
+
+if (this.x < 0) this.x = 0; if (this.x > MAP_SIZE) this.x = MAP_SIZE;
+if (this.y < 0) this.y = 0; if (this.y > MAP_SIZE) this.y = MAP_SIZE;
+
+this.handleShooting();
+this.maintainDrones();
+}
+
+handlePlayerMovement() {
+let currentSpeed = 3.2 + (this.stats.speed * 0.5);
+if (this.level === 21) currentSpeed *= 0.7;
+let mx = 0, my = 0;
+
+if (isMobile && joystick.active) {
+mx = joystick.vx; my = joystick.vy;
+} else {
+if (keys['w'] || keys['arrowup']) my = -1;
+if (keys['s'] || keys['arrowdown']) my = 1;
+if (keys['a'] || keys['arrowleft']) mx = -1;
+if (keys['d'] || keys['arrowright']) mx = 1;
+}
+
+if (mx !== 0 || my !== 0) {
+if (this.isInvis && this.level !== 18) {
+this.isInvis = false;
+this.cloakCooldown = 120;
+}
+this.x += mx * currentSpeed;
+this.y += my * currentSpeed;
+}
+
+if (isMobile && aimTouch.active) {
+this.angle = Math.atan2(aimTouch.y - canvas.height / 2, aimTouch.x - canvas.width / 2);
+} else if (!isMobile) {
+this.angle = Math.atan2(mouse.y - canvas.height / 2, mouse.x - canvas.width / 2);
+}
+}
+
+handleBotAI() {
+this.actionTimer--;
+if (!this.target || this.actionTimer <= 0) {
+this.actionTimer = Math.floor(Math.random() * 80) + 40;
+this.target = this.findNearestTarget();
+if (Math.random() < 0.7) {
+let randAngle = Math.random() * Math.PI * 2;
+this.vx = Math.cos(randAngle); this.vy = Math.sin(randAngle);
+}
+}
+
+let currentSpeed = 2.4 + (this.stats.speed * 0.4);
+this.x += this.vx * currentSpeed;
+this.y += this.vy * currentSpeed;
+
+if (this.target) {
+this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+if (this.points > 0) {
+let available = ['speed', 'reload', 'bspeed', 'health'];
+let pick = available[Math.floor(Math.random() * available.length)];
+if (this.stats[pick] < 7) {
+this.stats[pick]++; this.points--;
+if (pick === 'health') { this.maxHp = 100 + (this.stats.health * 35); this.hp += 35; }
+}
+}
+}
+}
+
+findNearestTarget() {
+let nearest = null, minDist = 500;
+tanks.forEach(t => {
+if (t !== this && t.hp > 0 && !t.isInvis) {
+let d = Math.hypot(t.x - this.x, t.y - this.y);
+if (d < minDist) { minDist = d; nearest = t; }
+}
+});
+if (!nearest) {
+shapes.forEach(s => {
+let d = Math.hypot(s.x - this.x, s.y - this.y);
+if (d < minDist) { minDist = d; nearest = s; }
+});
+}
+return nearest;
+}
+
+maintainDrones() {
+if (this.level !== 14 && this.level !== 23) return;
+let maxDrones = this.level === 23 ? 4 : 3;
+let activeCount = drones.filter(d => d.owner === this).length;
+if (activeCount < maxDrones) {
+drones.push({
+x: this.x + (Math.random() - 0.5) * 40,
+y: this.y + (Math.random() - 0.5) * 40,
+owner: this,
+hp: 20,
+target: null
+});
+}
+}
+
+handleShooting() {
+let wantToShoot = !this.isBot ? (mouse.down || aimTouch.active) : (this.target !== null);
+if (!wantToShoot && this.level !== 9 && this.level !== 10) return;
+
+if (this.isInvis && !this.isBot && this.level !== 18) {
+this.isInvis = false; this.cloakCooldown = 120;
+}
+
+let now = Date.now();
+let fireDelay = 550 - (this.stats.reload * 50);
+if (this.level === 2) fireDelay *= 0.5;
+if (this.level === 15 || this.level === 23) fireDelay *= 0.3;
+
+if (now - this.lastShot >= fireDelay) {
+this.executeWeaponMatrix();
+this.lastShot = now;
+}
+}
+
+executeWeaponMatrix() {
+let lvl = this.level;
+if (lvl === 1 || lvl === 5) { this.fireBullet(0, 0); }
+else if (lvl === 2) { this.fireBullet(0, 0, { size: 4, speed: 1.4 }); }
+else if (lvl === 3) { this.fireBullet(0, -7); this.fireBullet(0, 7); }
+else if (lvl === 4) {
+for(let i = -2; i <= 2; i++) this.fireBullet(i * 0.15, 0, { life: 30 });
+}
+else if (lvl === 6) { this.fireBullet(0, 0); this.fireBullet(-0.4, 0); this.fireBullet(0.4, 0); }
+else if (lvl === 7) { this.fireBullet(0, 0, { size: 14, dmg: 18 }); }
+else if (lvl === 8) { this.fireBullet(0, 0, { speed: 2.2, size: 5, pierce: true }); }
+else if (lvl === 9) {
+let t = Date.now() * 0.003;
+this.fireBullet(t, 0); this.fireBullet(t + (Math.PI*2/3), 0); this.fireBullet(t + (Math.PI*4/3), 0);
+}
+else if (lvl === 10) {
+this.cycloneRot += 0.4;
+this.fireBullet(this.cycloneRot, 0);
+}
+else if (lvl === 11) {
+for(let i=0; i<4; i++) this.fireBullet(i * Math.PI/2, 0);
+}
+else if (lvl === 12 || lvl === 17) {
+let count = lvl === 12 ? 6 : 10;
+for(let i=0; i<count; i++) this.fireBullet(i * (Math.PI*2 / count), 0);
+}
+else if (lvl === 13) {
+this.fireBullet(0, 0, { split: true });
+}
+else if (lvl === 15) {
+this.fireBullet((Math.random()-0.5)*0.05, 0, { speed: 1.8, size: 3, color: '#ffff00' });
+}
+else if (lvl === 16) {
+this.fireBullet(0, 0, { size: 16, vortex: true, speed: 3 });
+}
+else if (lvl === 19) {
+for(let i=0; i<6; i++) this.fireBullet(this.angle + (i * Math.PI/3), 0);
+}
+else if (lvl === 20) {
+this.fireBullet(0, -10, { size: 5 }); this.fireBullet(0, 10, { size: 12, speed: 0.8 });
+}
+else if (lvl === 21) {
+this.fireBullet(0, 0, { size: 22, dmg: 35, speed: 0.6 });
+}
+else if (lvl === 22) {
+this.fireBullet(0, 0, { size: 8, expand: true, color: '#4a00e0' });
+}
+else if (lvl === 23) {
+for(let i=0; i<8; i++) this.fireBullet(i * Math.PI/4, 0);
+this.fireBullet((Math.random()-0.5)*0.1, 0, { color: '#00ffff', size: 4 });
+}
+}
+
+fireBullet(angleOffset, barrelOffset, mods = {}) {
+let baseAngle = (this.level === 9 || this.level === 10) ? angleOffset : this.angle + angleOffset;
+let speed = (7.0 + (this.stats.bspeed * 1.2)) * (mods.speed || 1.0);
+
+let bx = this.x + Math.cos(baseAngle) * 32 + Math.cos(baseAngle + Math.PI/2) * barrelOffset;
+let by = this.y + Math.sin(baseAngle) * 32 + Math.sin(baseAngle + Math.PI/2) * barrelOffset;
+
+bullets.push({
+x: bx, y: by,
+vx: Math.cos(baseAngle) * speed,
+vy: Math.sin(baseAngle) * speed,
+damage: mods.dmg || 7,
+owner: this,
+life: mods.life || 90,
+size: mods.size || 6,
+pierce: mods.pierce || false,
+split: mods.split || false,
+vortex: mods.vortex || false,
+expand: mods.expand || false,
+color: mods.color || this.color
+});
+}
+
+addXp(amount) {
+this.xp += amount;
+if (this.xp >= this.nextXp && this.level < 23) {
+this.xp -= this.nextXp;
+this.level++;
+this.points++;
+this.nextXp = Math.floor(this.nextXp * 1.25 + 15);
+this.maxHp = 100 + (this.level * 12) + (this.stats.health * 35);
+this.hp = this.maxHp;
+}
+if (!this.isBot) updateUI();
+}
+}
+
+let playerObj = new Tank(MAP_SIZE / 2, MAP_SIZE / 2, false, "NEXUS_CORE");
+tanks.push(playerObj);
+
+// DEV LEVEL UP MECHANIC
+function devLevelUp() {
+if (playerObj.level < 23) {
+playerObj.xp = 0;
+playerObj.level++;
+playerObj.points++;
+playerObj.nextXp = Math.floor(playerObj.nextXp * 1.25 + 15);
+playerObj.maxHp = 100 + (playerObj.level * 12) + (playerObj.stats.health * 35);
+playerObj.hp = playerObj.maxHp;
+updateUI();
+createExplosion(playerObj.x, playerObj.y, '#ffff00', 25);
+}
+}
+
+function spawnBots() {
+while (tanks.length < 12) {
+let b = new Tank(Math.random() * MAP_SIZE, Math.random() * MAP_SIZE, true);
+b.level = Math.floor(Math.random() * 22) + 1;
+tanks.push(b);
+}
+}
+
+function createExplosion(x, y, color, count = 8) {
+for(let i=0; i<count; i++) {
+let angle = Math.random() * Math.PI * 2;
+let spd = Math.random() * 3 + 2;
+particles.push({
+x: x, y: y,
+vx: Math.cos(angle) * spd,
+vy: Math.sin(angle) * spd,
+color: color,
+size: Math.random() * 3 + 2,
+life: 25
+});
+}
+}
+
+function triggerInvis() {
+if (playerObj.cloakCooldown <= 0 && playerObj.level !== 18) {
+playerObj.isInvis = !playerObj.isInvis;
+}
+}
+
+function triggerDash() {
+if (playerObj.dashCooldown <= 0) {
+let dashAngle = playerObj.angle;
+createExplosion(playerObj.x, playerObj.y, '#ffaa00', 12);
+playerObj.x += Math.cos(dashAngle) * 150;
+playerObj.y += Math.sin(dashAngle) * 150;
+playerObj.dashCooldown = 180;
+if (playerObj.isInvis && playerObj.level !== 18) playerObj.isInvis = false;
+}
+}
+
+window.addEventListener('keydown', e => {
+keys[e.key.toLowerCase()] = true;
+if (e.key.toLowerCase() === 'q') triggerInvis();
+if (e.key.toLowerCase() === 'e') triggerDash();
+if (e.key.toLowerCase() === 'l') devLevelUp(); // Trigger cheat key
+});
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+window.addEventListener('mousedown', () => mouse.down = true);
+window.addEventListener('mouseup', () => mouse.down = false);
+
+window.addEventListener('touchstart', handleTouchStart, { passive: false });
+window.addEventListener('touchmove', handleTouchMove, { passive: false });
+window.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+function handleTouchStart(e) {
+if (e.target.tagName === 'BUTTON') return;
+e.preventDefault(); isMobile = true;
+for (let i = 0; i < e.changedTouches.length; i++) {
+let touch = e.changedTouches[i];
+if (touch.clientX < window.innerWidth / 2 && !joystick.active) {
+joystick.active = true;
+joystick.startX = touch.clientX; joystick.startY = touch.clientY;
+joystick.curX = touch.clientX; joystick.curY = touch.clientY;
+joystick.id = touch.identifier;
+} else if (touch.clientX >= window.innerWidth / 2 && !aimTouch.active) {
+aimTouch.active = true; aimTouch.id = touch.identifier;
+aimTouch.x = touch.clientX; aimTouch.y = touch.clientY;
+}
+}
+}
+
+function handleTouchMove(e) {
+e.preventDefault();
+for (let i = 0; i < e.touches.length; i++) {
+let touch = e.touches[i];
+if (joystick.active && touch.identifier === joystick.id) {
+joystick.curX = touch.clientX; joystick.curY = touch.clientY;
+let dx = joystick.curX - joystick.startX;
+let dy = joystick.curY - joystick.startY;
+let dist = Math.hypot(dx, dy);
+if (dist > 50) { dx = (dx / dist) * 50; dy = (dy / dist) * 50; }
+joystick.vx = dx / 50; joystick.vy = dy / 50;
+} else if (aimTouch.active && touch.identifier === aimTouch.id) {
+aimTouch.x = touch.clientX; aimTouch.y = touch.clientY;
+}
+}
+}
+
+function handleTouchEnd(e) {
+for (let i = 0; i < e.changedTouches.length; i++) {
+let touch = e.changedTouches[i];
+if (joystick.active && touch.identifier === joystick.id) {
+joystick.active = false; joystick.vx = 0; joystick.vy = 0;
+} else if (aimTouch.active && touch.identifier === aimTouch.id) {
+aimTouch.active = false;
+}
+}
+}
+
+function spawnShapes() {
+while (shapes.length < 140) {
+let r = Math.random();
+let type = 'diamond', hp = 15, xpVal = 15, size = 15, color = '#ff00ff', sides = 4;
+if (r > 0.70 && r <= 0.90) { type = 'star'; hp = 30; xpVal = 35; size = 18; color = '#ffff00'; sides = 5; }
+else if (r > 0.90) { type = 'hexagon'; hp = 65; xpVal = 120; size = 24; color = '#00ffff'; sides = 6; }
+shapes.push({ x: Math.random() * MAP_SIZE, y: Math.random() * MAP_SIZE, type, hp, size, color, sides, xpVal, angle: Math.random()*Math.PI*2, rotSpeed: (Math.random()-0.5)*0.04 });
+}
+}
+
+function upgradeStat(stat) {
+if (playerObj.points > 0 && playerObj.stats[stat] < 7) {
+playerObj.stats[stat]++; playerObj.points--;
+if (stat === 'health') { playerObj.maxHp = 100 + (playerObj.level * 12) + (playerObj.stats.health * 35); playerObj.hp += 35; }
+updateUI();
+}
+}
+
+function updateUI() {
+let config = TANK_PRESETS[playerObj.level];
+document.getElementById('player-lvl').innerText = config.name.toUpperCase();
+document.getElementById('tank-desc').innerText = config.desc;
+document.getElementById('xp-bar').style.width = `${(playerObj.xp / playerObj.nextXp) * 100}%`;
+document.getElementById('player-hp').innerText = `SHIELD: ${Math.floor(playerObj.hp)} / ${playerObj.maxHp}`;
+document.getElementById('points-counter').innerText = `CORE UPGRADES: ${playerObj.points}`;
+document.getElementById('player-revives').innerText = playerObj.hasRevive ? "REVIVE CHARGE: READY" : "REVIVE CHARGE: DEPLETED";
+document.getElementById('player-revives').style.color = playerObj.hasRevive ? "#ffaa00" : "#ff0055";
+
+['speed', 'reload', 'bspeed', 'health'].forEach(st => {
+document.getElementById(`lbl-${st}`).innerText = playerObj.stats[st];
+document.getElementById(`btn-${st}`).disabled = playerObj.points === 0 || playerObj.stats[st] >= 7;
+});
+}
+
+function drawPolygon(x, y, radius, sides, angle, color) {
+ctx.fillStyle = 'rgba(15, 20, 35, 0.5)'; ctx.strokeStyle = color; ctx.lineWidth = 3;
+ctx.shadowBlur = 10; ctx.shadowColor = color;
+ctx.beginPath();
+for (let i = 0; i < sides; i++) {
+ctx.lineTo(x + radius * Math.cos(angle + (i * 2 * Math.PI / sides)), y + radius * Math.sin(angle + (i * 2 * Math.PI / sides)));
+}
+ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+}
+
+function drawCyberBarrel(x, y, angle, offsetWidth = 0, length = 42, width = 14) {
+ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+ctx.fillStyle = '#1a233d'; ctx.strokeStyle = '#3b4a75'; ctx.lineWidth = 3;
+ctx.fillRect(0, -width/2 + offsetWidth, length, width); ctx.strokeRect(0, -width/2 + offsetWidth, length, width);
+ctx.restore();
+}
+
+function drawMinimap() {
+mctx.clearRect(0, 0, minimapCanvas.width, minimapCanvas.height);
+const scale = minimapCanvas.width / MAP_SIZE;
+tanks.forEach(t => {
+if (t.hp <= 0 || t.isInvis) return;
+mctx.fillStyle = t.isBot ? '#ff0055' : '#00ffcc';
+mctx.beginPath(); mctx.arc(t.x * scale, t.y * scale, t.isBot ? 2 : 3.5, 0, Math.PI * 2); mctx.fill();
+});
+}
+
+function loop() {
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+spawnBots(); spawnShapes();
+
+let camX = playerObj.x - canvas.width / 2;
+let camY = playerObj.y - canvas.height / 2;
+
+// Draw Background Grid Relative to Camera
+ctx.strokeStyle = '#181f33'; ctx.lineWidth = 1;
+let startX = Math.floor(camX / 50) * 50;
+let startY = Math.floor(camY / 50) * 50;
+for(let x = startX; x < startX + canvas.width + 50; x += 50) {
+ctx.beginPath(); ctx.moveTo(x - camX, 0); ctx.lineTo(x - camX, canvas.height); ctx.stroke();
+}
+for(let y = startY; y < startY + canvas.height + 50; y += 50) {
+ctx.beginPath(); ctx.moveTo(0, y - camY); ctx.lineTo(canvas.width, y - camY); ctx.stroke();
+}
+
+tanks.forEach(t => t.update());
+
+document.getElementById('btn-dash').innerText = playerObj.dashCooldown > 0 ? `[E] COOLDOWN (${Math.ceil(playerObj.dashCooldown/60)}s)` : `[E] DASH: READY`;
+document.getElementById('btn-cloak').innerText = playerObj.level === 18 ? `[Q] GHOST MODE` : (playerObj.isInvis ? `[Q] UNCLOAK` : (playerObj.cloakCooldown > 0 ? `[Q] CHARGING (${Math.ceil(playerObj.cloakCooldown/60)}s)` : `[Q] CLOAK: READY`));
+
+for(let p = particles.length - 1; p >= 0; p--) {
+let pt = particles[p]; pt.x += pt.vx; pt.y += pt.vy; pt.life--;
+ctx.fillStyle = pt.color;
+ctx.fillRect(pt.x - camX, pt.y - camY, pt.size, pt.size);
+if(pt.life <= 0) particles.splice(p, 1);
+}
+
+for (let d = drones.length - 1; d >= 0; d--) {
+let drone = drones[d];
+if (drone.owner.hp <= 0) { drones.splice(d, 1); continue; }
+
+let target = drone.owner.findNearestTarget();
+if (target) {
+let angle = Math.atan2(target.y - drone.y, target.x - drone.x);
+drone.x += Math.cos(angle) * 4.5;
+drone.y += Math.sin(angle) * 4.5;
+
+if (Math.hypot(target.x - drone.x, target.y - drone.y) < drone.hp + 20) {
+target.hp -= 2;
+createExplosion(drone.x, drone.y, drone.owner.color, 3);
+if (target.hp <= 0 && target.type) drone.owner.addXp(target.xpVal);
+}
+} else {
+let angle = (Date.now() * 0.002) + d;
+drone.x += ((drone.owner.x + Math.cos(angle) * 60) - drone.x) * 0.1;
+drone.y += ((drone.owner.y + Math.sin(angle) * 60) - drone.y) * 0.1;
+}
+ctx.fillStyle = drone.owner.color;
+ctx.beginPath(); ctx.arc(drone.x - camX, drone.y - camY, 5, 0, Math.PI*2); ctx.fill();
+}
+
+for (let i = bullets.length - 1; i >= 0; i--) {
+let b = bullets[i]; b.x += b.vx; b.y += b.vy; b.life--;
+
+if (b.expand) b.size = Math.min(45, b.size + 0.4);
+if (b.vortex) {
+shapes.forEach(s => {
+if (Math.hypot(b.x - s.x, b.y - s.y) < 180) {
+s.x += (b.x - s.x) * 0.05; s.y += (b.y - s.y) * 0.05;
+}
+});
+}
+
+ctx.fillStyle = b.color;
+ctx.beginPath(); ctx.arc(b.x - camX, b.y - camY, b.size, 0, Math.PI*2); ctx.fill();
+
+if (b.life <= 0) { bullets.splice(i, 1); continue; }
+let bulletRemoved = false;
+
+for (let j = shapes.length - 1; j >= 0; j--) {
+let s = shapes[j];
+if (Math.hypot(b.x - s.x, b.y - s.y) < s.size + b.size) {
+s.hp -= b.damage; createExplosion(b.x, b.y, s.color, 4);
+if (s.hp <= 0) {
+b.owner.addXp(s.xpVal);
+shapes.splice(j, 1);
+}
+if (!b.pierce) { bullets.splice(i, 1); bulletRemoved = true; break; }
+}
+}
+if (bulletRemoved) continue;
+
+// Bullet hits Tanks configuration
+for(let t of tanks) {
+if(t !== b.owner && t.hp > 0 && !t.isInvis) {
+if(Math.hypot(b.x - t.x, b.y - t.y) < 24 + b.size) {
+t.hp -= b.damage;
+createExplosion(b.x, b.y, t.color, 5);
+if(t.hp <= 0) {
+b.owner.addXp(t.level * 40);
+}
+if(!b.pierce) { bullets.splice(i, 1); break; }
+}
+}
+}
+}
+
+// Draw Shapes
+shapes.forEach(s => {
+s.angle += s.rotSpeed;
+drawPolygon(s.x - camX, s.y - camY, s.size, s.sides, s.angle, s.color);
+});
+
+// Draw Tanks
+tanks.forEach(t => {
+if (t.hp <= 0) return;
+if (t.isInvis && t !== playerObj) return; // Completely hidden if bot/other
+
+ctx.save();
+if (t.isInvis) ctx.globalAlpha = 0.35;
+
+// Render Barrels based on preset tiers
+drawCyberBarrel(t.x - camX, t.y - camY, t.angle);
+if (t.level === 3 || t.level === 6 || t.level === 19 || t.level === 23) {
+drawCyberBarrel(t.x - camX, t.y - camY, t.angle + 0.2);
+drawCyberBarrel(t.x - camX, t.y - camY, t.angle - 0.2);
+}
+
+// Core Chassis
+ctx.fillStyle = t.color; ctx.strokeStyle = '#0f1423'; ctx.lineWidth = 4;
+ctx.beginPath(); ctx.arc(t.x - camX, t.y - camY, 22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+// Name tag / HP bar
+ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+ctx.fillText(`${t.name} [LV ${t.level}]`, t.x - camX, t.y - camY - 36);
+
+ctx.fillStyle = '#1a233d'; ctx.fillRect(t.x - camX - 20, t.y - camY - 30, 40, 4);
+ctx.fillStyle = t.color; ctx.fillRect(t.x - camX - 20, t.y - camY - 30, (t.hp / t.maxHp) * 40, 4);
+
+ctx.restore();
+});
+
+drawMinimap();
+requestAnimationFrame(loop);
+}
+
+// Initialize HUD setup
+updateUI();
+loop();
+</script>
+</body>
+</html>

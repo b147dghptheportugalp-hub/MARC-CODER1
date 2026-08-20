@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>MY Game uploads</title>
+
+<link rel="manifest" href="manifest.json?v=2">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-192.png?v=2">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=2">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2">
+<meta name="theme-color" content="#00ffcc">
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+
+<link rel="stylesheet" href="style.css">
+
+<style>
+
+.search-container {
+    margin: 0 auto 30px auto;
+    max-width: 500px;
+    width: 100%;
+    padding: 0 10px;
+    display: grid;
+    gap: 10px;
+}
+
+.search-category {
+    width: 100%;
+    padding: 14px 18px;
+    border-radius: 50px;
+    border: 2px solid #2d3748;
+    background-color: rgba(15, 20, 35, 0.8);
+    color: white;
+    font-size: 1rem;
+    outline: none;
+}
+
+.search-category:focus {
+    border-color: #00ffcc;
+    box-shadow: 0 0 15px rgba(0,255,204,.3);
+}
+
+.search-bar {
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 1rem;
+    background-color: rgba(15, 20, 35, 0.8);
+    border: 2px solid #2d3748;
+    border-radius: 50px;
+    color: white;
+    outline: none;
+    text-align: center;
+}
+
+.search-bar:focus {
+    border-color: #00ffcc;
+    box-shadow: 0 0 15px rgba(0,255,204,.3);
+}
+
+#no-results {
+    display: none;
+    color: #f56565;
+    font-weight: bold;
+    margin-top: 20px;
+}
+
+/* Custom Themes */
+.race-theme {
+    background: linear-gradient(135deg, #ff416c, #ff4b2b);
+    border-color: #ff416c;
+}
+.race-theme:hover { box-shadow: 0 0 15px rgba(255, 65, 108, 0.6); }
+
+.imsg-theme {
+    background: linear-gradient(135deg, #34c759, #007aff);
+    border-color: #34c759;
+}
+.imsg-theme:hover { box-shadow: 0 0 15px rgba(52, 199, 89, 0.6); }
+
+.compass-theme {
+    background: linear-gradient(135deg, #2b5876, #4e4376);
+    border-color: #2b5876;
+}
+.compass-theme:hover { box-shadow: 0 0 15px rgba(43, 88, 118, 0.6); }
+
+.ai-theme {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    border-color: #6366f1;
+}
+.ai-theme:hover { box-shadow: 0 0 15px rgba(99, 102, 241, 0.6); }
+
+/* Space Shooter Theme */
+.space-shooter-theme {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    border-color: #00ffcc;
+}
+.space-shooter-theme:hover {
+    box-shadow: 0 0 15px rgba(0, 255, 204, 0.6);
+}
+/* Pixel Art Theme */
+.pixel-theme {
+    background: linear-gradient(135deg, #f72585, #7209b7);
+    border-color: #f72585;
+}
+.pixel-theme:hover {
+    box-shadow: 0 0 15px rgba(247, 37, 133, 0.6);
+}
+/* Synth Theme */
+.synth-theme {
+    background: linear-gradient(135deg, #00b4d8, #0077b6);
+    border-color: #00b4d8;
+}
+.synth-theme:hover {
+    box-shadow: 0 0 15px rgba(0, 180, 216, 0.6);
+}
+/* Wheel Theme */
+.wheel-theme {
+    background: linear-gradient(135deg, #ff9f43, #ee5253);
+    border-color: #ff9f43;
+}
+.wheel-theme:hover {
+    box-shadow: 0 0 15px rgba(255, 159, 67, 0.6);
+}
+/* QR Code Theme */
+.qr-theme {
+    background: linear-gradient(135deg, #11998e, #38ef7d);
+    border-color: #11998e;
+}
+.qr-theme:hover {
+    box-shadow: 0 0 15px rgba(56, 239, 125, 0.6);
+}
+/* Password Tool Theme */
+.password-theme {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    border-color: #6366f1;
+}
+.password-theme:hover {
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
+}
+/* Tip Calculator Theme */
+.tip-theme {
+    background: linear-gradient(135deg, #ff6b6b, #ee5253);
+    border-color: #ff6b6b;
+}
+.tip-theme:hover {
+    box-shadow: 0 0 15px rgba(255, 107, 107, 0.6);
+}
+/* Converter Tool Theme */
+.converter-theme {
+    background: linear-gradient(135deg, #00b4d8, #0077b6);
+    border-color: #00b4d8;
+}
+.converter-theme:hover {
+    box-shadow: 0 0 15px rgba(0, 180, 216, 0.6);
+}
+/* Currency Tool Theme */
+.currency-theme {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-color: #10b981;
+}
+.currency-theme:hover {
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+}
+</style>
+
+</head>
+
+
+<body>
+
+<div class="lobby-container">
+
+<h1>MY apps and tools</h1>
+
+<p class="subtitle">
+Select a game to launch
+</p>
+
+<div class="search-container">
+<input 
+id="game-search"
+class="search-bar"
+placeholder="🔍 Search arcade matrix..."
+autocomplete="off">
+<select id="category-filter" class="search-category">
+    <option value="all">All</option>
+    <option value="hot">Hot</option>
+    <option value="games">Games</option>
+    <option value="tools">Tools</option>
+</select>
+</div>
+
+<div class="menu-grid" id="arcade-grid">
+    <a href="synth/index.html" class="game-card synth-theme" data-category="tools">
+<span class="icon">🎹</span> Cyber Synth Pad
+</a>
+
+<a href="spaceshooter/index.html" class="game-card space-shooter-theme" data-category="games hot">
+<span class="icon">🚀</span> Play Space Shooter
+</a>
+
+<a href="imsg/index.html" class="game-card imsg-theme" data-category="tools">
+<span class="icon">💬</span> Play iMessage Games
+</a>
+
+<a href="racinggame/index.html" class="game-card race-theme" data-category="games hot">
+<span class="icon">🏎️</span> Play Race.io
+</a>
+
+<a href="chess/index.html" class="game-card chess-theme">
+<span class="icon">♟️</span> Play Chess
+</a>
+
+<a href="google_dinosaur_game/index.html" class="game-card dino-theme">
+<span class="icon">🦖</span> Play Dino Run
+</a>
+
+<a href="snake/index.html" class="game-card snake-theme">
+<span class="icon">🐍</span> Play Snake
+</a>
+
+<a href="tictactoe/index.html" class="game-card tictactoe-theme">
+<span class="icon">❌</span> Tic-Tac-Toe
+</a>
+
+<a href="Minesweeper/index.html" class="game-card minesweeper-theme">
+<span class="icon">💣</span> Minesweeper
+</a>
+
+<a href="cookie_clicker/index.html" class="game-card cookie-theme">
+<span class="icon">🍪</span> Cookie Clicker
+</a>
+
+<a href="darts/index.html" class="game-card darts-theme">
+<span class="icon">🎯</span> Play Darts
+</a>
+
+<a href="tracker/index.html" class="game-card tracker-theme" data-category="tools">
+<span class="icon">📊</span> Tracker Tool
+</a>
+
+<a href="blackjack/index.html" class="game-card blackjack-theme">
+<span class="icon">🃏</span> Play Blackjack
+</a>
+
+<a href="poxel-io/index.html" class="game-card poxel-theme">
+<span class="icon">👾</span> Play shooter fps
+</a>
+
+<a href="flappybird/index.html" class="game-card flappy-theme">
+<span class="icon">🐦</span> Play Flappy Bird
+</a>
+
+<a href="erunners/index.html" class="game-card erruners-theme">
+<span class="icon">🏃</span> Play Erruners
+</a>
+
+<a href="whackamole/index.html" class="game-card whack-theme">
+<span class="icon">🐹</span> Whack-a-Mole
+</a>
+
+<a href="reactiontime/index.html" class="game-card reaction-theme">
+<span class="icon">⚡</span> Reaction Time Test
+</a>
+
+<a href="pong/index.html" class="game-card pong-theme">
+<span class="icon">🏓</span> Play Pong
+</a>
+
+<a href="tetris/index.html" class="game-card tetris-theme">
+<span class="icon">🟦</span> Play Tetris
+</a>
+
+<a href="agar/tkwars.html" class="game-card tkwars-theme">
+<span class="icon">🔮</span> Play tkwars
+</a>
+
+<a href="tank/diep.html" class="game-card tank-theme">
+<span class="icon">🛡️</span> Cyber Tank Evolution
+</a>
+
+<a href="html/index.html" class="game-card html-theme" data-category="tools">
+<span class="icon">🌐</span> HTML Code Runner
+</a>
+
+<a href="python/index.html" class="game-card python-theme" data-category="tools">
+<span class="icon">🐍</span> Python Code Runner
+</a>
+
+<a href="palmon/index.html" class="game-card palmon-theme" data-category="games hot">
+    <span class="icon">🪖</span> Play soldier.io
+</a>
+
+<a href="compass/index.html" class="game-card compass-theme" data-category="tools">
+    <span class="icon">🧭</span> Accurate Compass
+</a>
+
+<a href="pixelart/index.html" class="game-card pixel-theme" data-category="tools">
+<span class="icon">🎨</span> Pixel Art Studio
+</a>
+
+<a href="wheel/index.html" class="game-card wheel-theme" data-category="tools">
+<span class="icon">🎡</span> Random Decision Wheel
+</a>
+<a href="qr/index.html" class="game-card qr-theme" data-category="tools">
+<span class="icon">🔳</span> QR Code Generator
+</a>
+<a href="password/index.html" class="game-card password-theme" data-category="tools">
+<span class="icon">🔑</span> Password Generator
+</a>
+<a href="tip/index.html" class="game-card tip-theme" data-category="tools">
+<span class="icon">💵</span> Tip Splitter
+</a>
+<a href="converter/index.html" class="game-card converter-theme" data-category="tools">
+<span class="icon">🔄</span> Unit Converter
+</a>
+<a href="currency/index.html" class="game-card currency-theme" data-category="tools">
+<span class="icon">💱</span> Currency Converter
+</a>
+
+</div>
+
+<div id="no-results">
+NO COMPATIBLE ARCADE MODULES FOUND
+</div>
+
+</div>
+
+<script>
+const searchInput = document.getElementById("game-search");
+const gameCards = document.querySelectorAll(".game-card");
+const noResults = document.getElementById("no-results");
+
+const categoryFilter = document.getElementById("category-filter");
+
+function filterCards() {
+    let query = searchInput.value.toLowerCase().trim();
+    let category = categoryFilter.value;
+    let visibleCount = 0;
+
+    gameCards.forEach(card => {
+        let name = card.textContent.toLowerCase();
+        let matchesQuery = name.includes(query);
+        let categories = card.dataset.category ? card.dataset.category.split(" ") : ["games"];
+        let matchesCategory = category === "all"
+            || (category === "tools" && categories.includes("tools"))
+            || (category === "games" && categories.includes("games"))
+            || (category === "hot" && categories.includes("hot"));
+
+        if (matchesQuery && matchesCategory) {
+            card.style.display = "flex";
+            visibleCount++;
+        } else {
+            card.style.display = "none";
+        }
+    });
+
+    noResults.style.display = visibleCount === 0 ? "block" : "none";
+}
+
+searchInput.addEventListener("input", filterCards);
+categoryFilter.addEventListener("change", filterCards);
+filterCards();
+
+console.log("YO EMMANUEL")
+</script>
+
+</body>
+</html>
+
+

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Math & Tip Splitter</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            background: #1e1e24; 
+            color: #fff; 
+            padding-top: 40px; 
+            margin: 0;
+        }
+        .container { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+            width: 100%; 
+            max-width: 420px; 
+            padding: 25px;
+            background: #2f3640;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.4);
+            box-sizing: border-box;
+        }
+        h2 { margin: 0; color: #ff6b6b; text-align: center; }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        label { font-size: 0.9rem; color: #a0aec0; }
+        input {
+            width: 100%;
+            padding: 12px;
+            background: #1e1e24;
+            border: 2px solid #4a5568;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1.1rem;
+            outline: none;
+            box-sizing: border-box;
+        }
+        input:focus { border-color: #ff6b6b; }
+
+        .tip-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        .tip-btn {
+            padding: 10px;
+            background: #1e1e24;
+            border: 2px solid #4a5568;
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .tip-btn:hover, .tip-btn.active {
+            background: #ff6b6b;
+            border-color: #ff6b6b;
+            box-shadow: 0 0 8px rgba(255, 107, 107, 0.4);
+        }
+
+        .results {
+            background: #1e1e24;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border: 2px solid #4a5568;
+        }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1rem;
+        }
+        .result-row.total {
+            border-top: 1px solid #4a5568;
+            padding-top: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ff6b6b;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Tip Splitter</h2>
+        
+        <div class="input-group">
+            <label>Bill Amount ($)</label>
+            <input type="number" id="billInput" placeholder="0.00" min="0" step="0.01">
+        </div>
+
+        <div class="input-group">
+            <label>Select Tip %</label>
+            <div class="tip-buttons">
+                <button class="tip-btn" data-tip="10">10%</button>
+                <button class="tip-btn active" data-tip="15">15%</button>
+                <button class="tip-btn" data-tip="18">18%</button>
+                <button class="tip-btn" data-tip="20">20%</button>
+            </div>
+            <input type="number" id="customTip" placeholder="Custom %" min="0" style="margin-top: 8px;">
+        </div>
+
+        <div class="input-group">
+            <label>Number of People</label>
+            <input type="number" id="splitInput" value="1" min="1">
+        </div>
+
+        <div class="results">
+            <div class="result-row">
+                <span>Tip Amount:</span>
+                <span id="tipAmount">$0.00</span>
+            </div>
+            <div class="result-row">
+                <span>Total Bill:</span>
+                <span id="totalBill">$0.00</span>
+            </div>
+            <div class="result-row total">
+                <span>Per Person:</span>
+                <span id="perPerson">$0.00</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const billInput = document.getElementById('billInput');
+        const customTip = document.getElementById('customTip');
+        const splitInput = document.getElementById('splitInput');
+        const tipButtons = document.querySelectorAll('.tip-btn');
+        const tipAmountDisplay = document.getElementById('tipAmount');
+        const totalBillDisplay = document.getElementById('totalBill');
+        const perPersonDisplay = document.getElementById('perPerson');
+
+        let currentTipPercent = 15;
+
+        tipButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tipButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentTipPercent = parseFloat(btn.dataset.tip);
+                customTip.value = '';
+                calculate();
+            });
+        });
+
+        customTip.addEventListener('input', () => {
+            if (customTip.value !== '') {
+                tipButtons.forEach(b => b.classList.remove('active'));
+                currentTipPercent = parseFloat(customTip.value) || 0;
+            }
+            calculate();
+        });
+
+        billInput.addEventListener('input', calculate);
+        splitInput.addEventListener('input', calculate);
+
+        function calculate() {
+            const bill = parseFloat(billInput.value) || 0;
+            const people = parseInt(splitInput.value) || 1;
+            
+            const tipTotal = bill * (currentTipPercent / 100);
+            const overallTotal = bill + tipTotal;
+            const sharePerPerson = overallTotal / Math.max(people, 1);
+
+            tipAmountDisplay.innerText = `$${tipTotal.toFixed(2)}`;
+            totalBillDisplay.innerText = `$${overallTotal.toFixed(2)}`;
+            perPersonDisplay.innerText = `$${sharePerPerson.toFixed(2)}`;
+        }
+    </script>
+</body>
+</html>

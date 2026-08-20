@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Spinning Darts HD Remaster</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1b1e2e 0%, #0a0b12 100%);
+            font-family: 'Poppins', sans-serif;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .game-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 440px;
+            height: 100%;
+            max-height: 720px;
+            background: #141622;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(80, 250, 123, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.08);
+        }
+
+        /* Header Bar */
+        .header {
+            width: 100%;
+            padding: 12px 20px 5px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            z-index: 5;
+        }
+
+        .title-group h1 {
+            margin: 0;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #50fa7b, #8be9fd);
+            -webkit-background-clip: text;
+            background-clip: text; /* Fixes CSS Linter Warning */
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 1px;
+        }
+
+        .sound-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .sound-btn:hover {
+            background: rgba(80, 250, 123, 0.2);
+        }
+
+        /* Stats HUD */
+        .hud-container {
+            width: 100%;
+            padding: 10px 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            text-align: center;
+            z-index: 5;
+        }
+
+        .hud-card {
+            background: rgba(255, 255, 255, 0.04);
+            padding: 6px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .hud-label {
+            font-size: 0.65rem;
+            color: #a0a5c0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .hud-value {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: #f1fa8c;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Canvas */
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        .canvas-container {
+            position: relative;
+            flex: 1;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Screen Shake */
+        .shake {
+            animation: camera-shake 0.2s ease-in-out 2;
+        }
+
+        @keyframes camera-shake {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(-6px, 4px); }
+            50% { transform: translate(6px, -4px); }
+            75% { transform: translate(-4px, -2px); }
+        }
+
+        /* Action Prompt Overlay */
+        #aim-prompt {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(10, 11, 18, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(80, 250, 123, 0.3);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #50fa7b;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            pointer-events: none;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            z-index: 4;
+        }
+
+        /* Game Over Modal Overlay */
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 11, 18, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            padding: 30px;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-box {
+            background: #1c1e2d;
+            border: 2px solid rgba(80, 250, 123, 0.4);
+            border-radius: 16px;
+            padding: 30px 25px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            transform: translateY(-20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal-box {
+            transform: translateY(0);
+        }
+
+        .modal-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+        }
+
+        .modal-score {
+            font-size: 1.1rem;
+            color: #f1fa8c;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .btn-restart {
+            background: linear-gradient(135deg, #50fa7b, #32a852);
+            color: #0a0b12;
+            border: none;
+            padding: 12px 30px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            font-size: 1rem;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(80, 250, 123, 0.4);
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+        }
+
+        .btn-restart:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(80, 250, 123, 0.6);
+        }
+
+        .btn-restart:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-wrapper" id="game-wrapper">
+        <div class="header">
+            <div class="title-group">
+                <h1>SPINNING DARTS HD</h1>
+            </div>
+            <button class="sound-btn" id="sound-btn">🔊 Sound ON</button>
+        </div>
+
+        <div class="hud-container">
+            <div class="hud-card">
+                <div class="hud-label">Score</div>
+                <div class="hud-value" id="hud-score">0</div>
+            </div>
+            <div class="hud-card">
+                <div class="hud-label">Goal</div>
+                <div class="hud-value" id="hud-goal" style="color: #ffb86c;">120</div>
+            </div>
+            <div class="hud-card">
+                <div class="hud-label">Darts Left</div>
+                <div class="hud-value" id="hud-darts" style="color: #8be9fd;">5</div>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="gameCanvas" width="400" height="540"></canvas>
+            <div id="aim-prompt">🎯 Click to Lock HORIZONTAL Aim (X)</div>
+        </div>
+
+        <div class="modal-overlay" id="modal">
+            <div class="modal-box">
+                <div class="modal-title" id="modal-title">YOU WIN! 🎉</div>
+                <div class="modal-score" id="modal-desc">Final Score: 140</div>
+                <button class="btn-restart" id="modal-btn">PLAY AGAIN</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Web Audio Synthesizer Engine
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+            }
+
+            playLock() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            }
+
+            playThrow() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+
+            playHit(isSpecial = false, isHazard = false) {
+                if (!this.enabled || !this.ctx) return;
+                const t = this.ctx.currentTime;
+                
+                if (isHazard) {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(120, t);
+                    osc.frequency.linearRampToValueAtTime(60, t + 0.25);
+                    gain.gain.setValueAtTime(0.3, t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(t + 0.25);
+                    return;
+                }
+
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(220, t);
+                osc.frequency.exponentialRampToValueAtTime(80, t + 0.12);
+                gain.gain.setValueAtTime(0.3, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(t + 0.12);
+
+                if (isSpecial) {
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((freq, idx) => {
+                        const chimeOsc = this.ctx.createOscillator();
+                        const chimeGain = this.ctx.createGain();
+                        chimeOsc.type = 'sine';
+                        chimeOsc.frequency.setValueAtTime(freq, t + idx * 0.06);
+                        chimeGain.gain.setValueAtTime(0.15, t + idx * 0.06);
+                        chimeGain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.06 + 0.25);
+                        chimeOsc.connect(chimeGain);
+                        chimeGain.connect(this.ctx.destination);
+                        chimeOsc.start(t + idx * 0.06);
+                        chimeOsc.stop(t + idx * 0.06 + 0.25);
+                    });
+                }
+            }
+
+            playWin() {
+                if (!this.enabled || !this.ctx) return;
+                const t = this.ctx.currentTime;
+                [440, 554.37, 659.25, 880].forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.frequency.setValueAtTime(freq, t + i * 0.1);
+                    gain.gain.setValueAtTime(0.2, t + i * 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + i * 0.1 + 0.4);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(t + i * 0.1);
+                    osc.stop(t + i * 0.1 + 0.4);
+                });
+            }
+        }
+
+        const sound = new SoundEngine();
+
+        // Game Elements DOM
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const wrapper = document.getElementById("game-wrapper");
+        const hudScore = document.getElementById("hud-score");
+        const hudGoal = document.getElementById("hud-goal");
+        const hudDarts = document.getElementById("hud-darts");
+        const aimPrompt = document.getElementById("aim-prompt");
+        const modal = document.getElementById("modal");
+        const modalTitle = document.getElementById("modal-title");
+        const modalDesc = document.getElementById("modal-desc");
+        const modalBtn = document.getElementById("modal-btn");
+        const soundBtn = document.getElementById("sound-btn");
+
+        // Game Configuration
+        const GOAL_SCORE = 120;
+        const TOTAL_DARTS = 5;
+
+        let score = 0;
+        let dartsLeft = TOTAL_DARTS;
+        let isGameOver = false;
+
+        // Board Center & Radius
+        const boardX = canvas.width / 2;
+        const boardY = 175;
+        const boardRadius = 125;
+        let boardRotation = 0;
+        const rotationSpeed = 0.02;
+
+        const sectors = [
+            { score: 20, type: 'normal' },
+            { score: 1, type: 'normal' },
+            { score: -30, type: 'hazard' },
+            { score: 18, type: 'normal' },
+            { score: 4, type: 'normal' },
+            { score: 50, type: 'bonus' },
+            { score: 13, type: 'normal' },
+            { score: 6, type: 'normal' },
+            { score: -40, type: 'hazard' },
+            { score: 10, type: 'normal' },
+            { score: 15, type: 'normal' },
+            { score: 2, type: 'normal' },
+            { score: 17, type: 'normal' },
+            { score: 3, type: 'normal' },
+            { score: 40, type: 'bonus' },
+            { score: 19, type: 'normal' },
+            { score: 7, type: 'normal' },
+            { score: -20, type: 'hazard' },
+            { score: 16, type: 'normal' },
+            { score: 8, type: 'normal' }
+        ];
+
+        let aimState = 'AIM_X';
+
+        let currentAimX = canvas.width / 2;
+        let aimDirX = 1;
+        const aimSpeedX = 4.5;
+
+        let lockedX = canvas.width / 2;
+
+        let currentAimY = 175;
+        let aimDirY = 1;
+        const aimSpeedY = 5.0;
+        const minAimY = 50;
+        const maxAimY = 320;
+
+        let lockedY = 175;
+
+        let activeDart = null;
+        let stuckDarts = [];
+        let particles = [];
+        let floatingTexts = [];
+
+        let tick = 0;
+
+        soundBtn.addEventListener('click', () => {
+            sound.enabled = !sound.enabled;
+            soundBtn.innerText = sound.enabled ? "🔊 Sound ON" : "🔇 Sound OFF";
+        });
+
+        function updateHUD() {
+            hudScore.innerText = score;
+            hudDarts.innerText = dartsLeft;
+            
+            if (aimState === 'AIM_X') {
+                aimPrompt.innerText = "🎯 Click to Lock HORIZONTAL Aim (X)";
+                aimPrompt.style.borderColor = "rgba(80, 250, 123, 0.4)";
+                aimPrompt.style.color = "#50fa7b";
+            } else if (aimState === 'AIM_Y') {
+                aimPrompt.innerText = "🎯 Click to Lock VERTICAL Aim & LAUNCH!";
+                aimPrompt.style.borderColor = "rgba(255, 184, 108, 0.6)";
+                aimPrompt.style.color = "#ffb86c";
+            } else if (aimState === 'FLYING') {
+                aimPrompt.innerText = "🚀 Dart in flight...";
+                aimPrompt.style.borderColor = "rgba(139, 233, 253, 0.4)";
+                aimPrompt.style.color = "#8be9fd";
+            }
+        }
+
+        function spawnParticles(x, y, color, count = 16) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 6 + 2;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 1,
+                    radius: Math.random() * 4 + 1.5,
+                    alpha: 1,
+                    color: color,
+                    decay: Math.random() * 0.03 + 0.02
+                });
+            }
+        }
+
+        function addFloatingText(text, x, y, color) {
+            floatingTexts.push({
+                text: text,
+                x: x,
+                y: y,
+                vy: -1.5,
+                alpha: 1.5,
+                color: color
+            });
+        }
+
+        function handleInteraction() {
+            sound.init();
+
+            if (isGameOver) return;
+
+            if (aimState === 'AIM_X') {
+                lockedX = currentAimX;
+                aimState = 'AIM_Y';
+                currentAimY = boardY;
+                sound.playLock();
+                updateHUD();
+            } else if (aimState === 'AIM_Y') {
+                lockedY = currentAimY;
+                aimState = 'FLYING';
+                sound.playLock();
+                sound.playThrow();
+
+                const startX = canvas.width / 2;
+                const startY = 480;
+
+                activeDart = {
+                    x: startX,
+                    y: startY,
+                    startX: startX,
+                    startY: startY,
+                    targetX: lockedX,
+                    targetY: lockedY,
+                    progress: 0,
+                    speed: 0.06
+                };
+
+                dartsLeft--;
+                updateHUD();
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) handleInteraction();
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleInteraction();
+        }, { passive: false });
+
+        modalBtn.addEventListener('click', resetGame);
+
+        function update() {
+            tick++;
+
+            boardRotation += rotationSpeed;
+            if (boardRotation >= Math.PI * 2) boardRotation -= Math.PI * 2;
+
+            if (aimState === 'AIM_X') {
+                currentAimX += aimSpeedX * aimDirX;
+                if (currentAimX >= canvas.width - 35) { currentAimX = canvas.width - 35; aimDirX = -1; }
+                if (currentAimX <= 35) { currentAimX = 35; aimDirX = 1; }
+            } else if (aimState === 'AIM_Y') {
+                currentAimY += aimSpeedY * aimDirY;
+                if (currentAimY >= maxAimY) { currentAimY = maxAimY; aimDirY = -1; }
+                if (currentAimY <= minAimY) { currentAimY = minAimY; aimDirY = 1; }
+            } else if (aimState === 'FLYING' && activeDart) {
+                activeDart.progress += activeDart.speed;
+                
+                activeDart.x = activeDart.startX + (activeDart.targetX - activeDart.startX) * activeDart.progress;
+                activeDart.y = activeDart.startY + (activeDart.targetY - activeDart.startY) * activeDart.progress;
+
+                if (activeDart.progress >= 1) {
+                    processHit(activeDart.targetX, activeDart.targetY);
+                    activeDart = null;
+                    
+                    if (dartsLeft > 0) {
+                        aimState = 'AIM_X';
+                    } else {
+                        aimState = 'IDLE';
+                        endGame();
+                    }
+                    updateHUD();
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= p.decay;
+                if (p.alpha <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                let ft = floatingTexts[i];
+                ft.y += ft.vy;
+                ft.alpha -= 0.025;
+                if (ft.alpha <= 0) floatingTexts.splice(i, 1);
+            }
+        }
+
+        function processHit(hitX, hitY) {
+            const dist = Math.sqrt(Math.pow(hitX - boardX, 2) + Math.pow(hitY - boardY, 2));
+
+            let sectorValue = 0;
+            let particleColor = '#a0a5c0';
+
+            if (dist <= 12) {
+                sectorValue = 100;
+                particleColor = '#f1fa8c';
+                sound.playHit(true, false);
+                addFloatingText("DOUBLE BULLSEYE! +100", hitX, hitY - 15, particleColor);
+            } else if (dist <= 28) {
+                sectorValue = 50;
+                particleColor = '#ffb86c';
+                sound.playHit(true, false);
+                addFloatingText("BULLSEYE! +50", hitX, hitY - 15, particleColor);
+            } else if (dist <= boardRadius) {
+                const numSectors = sectors.length;
+                const angleStep = (Math.PI * 2) / numSectors;
+
+                let worldAngle = Math.atan2(hitY - boardY, hitX - boardX);
+                let localAngle = worldAngle - boardRotation;
+                localAngle = (localAngle % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+
+                const idx = Math.floor(localAngle / angleStep);
+                const sec = sectors[idx];
+
+                let ringMultiplier = 1;
+                let ringLabel = "";
+
+                if (dist >= 60 && dist <= 75) {
+                    ringMultiplier = 3;
+                    ringLabel = "TRIPLE ";
+                } else if (dist >= 110 && dist <= 125) {
+                    ringMultiplier = 2;
+                    ringLabel = "DOUBLE ";
+                }
+
+                if (sec.type === 'hazard') {
+                    sectorValue = sec.score;
+                    particleColor = '#ff5555';
+                    sound.playHit(false, true);
+                    
+                    wrapper.classList.add("shake");
+                    setTimeout(() => wrapper.classList.remove("shake"), 350);
+                    addFloatingText(`HAZARD! ${sectorValue}`, hitX, hitY - 15, particleColor);
+                } else {
+                    sectorValue = sec.score * ringMultiplier;
+                    particleColor = ringMultiplier > 1 ? '#8be9fd' : (sec.type === 'bonus' ? '#f1fa8c' : '#50fa7b');
+                    sound.playHit(ringMultiplier > 1 || sec.type === 'bonus', false);
+                    addFloatingText(`${ringLabel}${sectorValue >= 0 ? '+' : ''}${sectorValue}`, hitX, hitY - 15, particleColor);
+                }
+            } else {
+                sectorValue = 0;
+                addFloatingText("MISS!", hitX, hitY - 15, '#a0a5c0');
+                sound.playHit(false, false);
+            }
+
+            score += sectorValue;
+            if (score < 0) score = 0;
+
+            spawnParticles(hitX, hitY, particleColor, dist <= boardRadius ? 20 : 8);
+
+            let worldAngle = Math.atan2(hitY - boardY, hitX - boardX);
+            let relAngle = worldAngle - boardRotation;
+
+            stuckDarts.push({
+                relAngle: relAngle,
+                radius: dist,
+                color: particleColor
+            });
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const bgGrad = ctx.createRadialGradient(boardX, boardY, 10, boardX, boardY, 260);
+            bgGrad.addColorStop(0, 'rgba(80, 250, 123, 0.08)');
+            bgGrad.addColorStop(0.5, 'rgba(30, 33, 50, 0.4)');
+            bgGrad.addColorStop(1, 'rgba(10, 11, 18, 0)');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawSpinningBoard();
+            drawStuckDarts();
+            drawAimGuides();
+            drawFlyingDart();
+            drawParticles();
+            drawFloatingTexts();
+        }
+
+        function drawSpinningBoard() {
+            ctx.save();
+            ctx.translate(boardX, boardY);
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+            ctx.shadowBlur = 25;
+            ctx.shadowOffsetY = 10;
+            ctx.fillStyle = '#0f1017';
+            ctx.beginPath();
+            ctx.arc(0, 0, boardRadius + 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            let metallicGrad = ctx.createLinearGradient(-boardRadius, -boardRadius, boardRadius, boardRadius);
+            metallicGrad.addColorStop(0, '#44475a');
+            metallicGrad.addColorStop(0.5, '#282a36');
+            metallicGrad.addColorStop(1, '#6272a4');
+            ctx.strokeStyle = metallicGrad;
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.arc(0, 0, boardRadius + 5, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.rotate(boardRotation);
+
+            const numSectors = sectors.length;
+            const angleStep = (Math.PI * 2) / numSectors;
+
+            for (let i = 0; i < numSectors; i++) {
+                const startAngle = i * angleStep;
+                const endAngle = (i + 1) * angleStep;
+                const sec = sectors[i];
+
+                let secColor = "#191a21";
+                if (sec.type === 'hazard') {
+                    secColor = "#ff5555";
+                } else if (sec.type === 'bonus') {
+                    secColor = "#ffb86c";
+                } else {
+                    secColor = (i % 2 === 0) ? "#282a36" : "#f8f8f2";
+                }
+
+                ctx.fillStyle = secColor;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, boardRadius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = (sec.type === 'hazard') ? "#cc0000" : (i % 2 === 0 ? "#50fa7b" : "#ff5555");
+                ctx.beginPath();
+                ctx.arc(0, 0, 75, startAngle, endAngle);
+                ctx.arc(0, 0, 60, endAngle, startAngle, true);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = (sec.type === 'hazard') ? "#cc0000" : (i % 2 === 0 ? "#50fa7b" : "#ff5555");
+                ctx.beginPath();
+                ctx.arc(0, 0, 125, startAngle, endAngle);
+                ctx.arc(0, 0, 110, endAngle, startAngle, true);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.save();
+                ctx.rotate(startAngle + angleStep / 2);
+                ctx.fillStyle = (sec.type === 'hazard' || (i % 2 === 0 && sec.type !== 'bonus')) ? "#ffffff" : "#11111b";
+                ctx.font = "bold 11px 'Orbitron', sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(sec.score, 92, 0);
+                ctx.restore();
+            }
+
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+            ctx.lineWidth = 1.2;
+            for (let i = 0; i < numSectors; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(i * angleStep) * boardRadius, Math.sin(i * angleStep) * boardRadius);
+                ctx.stroke();
+            }
+
+            [28, 60, 75, 110, 125].forEach(r => {
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+
+            ctx.fillStyle = "#ff5555";
+            ctx.beginPath();
+            ctx.arc(0, 0, 28, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#f1fa8c";
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawStuckDarts() {
+            ctx.save();
+            ctx.translate(boardX, boardY);
+
+            for (let d of stuckDarts) {
+                ctx.save();
+                ctx.rotate(boardRotation + d.relAngle);
+
+                let r = Math.min(d.radius, boardRadius + 10);
+
+                ctx.fillStyle = d.color;
+                ctx.beginPath();
+                ctx.arc(r, 0, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(r, 0);
+                ctx.lineTo(r + 14, 0);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ff5555';
+                ctx.fillRect(r + 10, -3, 6, 6);
+
+                ctx.restore();
+            }
+
+            ctx.restore();
+        }
+
+        function drawAimGuides() {
+            if (isGameOver || aimState === 'FLYING' || aimState === 'IDLE') return;
+
+            ctx.save();
+
+            if (aimState === 'AIM_X') {
+                ctx.strokeStyle = "rgba(80, 250, 123, 0.7)";
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 6]);
+                ctx.beginPath();
+                ctx.moveTo(currentAimX, minAimY - 10);
+                ctx.lineTo(currentAimX, maxAimY + 20);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                const pulse = Math.sin(tick * 0.1) * 3;
+                ctx.strokeStyle = "#50fa7b";
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(currentAimX, boardY, 18 + pulse, 0, Math.PI * 2);
+                ctx.stroke();
+
+                drawDartGraphic(currentAimX, 470, 1, 0, true);
+
+            } else if (aimState === 'AIM_Y') {
+                ctx.strokeStyle = "rgba(80, 250, 123, 0.3)";
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(lockedX, minAimY);
+                ctx.lineTo(lockedX, maxAimY);
+                ctx.stroke();
+
+                const pulse = Math.sin(tick * 0.15) * 4;
+                ctx.strokeStyle = "#ffb86c";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(lockedX, currentAimY, 14 + pulse, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(lockedX - 8, currentAimY);
+                ctx.lineTo(lockedX + 8, currentAimY);
+                ctx.moveTo(lockedX, currentAimY - 8);
+                ctx.lineTo(lockedX, currentAimY + 8);
+                ctx.stroke();
+
+                drawDartGraphic(lockedX, 470, 1, 0, true);
+            }
+
+            ctx.restore();
+        }
+
+        function drawFlyingDart() {
+            if (aimState !== 'FLYING' || !activeDart) return;
+
+            let scale = 1.2 - (0.6 * activeDart.progress);
+            let angle = Math.atan2(activeDart.targetY - activeDart.startY, activeDart.targetX - activeDart.startX) + Math.PI / 2;
+
+            drawDartGraphic(activeDart.x, activeDart.y, scale, angle, false);
+        }
+
+        function drawDartGraphic(x, y, scale = 1, rotation = 0, isAiming = false) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+            ctx.scale(scale, scale);
+
+            ctx.save();
+            ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+            ctx.beginPath();
+            ctx.ellipse(3, 10, 6, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.strokeStyle = "#d8dee9";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -22);
+            ctx.lineTo(0, -8);
+            ctx.stroke();
+
+            let barrelGrad = ctx.createLinearGradient(-5, 0, 5, 0);
+            barrelGrad.addColorStop(0, '#50fa7b');
+            barrelGrad.addColorStop(0.5, '#a3be8c');
+            barrelGrad.addColorStop(1, '#2e3440');
+            ctx.fillStyle = barrelGrad;
+            ctx.fillRect(-4, -8, 8, 16);
+
+            ctx.strokeStyle = "#1e222a";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(-4, -4); ctx.lineTo(4, -4);
+            ctx.moveTo(-4, 0);  ctx.lineTo(4, 0);
+            ctx.moveTo(-4, 4);  ctx.lineTo(4, 4);
+            ctx.stroke();
+
+            ctx.strokeStyle = "#e5e9f0";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(0, 8);
+            ctx.lineTo(0, 22);
+            ctx.stroke();
+
+            ctx.fillStyle = isAiming ? "#ff5555" : "#ff79c6";
+            ctx.beginPath();
+            ctx.moveTo(0, 18);
+            ctx.lineTo(-12, 32);
+            ctx.lineTo(-3, 30);
+            ctx.lineTo(0, 36);
+            ctx.lineTo(3, 30);
+            ctx.lineTo(12, 32);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawParticles() {
+            for (let p of particles) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, p.alpha);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function drawFloatingTexts() {
+            for (let ft of floatingTexts) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, ft.alpha);
+                ctx.fillStyle = ft.color;
+                ctx.font = "900 18px 'Orbitron', sans-serif";
+                ctx.textAlign = "center";
+                ctx.shadowColor = "rgba(0,0,0,0.8)";
+                ctx.shadowBlur = 6;
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.restore();
+            }
+        }
+
+        function endGame() {
+            isGameOver = true;
+            const won = score >= GOAL_SCORE;
+
+            if (won) {
+                sound.playWin();
+                modalTitle.innerText = "YOU WIN! 🎉";
+                modalTitle.style.color = "#50fa7b";
+                modalDesc.innerText = `Goal Reached! Final Score: ${score}`;
+            } else {
+                modalTitle.innerText = "GAME OVER 💀";
+                modalTitle.style.color = "#ff5555";
+                modalDesc.innerText = `Goal was ${GOAL_SCORE}. Final Score: ${score}`;
+            }
+
+            setTimeout(() => {
+                modal.classList.add("active");
+            }, 600);
+        }
+
+        function resetGame() {
+            score = 0;
+            dartsLeft = TOTAL_DARTS;
+            isGameOver = false;
+            aimState = 'AIM_X';
+            currentAimX = canvas.width / 2;
+            currentAimY = boardY;
+            activeDart = null;
+            stuckDarts = [];
+            particles = [];
+            floatingTexts = [];
+            
+            modal.classList.remove("active");
+            updateHUD();
+        }
+
+        function loop() {
+            update();
+            render();
+            requestAnimationFrame(loop);
+        }
+
+        updateHUD();
+        loop();
+    </script>
+</body>
+</html>

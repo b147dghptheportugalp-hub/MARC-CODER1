@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cyber Minesweeper | Arcade Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* ==========================================
+           CYBER ARCADE THEME & STYLING
+           ========================================== */
+        :root {
+            --bg-dark: #05050a;
+            --panel-bg: rgba(15, 15, 30, 0.95);
+            --border-neon: #00ffcc;
+            --pink-neon: #ff007f;
+            --tile-bg: rgba(255, 255, 255, 0.04);
+            --tile-hover: rgba(0, 255, 204, 0.15);
+            --tile-revealed: rgba(0, 0, 0, 0.4);
+        }
+
+        body {
+            background: radial-gradient(circle, rgba(20,10,35,1) 0%, rgba(5,5,10,1) 100%);
+            color: #ffffff;
+            font-family: 'Orbitron', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            overflow: hidden;
+        }
+
+        /* Arcade Cabinet Container */
+        .arcade-cabinet {
+            background: var(--panel-bg);
+            border: 2px solid var(--border-neon);
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.3), inset 0 0 20px rgba(0, 255, 204, 0.1);
+            border-radius: 16px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 95vw;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .cabinet-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .cabinet-header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: var(--pink-neon);
+            text-shadow: 0 0 10px var(--pink-neon), 0 0 20px var(--pink-neon);
+            letter-spacing: 2px;
+        }
+
+        .cabinet-header p {
+            margin: 5px 0 0 0;
+            font-size: 0.75rem;
+            color: #888;
+            letter-spacing: 1px;
+        }
+
+        /* Status Bar / Dashboard */
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        /* LED Digital Counters */
+        .led-counter {
+            background-color: #030307;
+            color: var(--pink-neon);
+            font-family: 'Orbitron', monospace;
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 0, 127, 0.4);
+            box-shadow: inset 0 0 8px rgba(255, 0, 127, 0.3);
+            text-shadow: 0 0 8px var(--pink-neon);
+        }
+
+        /* Cyber Core Avatar Button */
+        #core-btn {
+            width: 48px;
+            height: 48px;
+            background: radial-gradient(circle, #222 0%, #111 100%);
+            border: 2px solid var(--border-neon);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            outline: none;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+            transition: all 0.2s ease;
+            padding: 0;
+        }
+
+        #core-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 20px var(--border-neon);
+        }
+
+        #core-btn:active {
+            transform: scale(0.95);
+        }
+
+        .core-icon {
+            width: 28px;
+            height: 28px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        /* Core Expressions */
+        .core-smile { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%2300ffcc' stroke-width='2'/%3E%3Ccircle cx='8' cy='9' r='1.5' fill='%2300ffcc'/%3E%3Ccircle cx='16' cy='9' r='1.5' fill='%2300ffcc'/%3E%3Cpath d='M8 14s2 3 4 3 4-3 4-3' fill='none' stroke='%2300ffcc' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); }
+        .core-shock { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%23ffcc00' stroke-width='2'/%3E%3Ccircle cx='8' cy='9' r='1.5' fill='%23ffcc00'/%3E%3Ccircle cx='16' cy='9' r='1.5' fill='%23ffcc00'/%3E%3Ccircle cx='12' cy='15' r='2' fill='none' stroke='%23ffcc00' stroke-width='2'/%3E%3C/svg%3E"); }
+        .core-dead  { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%23ff0055' stroke-width='2'/%3E%3Cpath d='M7 7l4 4m0-4l-4 4M13 7l4 4m0-4l-4 4' stroke='%23ff0055' stroke-width='2'/%3E%3Cpath d='M8 17s2-2 4-2 4 2 4 2' fill='none' stroke='%23ff0055' stroke-width='2'/%3E%3C/svg%3E"); }
+        .core-won   { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%2300e5ff' stroke-width='2'/%3E%3Ccircle cx='8' cy='9' r='1.5' fill='%2300e5ff'/%3E%3Ccircle cx='16' cy='9' r='1.5' fill='%2300e5ff'/%3E%3Cpath d='M7 14s2 3 5 3 5-3 5-3' fill='none' stroke='%2300e5ff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); }
+
+        /* ==========================================
+           GRID & TILES
+           ========================================== */
+        #grid-container {
+            display: grid;
+            grid-template-columns: repeat(9, 42px);
+            grid-template-rows: repeat(9, 42px);
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #222;
+        }
+
+        .cell {
+            width: 42px;
+            height: 42px;
+            background-color: var(--tile-bg);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 900;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s, border-color 0.15s;
+        }
+
+        .cell:hover {
+            background-color: var(--tile-hover);
+            border-color: var(--border-neon);
+        }
+
+        .cell.revealed {
+            background-color: var(--tile-revealed);
+            border-color: rgba(255, 255, 255, 0.08);
+            cursor: default;
+        }
+
+        /* Color-coded neon numbers */
+        .cell[data-num="1"] { color: #00e5ff; text-shadow: 0 0 8px #00e5ff; }
+        .cell[data-num="2"] { color: #39ff14; text-shadow: 0 0 8px #39ff14; }
+        .cell[data-num="3"] { color: #ff007f; text-shadow: 0 0 8px #ff007f; }
+        .cell[data-num="4"] { color: #9c27b0; text-shadow: 0 0 8px #9c27b0; }
+        .cell[data-num="5"] { color: #ff9800; text-shadow: 0 0 8px #ff9800; }
+        .cell[data-num="6"] { color: #00bcd4; text-shadow: 0 0 8px #00bcd4; }
+        .cell[data-num="7"] { color: #e91e63; text-shadow: 0 0 8px #e91e63; }
+        .cell[data-num="8"] { color: #ffffff; text-shadow: 0 0 8px #ffffff; }
+
+        .cell.flagged {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 2v20M6 4h12l-4 5 4 5H6' fill='none' stroke='%23ff0055' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-size: 22px 22px;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-color: rgba(255, 0, 85, 0.1);
+            border-color: rgba(255, 0, 85, 0.4);
+        }
+
+        .cell.exploded {
+            background-color: rgba(255, 0, 0, 0.5) !important;
+            border-color: #ff0000 !important;
+            box-shadow: 0 0 15px #ff0000;
+            animation: pulse-explode 0.4s infinite alternate;
+        }
+
+        @keyframes pulse-explode {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.08); }
+        }
+
+        .cell.mine-revealed {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='5' fill='%23ff0055'/%3E%3Cpath d='M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2' stroke='%23ff0055' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-size: 22px 22px;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-color: rgba(255, 0, 85, 0.08);
+        }
+
+        .cell.wrong-flag {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 2v20M6 4h12l-4 5 4 5H6' fill='none' stroke='%23ff0055' stroke-width='2'/%3E%3Cline x1='3' y1='3' x2='21' y2='21' stroke='%23ff0000' stroke-width='3'/%3E%3C/svg%3E");
+            background-size: 22px 22px;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-color: rgba(255, 0, 0, 0.15);
+        }
+
+        /* Mobile Controls Toolbar */
+        .mobile-controls {
+            display: none;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .mode-btn {
+            background: rgba(0, 255, 204, 0.1);
+            border: 2px solid var(--border-neon);
+            color: var(--border-neon);
+            padding: 14px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            border-radius: 8px;
+            text-align: center;
+            transition: all 0.2s;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+        }
+
+        .mode-btn.flag-active {
+            background: rgba(255, 0, 85, 0.2);
+            border-color: var(--pink-neon);
+            color: var(--pink-neon);
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+        }
+
+        /* Screen Shake Effect */
+        .shake {
+            animation: shake-cabinet 0.2s ease-in-out 2;
+        }
+        @keyframes shake-cabinet {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(-6px, 4px); }
+            75% { transform: translate(6px, -4px); }
+        }
+
+        /* Responsive design for phones */
+        @media (max-width: 600px), (pointer: coarse) {
+            .mobile-controls {
+                display: block;
+            }
+            #grid-container {
+                grid-template-columns: repeat(9, 35px);
+                grid-template-rows: repeat(9, 35px);
+                gap: 3px;
+                padding: 8px;
+            }
+            .cell {
+                width: 35px;
+                height: 35px;
+                font-size: 1rem;
+            }
+            .arcade-cabinet {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="arcade-cabinet" id="cabinet">
+        <div class="cabinet-header">
+            <h1>CYBER MINESWEEPER</h1>
+            <p>TACTICAL RECONNAISSANCE</p>
+        </div>
+
+        <div class="status-bar">
+            <div id="mine-counter" class="led-counter">010</div>
+            <button id="core-btn">
+                <div id="face-icon" class="core-icon core-smile"></div>
+            </button>
+            <div id="timer" class="led-counter">000</div>
+        </div>
+
+        <div id="grid-container"></div>
+
+        <div class="mobile-controls">
+            <button id="mode-btn" class="mode-btn">MODE: ⛏️ DIG CELL</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // WEB AUDIO API - SOUND SYNTHESIS
+        // ==========================================
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSynthTone(freq, type, duration, vol=0.1) {
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        const soundClick = () => playSynthTone(400, 'triangle', 0.08, 0.05);
+        const soundFlag = () => playSynthTone(600, 'sine', 0.1, 0.05);
+        const soundExplode = () => {
+            playSynthTone(100, 'sawtooth', 0.4, 0.3);
+            setTimeout(() => playSynthTone(50, 'square', 0.5, 0.3), 100);
+        };
+        const soundWin = () => {
+            playSynthTone(523.25, 'sine', 0.15, 0.1);
+            setTimeout(() => playSynthTone(659.25, 'sine', 0.15, 0.1), 150);
+            setTimeout(() => playSynthTone(783.99, 'sine', 0.3, 0.1), 300);
+        };
+
+        // ==========================================
+        // GAME LOGIC
+        // ==========================================
+        const ROWS = 9;
+        const COLS = 9;
+        const MINES = 10;
+
+        const gridContainer = document.getElementById('grid-container');
+        const coreBtn = document.getElementById('core-btn');
+        const faceIcon = document.getElementById('face-icon');
+        const mineCounter = document.getElementById('mine-counter');
+        const timerVal = document.getElementById('timer');
+        const modeBtn = document.getElementById('mode-btn');
+        const cabinet = document.getElementById('cabinet');
+
+        let board = [];
+        let gameOver = false;
+        let gameStarted = false;
+        let timerInterval = null;
+        let time = 0;
+        let flags = 0;
+        let mobileMode = 'dig'; // 'dig' or 'flag'
+
+        // Toggle mobile mode
+        modeBtn.addEventListener('click', () => {
+            initAudio();
+            if (mobileMode === 'dig') {
+                mobileMode = 'flag';
+                modeBtn.textContent = 'MODE: 🚩 PLACE FLAG';
+                modeBtn.classList.add('flag-active');
+            } else {
+                mobileMode = 'dig';
+                modeBtn.textContent = 'MODE: ⛏️ DIG CELL';
+                modeBtn.classList.remove('flag-active');
+            }
+        });
+
+        function startNewGame() {
+            initAudio();
+            gridContainer.innerHTML = '';
+            board = [];
+            gameOver = false;
+            gameStarted = false;
+            time = 0;
+            flags = 0;
+            clearInterval(timerInterval);
+
+            faceIcon.className = 'core-icon core-smile';
+            mineCounter.textContent = formatSegment(MINES);
+            timerVal.textContent = '000';
+            cabinet.classList.remove('shake');
+
+            for (let r = 0; r < ROWS; r++) {
+                board[r] = [];
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+
+                    // Mouse Events
+                    cell.addEventListener('mousedown', (e) => handleMouseDown(e, r, c));
+                    cell.addEventListener('mouseup', (e) => handleMouseUp(e, r, c));
+                    cell.addEventListener('contextmenu', (e) => e.preventDefault());
+
+                    // Touch Events & Quick Long Press Flag Shortcut
+                    let touchTimer = null;
+                    let touchMoved = false;
+
+                    cell.addEventListener('touchstart', (e) => {
+                        if (gameOver) return;
+                        touchMoved = false;
+                        if (!board[r][c].isRevealed && !board[r][c].isFlagged) {
+                            faceIcon.className = 'core-icon core-shock';
+                        }
+                        
+                        touchTimer = setTimeout(() => {
+                            if (!touchMoved) {
+                                toggleFlag(r, c);
+                                faceIcon.className = 'core-icon core-smile';
+                                if (navigator.vibrate) navigator.vibrate(40);
+                            }
+                        }, 400);
+                    }, { passive: true });
+
+                    cell.addEventListener('touchmove', () => {
+                        touchMoved = true;
+                        clearTimeout(touchTimer);
+                        faceIcon.className = 'core-icon core-smile';
+                    }, { passive: true });
+
+                    cell.addEventListener('touchend', (e) => {
+                        if (gameOver) return;
+                        clearTimeout(touchTimer);
+                        faceIcon.className = 'core-icon core-smile';
+                        
+                        if (!touchMoved) {
+                            if (!gameStarted) {
+                                firstClickSafety(r, c);
+                                gameStarted = true;
+                                startTimer();
+                            }
+                            
+                            if (mobileMode === 'flag') {
+                                toggleFlag(r, c);
+                            } else {
+                                reveal(r, c);
+                            }
+                        }
+                        e.preventDefault();
+                    });
+
+                    gridContainer.appendChild(cell);
+
+                    board[r][c] = {
+                        row: r,
+                        col: c,
+                        element: cell,
+                        isMine: false,
+                        isRevealed: false,
+                        isFlagged: false,
+                        count: 0
+                    };
+                }
+            }
+        }
+
+        function handleMouseDown(e, r, c) {
+            if (gameOver) return;
+            if (e.button === 0 && !board[r][c].isRevealed && !board[r][c].isFlagged) {
+                faceIcon.className = 'core-icon core-shock';
+            }
+        }
+
+        function handleMouseUp(e, r, c) {
+            if (gameOver) return;
+            faceIcon.className = 'core-icon core-smile';
+
+            if (e.button === 0) {
+                if (!gameStarted) {
+                    firstClickSafety(r, c);
+                    gameStarted = true;
+                    startTimer();
+                }
+                reveal(r, c);
+            } else if (e.button === 2) {
+                toggleFlag(r, c);
+            }
+        }
+
+        function firstClickSafety(startRow, startCol) {
+            let minesPlaced = 0;
+            while (minesPlaced < MINES) {
+                const r = Math.floor(Math.random() * ROWS);
+                const c = Math.floor(Math.random() * COLS);
+
+                if (Math.abs(r - startRow) <= 1 && Math.abs(c - startCol) <= 1) continue;
+                if (!board[r][c].isMine) {
+                    board[r][c].isMine = true;
+                    minesPlaced++;
+                }
+            }
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c].isMine) continue;
+                    let count = 0;
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            const nr = r + dr, nc = c + dc;
+                            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                                if (board[nr][nc].isMine) count++;
+                            }
+                        }
+                    }
+                    board[r][c].count = count;
+                }
+            }
+        }
+
+        function reveal(r, c) {
+            const cell = board[r][c];
+            if (cell.isRevealed || cell.isFlagged) return;
+
+            cell.isRevealed = true;
+            cell.element.classList.add('revealed');
+            soundClick();
+
+            if (cell.isMine) {
+                endGame(false, cell);
+                return;
+            }
+
+            if (cell.count > 0) {
+                cell.element.textContent = cell.count;
+                cell.element.setAttribute('data-num', cell.count);
+            } else {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        const nr = r + dr, nc = c + dc;
+                        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                            reveal(nr, nc);
+                        }
+                    }
+                }
+            }
+
+            checkVictory();
+        }
+
+        function toggleFlag(r, c) {
+            const cell = board[r][c];
+            if (cell.isRevealed) return;
+
+            if (!cell.isFlagged) {
+                cell.isFlagged = true;
+                cell.element.classList.add('flagged');
+                flags++;
+                soundFlag();
+            } else {
+                cell.isFlagged = false;
+                cell.element.classList.remove('flagged');
+                flags--;
+                soundClick();
+            }
+
+            mineCounter.textContent = formatSegment(Math.max(-99, MINES - flags));
+        }
+
+        function checkVictory() {
+            let win = true;
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (!board[r][c].isMine && !board[r][c].isRevealed) {
+                        win = false;
+                    }
+                }
+            }
+            if (win) endGame(true);
+        }
+
+        function endGame(isWon, explodedCell = null) {
+            gameOver = true;
+            clearInterval(timerInterval);
+
+            if (isWon) {
+                soundWin();
+                faceIcon.className = 'core-icon core-won';
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        if (board[r][c].isMine && !board[r][c].isFlagged) {
+                            board[r][c].element.classList.add('flagged');
+                        }
+                    }
+                }
+                mineCounter.textContent = "000";
+            } else {
+                soundExplode();
+                cabinet.classList.add('shake');
+                faceIcon.className = 'core-icon core-dead';
+                if (explodedCell) {
+                    explodedCell.element.classList.add('exploded');
+                }
+                
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const cell = board[r][c];
+                        if (cell.isMine && !cell.isFlagged && cell !== explodedCell) {
+                            cell.element.classList.add('mine-revealed');
+                        } else if (!cell.isMine && cell.isFlagged) {
+                            cell.element.classList.remove('flagged');
+                            cell.element.classList.add('wrong-flag');
+                        }
+                    }
+                }
+            }
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                time++;
+                if (time > 999) time = 999;
+                timerVal.textContent = formatSegment(time);
+            }, 1000);
+        }
+
+        function formatSegment(num) {
+            if (num < 0) {
+                return '-' + Math.abs(num).toString().padStart(2, '0');
+            }
+            return num.toString().padStart(3, '0');
+        }
+
+        coreBtn.addEventListener('click', startNewGame);
+
+        startNewGame();
+    </script>
+</body>
+</html>

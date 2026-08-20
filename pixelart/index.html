@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pixel Art Studio</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        html, body {
+            width: 100%; height: 100%; overflow: hidden;
+            background: #05050a; color: #0ff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        #back-btn {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(0, 255, 255, 0.2); border: 1px solid #0ff; color: #0ff;
+            padding: 8px 14px; border-radius: 6px; font-family: inherit; font-weight: bold;
+            cursor: pointer; z-index: 10; text-decoration: none; font-size: 14px;
+        }
+        #back-btn:hover { background: #0ff; color: #000; }
+
+        h1 { font-size: 20px; margin-bottom: 10px; color: #f0f; text-shadow: 0 0 10px rgba(243,0,255,0.4); }
+
+        #app-container {
+            background: rgba(0, 10, 20, 0.85); border: 1px solid rgba(0, 255, 255, 0.3);
+            padding: 15px; border-radius: 12px; display: flex; flex-direction: column; align-items: center;
+            box-shadow: 0 0 25px rgba(0,255,255,0.1); max-width: 95vw; max-height: 90vh;
+        }
+
+        #canvas-wrapper {
+            position: relative; border: 2px solid #0ff; background: #111;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8); margin-bottom: 15px;
+            touch-action: none;
+        }
+
+        canvas { display: block; image-rendering: pixelated; }
+
+        .toolbar {
+            display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; margin-bottom: 12px;
+        }
+
+        .palette {
+            display: flex; gap: 6px; align-items: center;
+        }
+
+        .swatch {
+            width: 30px; height: 30px; border-radius: 4px; border: 2px solid rgba(255,255,255,0.3);
+            cursor: pointer; transition: 0.1s;
+        }
+        .swatch.active { border-color: #fff; transform: scale(1.15); box-shadow: 0 0 8px #fff; }
+
+        .btn {
+            background: rgba(0, 255, 255, 0.15); border: 1px solid #0ff; color: #0ff;
+            padding: 8px 14px; border-radius: 4px; font-family: inherit; font-weight: bold;
+            cursor: pointer; font-size: 12px; transition: 0.2s;
+        }
+        .btn:hover { background: #0ff; color: #000; }
+        .btn.active-tool { background: #0ff; color: #000; }
+
+        #custom-color {
+            width: 35px; height: 30px; border: none; background: none; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<a href="../index.html" id="back-btn">← MENU</a>
+
+<div id="app-container">
+    <h1>PIXEL STUDIO 16x16</h1>
+
+    <div class="toolbar">
+        <div class="palette" id="palette-container">
+            <div class="swatch active" style="background: #00ffff;" data-color="#00ffff"></div>
+            <div class="swatch" style="background: #ff00ff;" data-color="#ff00ff"></div>
+            <div class="swatch" style="background: #ffff00;" data-color="#ffff00"></div>
+            <div class="swatch" style="background: #00ff00;" data-color="#00ff00"></div>
+            <div class="swatch" style="background: #ff0000;" data-color="#ff0000"></div>
+            <div class="swatch" style="background: #ffffff;" data-color="#ffffff"></div>
+            <div class="swatch" style="background: #000000;" data-color="#000000"></div>
+            <input type="color" id="custom-color" value="#00ffcc" title="Custom Color">
+        </div>
+    </div>
+
+    <div id="canvas-wrapper">
+        <canvas id="pixelCanvas"></canvas>
+    </div>
+
+    <div class="toolbar">
+        <button class="btn active-tool" id="btn-draw" onclick="setTool('draw')">PENCIL</button>
+        <button class="btn" id="btn-erase" onclick="setTool('erase')">ERASER</button>
+        <button class="btn" onclick="clearCanvas()">CLEAR</button>
+        <button class="btn" style="background:rgba(255,0,255,0.2); border-color:#f0f; color:#f0f;" onclick="downloadSprite()">DOWNLOAD PNG</button>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById("pixelCanvas");
+const ctx = canvas.getContext("2d");
+
+const GRID_SIZE = 16;
+let pixelSize = Math.min(window.innerWidth * 0.75, window.innerHeight * 0.5) / GRID_SIZE;
+pixelSize = Math.floor(pixelSize);
+canvas.width = GRID_SIZE * pixelSize;
+canvas.height = GRID_SIZE * pixelSize;
+
+let gridData = [];
+
+function initGrid() {
+    gridData = [];
+    for(let y = 0; y < GRID_SIZE; y++) {
+        let row = [];
+        for(let x = 0; x < GRID_SIZE; x++) {
+            row.push('#05050a');
+        }
+        gridData.push(row);
+    }
+}
+initGrid();
+
+function drawGrid() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for(let y = 0; y < GRID_SIZE; y++) {
+        for(let x = 0; x < GRID_SIZE; x++) {
+            ctx.fillStyle = gridData[y][x];
+            ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+            
+            ctx.strokeStyle = "rgba(255,255,255,0.05)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+        }
+    }
+}
+
+let currentColor = '#00ffff';
+let currentTool = 'draw'; 
+let isDrawing = false;
+
+function handlePointer(e) {
+    const rect = canvas.getBoundingClientRect();
+    
+    // Safely handle both mouse and touch input coords
+    let clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+
+    const x = Math.floor((clientX - rect.left) / pixelSize);
+    const y = Math.floor((clientY - rect.top) / pixelSize);
+
+    if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+        if (currentTool === 'draw') {
+            gridData[y][x] = currentColor;
+        } else {
+            gridData[y][x] = '#05050a';
+        }
+        drawGrid();
+    }
+}
+
+canvas.addEventListener('mousedown', e => { isDrawing = true; handlePointer(e); });
+canvas.addEventListener('mousemove', e => { if (isDrawing) handlePointer(e); });
+window.addEventListener('mouseup', () => { isDrawing = false; });
+
+canvas.addEventListener('touchstart', e => { isDrawing = true; handlePointer(e); e.preventDefault(); }, {passive: false});
+canvas.addEventListener('touchmove', e => { if (isDrawing) handlePointer(e); e.preventDefault(); }, {passive: false});
+canvas.addEventListener('touchend', e => { isDrawing = false; });
+
+document.querySelectorAll('.swatch').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+        document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+        swatch.classList.add('active');
+        currentColor = swatch.getAttribute('data-color');
+    });
+});
+
+document.getElementById('custom-color').addEventListener('input', e => {
+    currentColor = e.target.value;
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+});
+
+function setTool(tool) {
+    currentTool = tool;
+    document.getElementById('btn-draw').classList.toggle('active-tool', tool === 'draw');
+    document.getElementById('btn-erase').classList.toggle('active-tool', tool === 'erase');
+}
+
+function clearCanvas() {
+    initGrid();
+    drawGrid();
+}
+
+function downloadSprite() {
+    let exportCanvas = document.createElement('canvas');
+    exportCanvas.width = 256;
+    exportCanvas.height = 256;
+    let eCtx = exportCanvas.getContext('2d');
+    let scale = 256 / GRID_SIZE;
+
+    for(let y = 0; y < GRID_SIZE; y++) {
+        for(let x = 0; x < GRID_SIZE; x++) {
+            if(gridData[y][x] !== '#05050a') {
+                eCtx.fillStyle = gridData[y][x];
+                eCtx.fillRect(x * scale, y * scale, scale, scale);
+            }
+        }
+    }
+
+    let link = document.createElement('a');
+    link.download = 'neon-sprite.png';
+    link.href = exportCanvas.toDataURL('image/png');
+    link.click();
+}
+
+drawGrid();
+</script>
+</body>
+</html>

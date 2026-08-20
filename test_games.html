@@ -1,0 +1,2096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SOLDIER.IO </title>
+<style>
+  :root{
+    --bg-deep:#0b0f0d;
+    --panel:#121813;
+    --panel-line:#2a3a2b;
+    --steel:#3f4a3d;
+    --amber:#e8a33d;
+    --amber-dim:#8a641f;
+    --blood:#c23c3c;
+    --ok:#5fbf6c;
+    --ink:#d8dcd2;
+    --ink-dim:#8a9186;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:var(--bg-deep);
+    font-family:'Bahnschrift','Segoe UI',ui-monospace,Consolas,monospace;color:var(--ink);
+  }
+  canvas{
+    display:block;
+    position:absolute;
+    top:0;
+    left:0;
+  }
+  #game{
+    background:#141a12;
+    cursor:crosshair;
+  }
+
+  .hud{
+    position:absolute;
+    z-index:5;
+    -webkit-user-select:none;
+    user-select:none;
+    pointer-events:none;}
+  .panel{
+    background:linear-gradient(180deg, rgba(18,24,19,.92), rgba(12,16,13,.92));
+    border:1px solid var(--panel-line);
+    border-radius:3px;box-shadow:0 4px 14px rgba(0,0,0,.5);
+  }
+
+  /* top-left: vitals */
+  #vitals{
+    top:14px;
+    left:14px;width:280px;padding:10px 12px;
+  }
+  #vitals .row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:7px;
+  }
+  #vitals .label{
+    width:44px;
+    font-size:11px;
+    letter-spacing:1px;
+    color:var(--ink-dim);
+    text-transform:uppercase;
+  }
+  .bar-track{
+    flex:1;
+    height:12px;
+    background:#1c231b;
+    border:1px solid var(--panel-line);
+    border-radius:2px;
+    overflow:hidden;
+    position:relative;
+  }
+  .bar-fill{
+    height:100%;
+    transition:width .12s linear;
+  }
+  #hpFill{background:linear-gradient(90deg,#7a2020,var(--blood))}
+  .bar-num{
+    font-size:10px;
+    color:var(--ink-dim);width:56px;text-align:right;
+  }
+  #rankRow{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:6px;
+    padding-top:8px;
+    border-top:1px dashed var(--panel-line);
+  }
+  #rankName{
+    font-weight:bold;
+    letter-spacing:2px;
+    font-size:14px;
+  }
+  #killCount{
+    font-size:11px;
+    color:var(--ink-dim);
+  }
+  #resRow{
+    display:flex;
+    gap:16px;
+    margin-top:6px;
+    font-size:12px;
+  }
+  #resRow span b{color:var(--amber)}
+
+  /* top-right: army */
+  #armyPanel{top:14px;right:14px;width:220px;padding:10px 12px;max-height:46vh;overflow:hidden;}
+  #armyPanel h3{margin:0 0 6px 0;font-size:11px;letter-spacing:2px;color:var(--amber);text-transform:uppercase;}
+  #armyList{font-size:12px;line-height:1.7;color:var(--ink);max-height:38vh;overflow-y:auto;}
+  #armyList .arow{display:flex;align-items:center;gap:6px;}
+  .dot{width:9px;height:9px;border-radius:50%;border:1px solid rgba(255,255,255,.4);flex:none;}
+
+  /* bottom-center prompt */
+  #prompt{bottom:22px;left:50%;transform:translateX(-50%);padding:8px 18px;font-size:13px;
+    letter-spacing:.5px;text-align:center;display:none;white-space:nowrap;border:1px solid var(--amber-dim);}
+  #prompt b{color:var(--amber);}
+
+  /* bottom-left: controls */
+  #controls{bottom:14px;left:14px;padding:8px 12px;font-size:10.5px;line-height:1.6;color:var(--ink-dim);}
+  #controls b{color:var(--ink);}
+
+  /* build bar */
+  #buildBar{bottom:14px;left:50%;transform:translateX(-50%);padding:6px 10px;display:none;gap:10px;font-size:11px;}
+  #buildBar .opt{padding:4px 10px;border:1px solid var(--panel-line);border-radius:2px;}
+  #buildBar .opt.active{border-color:var(--amber);color:var(--amber);}
+
+  /* minimap */
+  #minimapWrap{bottom:14px;right:14px;width:150px;height:150px;padding:4px;}
+  #minimap{width:100%;height:100%;display:block;border:1px solid var(--panel-line);}
+
+  /* active potion effects */
+  #effectsBar{top:14px;left:50%;transform:translateX(-50%);padding:6px 10px;display:flex;gap:8px;}
+  #effectsBar .eff{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:2px;
+    border:1px solid var(--panel-line);font-size:11px;white-space:nowrap;}
+  #effectsBar .eff .swatch{width:9px;height:9px;border-radius:50%;}
+
+  .up-row{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(255,255,255,0.03);border:1px solid var(--panel-line);border-radius:2px;}
+  .up-btn{padding:5px 12px;background:var(--amber);color:#121813;border:none;font-weight:bold;font-size:11px;cursor:pointer;border-radius:2px;}
+  .up-btn:hover:not(:disabled){background:#f5b756;}
+  .up-btn:disabled{background:#2a332a;color:#5a6356;cursor:not-allowed;}
+
+  /* start overlay */
+  #startOverlay{position:absolute;inset:0;z-index:20;background:radial-gradient(ellipse at center, #1a2318 0%, #060907 80%);
+    display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;}
+  #startOverlay h1{font-size:52px;margin:0;letter-spacing:10px;color:var(--amber);text-shadow:0 0 24px rgba(232,163,61,.35);}
+  #startOverlay .sub{color:var(--ink-dim);letter-spacing:4px;font-size:12px;margin-top:6px;text-transform:uppercase;}
+  #startOverlay .info{margin-top:30px;max-width:560px;color:var(--ink);font-size:13px;line-height:1.9;
+    border-top:1px solid var(--panel-line);border-bottom:1px solid var(--panel-line);padding:18px 10px;}
+  #startOverlay .info b{color:var(--amber);}
+  #startBtn{margin-top:28px;padding:12px 38px;background:var(--amber);color:#1a1408;border:none;
+    font-weight:bold;letter-spacing:3px;font-size:14px;cursor:pointer;border-radius:2px;text-transform:uppercase;}
+  #startBtn:hover{background:#f5b756;}
+
+  /* death overlay */
+  #deathOverlay{
+    position:absolute;
+    inset:0;z-index:15;display:none;
+    align-items:center;
+    justify-content:center;
+    background:rgba(30,5,5,.55);
+    flex-direction:column;
+    color:var(--ink);
+  }
+  #deathOverlay h2{
+    color:var(--blood);
+    letter-spacing:6px;
+    font-size:34px;
+    margin:0;}
+  #deathOverlay p{
+    color:var(--ink-dim);
+    margin-top:10px;
+    font-size:13px;
+  }
+
+  ::-webkit-scrollbar{width:5px;}
+  ::-webkit-scrollbar-thumb{background:var(--panel-line);}
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div class="hud panel" id="vitals">
+  <div class="row">
+    <div class="label">HP</div>
+    <div class="bar-track"><div class="bar-fill" id="hpFill" style="width:100%"></div></div>
+    <div class="bar-num" id="hpNum">100/100</div>
+  </div>
+  <div class="row" style="margin-bottom:2px;">
+    <div class="label" style="font-size:9.5px;">DASH</div>
+    <div class="bar-track" style="height:8px;"><div class="bar-fill" id="dashFill" style="width:100%;background:#3fa9f5"></div></div>
+    <div class="bar-num" id="dashText" style="font-size:9px;">READY</div>
+  </div>
+  <div id="rankRow">
+    <div id="rankName" style="color:#9ca3af">STONE</div>
+    <div id="killCount">0 kills</div>
+  </div>
+  <div id="weaponRow" style="font-size:11px;margin-top:4px;color:var(--amber);display:flex;justify-content:space-between;">
+    <span>GUN: <b id="weaponNameText" style="color:var(--ink)">Combat Knife</b></span>
+  </div>
+  <div id="resRow">
+    <span>🪵 Wood <b id="woodNum">0</b></span>
+    <span>🪨 Stone <b id="stoneNum">0</b></span>
+  </div>
+</div>
+
+<div class="hud panel" id="armyPanel">
+  <h3>Your Army (<span id="armyCount">1</span>/<span id="armyMax">6</span>)</h3>
+  <div id="armyCmdBar" style="margin-bottom:6px;font-size:10px;color:var(--amber);display:flex;justify-content:space-between;align-items:center;">
+    <span>CMD: <b id="cmdText" style="color:#5fbf6c">FOLLOW</b></span>
+    <span style="color:var(--ink-dim);cursor:pointer;pointer-events:auto;" id="cmdToggleBtn">[F: Cycle]</span>
+  </div>
+  <div id="armyList"></div>
+</div>
+
+<div class="hud panel" id="effectsBar" style="display:none;"></div>
+
+<div class="hud panel" id="prompt"></div>
+
+<div class="hud panel" id="bossBarWrap" style="top:14px;left:50%;transform:translateX(-50%);width:360px;padding:8px 12px;display:none;text-align:center;">
+  <div id="bossName" style="color:var(--blood);font-weight:bold;font-size:12px;letter-spacing:2px;margin-bottom:4px;">ENEMY COMMANDER</div>
+  <div class="bar-track" style="height:10px;"><div class="bar-fill" id="bossHpFill" style="width:100%;background:linear-gradient(90deg,#990000,#ff3b3b)"></div></div>
+</div>
+
+<div class="hud panel" id="controls">
+  <b>WASD</b> move &nbsp; <b>Space</b> dodge dash &nbsp; <b>L-Click</b> attack/shoot &nbsp; <b>R-Click / F</b> army command<br>
+  <b>E</b> tame nearby &nbsp; <b>U</b> upgrades &nbsp; <b>B</b> build mode &nbsp; <b>1-5</b> structures
+</div>
+
+<div class="hud panel" id="buildBar">
+  <div class="opt" id="opt1">1 · Wood Wall (10w)</div>
+  <div class="opt" id="opt2">2 · Stone Wall (10s)</div>
+  <div class="opt" id="opt3">3 · Auto-Turret (20w, 15s)</div>
+  <div class="opt" id="opt4">4 · Spike Trap (15w)</div>
+  <div class="opt" id="opt5">5 · Heal Beacon (25w, 25s)</div>
+</div>
+
+<div class="hud panel" id="minimapWrap">
+  <canvas id="minimap" width="150" height="150"></canvas>
+</div>
+
+<div id="startOverlay">
+  <h1>ARMY.IO</h1>
+  <div class="sub">tame the battlefield &middot; build your army</div>
+  <div class="info">
+    You spawn with rank-based weaponry (Knife → Pistol → Shotgun → Plasma → Devastator Railgun).
+    Scattered across the field are <b>20 kinds of soldiers</b>, <b>Supply Airdrops</b>, and <b>Rival Squad Commanders</b>!
+    Walk up to wild soldiers and press <b>E</b> to tame them into your army. Use <b>SPACE</b> to dodge-dash out of danger.<br><br>
+    Chop trees and mine rocks for resources, build walls, turrets, spike traps, and <b>Heal Beacons</b>.
+    Defeated soldiers drop <b>potions</b> for temporary surges.
+    Climb the ranks: <b>Stone → Bronze → Silver → Gold → Diamond.</b>
+  </div>
+  <button id="startBtn">DROP IN</button>
+</div>
+
+<div id="deathOverlay">
+  <h2>YOU WERE ELIMINATED</h2>
+  <p>Respawning...</p>
+</div>
+
+<div id="soundBtn" class="hud panel" style="top:14px;right:250px;padding:6px 12px;cursor:pointer;pointer-events:auto;font-size:12px;z-index:10;user-select:none;">
+  🔊 Sound: ON
+</div>
+
+<div id="upgradeModal" style="position:absolute;inset:0;z-index:25;background:rgba(8,12,9,0.88);display:none;align-items:center;justify-content:center;flex-direction:column;color:var(--ink);user-select:none;">
+  <div class="panel" style="width:440px;padding:22px;border-color:var(--amber);">
+    <h2 style="margin:0 0 4px 0;color:var(--amber);text-align:center;letter-spacing:3px;font-size:20px;">COMMAND HQ UPGRADES</h2>
+    <div style="text-align:center;font-size:11px;color:var(--ink-dim);margin-bottom:16px;">Spend collected resources & kills to upgrade stats</div>
+    <div id="upgradeList" style="display:flex;flex-direction:column;gap:10px;font-size:12px;"></div>
+    <div style="margin-top:20px;text-align:center;">
+      <button id="closeUpgradeBtn" style="padding:8px 26px;background:var(--amber);color:#121813;border:none;font-weight:bold;letter-spacing:2px;cursor:pointer;border-radius:2px;">CLOSE (U)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================= CONFIG ============================= */
+const WORLD_W = 3400, WORLD_H = 3400;
+const WALL_CELL = 46;
+const MAX_WILD = 22;
+const MAX_TREES = 70;
+const MAX_ROCKS = 46;
+
+const RANKS = [
+  {name:"DIAMOND", need:250, color:"#7fe3f5", weapon:"Devastator Railgun", dmg:85, rate:380, proj:1100, ranged:true, type:"railgun"},
+  {name:"GOLD",    need:150, color:"#f2c14e", weapon:"Plasma Rifle",      dmg:38, rate:220, proj:820,  ranged:true, type:"plasma"},
+  {name:"SILVER",  need:100, color:"#cdd6dd", weapon:"Tactical Shotgun",  dmg:20, rate:520, proj:720,  ranged:true, type:"shotgun", pellets:4},
+  {name:"BRONZE",  need:50,  color:"#c2793a", weapon:"Combat Pistol",     dmg:28, rate:300, proj:750,  ranged:true, type:"pistol"},
+  {name:"STONE",   need:0,   color:"#9ca3af", weapon:"Combat Knife",      dmg:22, rate:360, proj:0,    ranged:false, type:"knife"},
+];
+function getRank(kills){
+  for(const r of RANKS) if(kills>=r.need) return r;
+  return RANKS[RANKS.length-1];
+}
+
+const RECRUIT = {name:"Recruit", weapon:"Knife", color:"#9ca3af", accent:"#4b5563",
+  ranged:false, dmg:14, hp:110, tame:100, range:64, rate:380, rarity:"Starter"};
+
+const SOLDIER_TYPES = [
+  {name:"Assault Trooper",   weapon:"Auto-Rifle",           color:"#8a8f98", accent:"#4a4f58", ranged:true,  dmg:25, hp:120, tame:35, range:340, rate:520, proj:640, rarity:"Uncommon"},
+  {name:"Heavy Gunner",      weapon:"Heavy Machine Gun",    color:"#556b2f", accent:"#2f3d1a", ranged:true,  dmg:40, hp:200, tame:20, range:320, rate:300, proj:680, rarity:"Epic"},
+  {name:"Scout Runner",      weapon:"Light SMG",            color:"#d2b48c", accent:"#8b6b3d", ranged:true,  dmg:18, hp:90,  tame:50, range:280, rate:420, proj:700, rarity:"Common"},
+  {name:"Shield Guardian",   weapon:"Energy Shield+Blaster",color:"#2b6cb0", accent:"#173f6b", ranged:true,  dmg:15, hp:250, tame:15, range:260, rate:700, proj:600, rarity:"Epic"},
+  {name:"Sniper Marksman",   weapon:"Rail Sniper",          color:"#2f4f2f", accent:"#173017", ranged:true,  dmg:70, hp:80,  tame:30, range:660, rate:1700,proj:1000,rarity:"Rare"},
+  {name:"Demolition Expert", weapon:"Grenade Launcher",     color:"#cc5500", accent:"#803400", ranged:true,  dmg:55, hp:140, tame:25, range:380, rate:1400,proj:520, rarity:"Rare"},
+  {name:"Flame Trooper",     weapon:"Flamethrower",         color:"#b22222", accent:"#6b1414", ranged:true,  dmg:9,  hp:160, tame:22, range:150, rate:150, proj:500, rarity:"Epic"},
+  {name:"Frost Specialist",  weapon:"Cryo Rifle",           color:"#4fd1ff", accent:"#1f7a94", ranged:true,  dmg:20, hp:130, tame:28, range:320, rate:650, proj:640, rarity:"Rare", slow:true},
+  {name:"Medic Support",     weapon:"Healing Beam",         color:"#f5f5f5", accent:"#aeb3ae", ranged:true,  dmg:8,  hp:110, tame:60, range:260, rate:900, proj:600, rarity:"Common", heals:true},
+  {name:"Engineer Builder",  weapon:"Turret Tool",          color:"#c9a227", accent:"#7a5f13", ranged:true,  dmg:20, hp:120, tame:40, range:300, rate:650, proj:600, rarity:"Uncommon"},
+  {name:"Stealth Operative", weapon:"Silent Pistol",        color:"#2d2d3a", accent:"#14141c", ranged:true,  dmg:30, hp:100, tame:25, range:250, rate:520, proj:720, rarity:"Rare"},
+  {name:"Shock Trooper",     weapon:"Electro Baton",        color:"#e6d600", accent:"#8a8000", ranged:false, dmg:28, hp:150, tame:20, range:74,  rate:520, rarity:"Epic"},
+  {name:"Rocket Infantry",   weapon:"Rocket Launcher",      color:"#7c6a58", accent:"#4a3f34", ranged:true,  dmg:80, hp:130, tame:18, range:380, rate:1900,proj:520, rarity:"Epic"},
+  {name:"Plasma Ranger",     weapon:"Plasma Carbine",       color:"#1e90ff", accent:"#0a4d8f", ranged:true,  dmg:26, hp:140, tame:30, range:340, rate:560, proj:700, rarity:"Rare"},
+  {name:"Toxic Grenadier",   weapon:"Gas Grenades",         color:"#6b8e23", accent:"#3d5213", ranged:true,  dmg:8,  hp:125, tame:32, range:180, rate:220, proj:500, rarity:"Rare"},
+  {name:"Cyber Commando",    weapon:"Cyber Assault Rifle",  color:"#a9a9a9", accent:"#5c5c5c", ranged:true,  dmg:30, hp:160, tame:22, range:330, rate:460, proj:680, rarity:"Epic"},
+  {name:"Drone Controller",  weapon:"Drone Pad",            color:"#20b2aa", accent:"#0f625d", ranged:true,  dmg:15, hp:110, tame:45, range:300, rate:600, proj:620, rarity:"Common"},
+  {name:"Juggernaut",        weapon:"Power Hammer",         color:"#8b0000", accent:"#4d0000", ranged:false, dmg:50, hp:300, tame:10, range:82,  rate:900, rarity:"Legendary"},
+  {name:"Warp Striker",      weapon:"Teleport Blade",       color:"#9932cc", accent:"#5c1d7a", ranged:false, dmg:35, hp:120, tame:18, range:74,  rate:460, rarity:"Epic"},
+  {name:"Storm Archer",      weapon:"Lightning Bow",        color:"#ffd700", accent:"#a68b00", ranged:true,  dmg:32, hp:130, tame:27, range:360, rate:760, proj:720, rarity:"Rare"},
+];
+
+const POTIONS = [
+  {id:'speed',      name:"Speed Surge Potion",     rarity:"Uncommon",  color:"#3fa9f5", glow:"#8fd3ff", weight:40, duration:10000, desc:"+80% move speed, neon trail"},
+  {id:'strength',   name:"Titan Strength Brew",    rarity:"Rare",      color:"#c23c3c", glow:"#ff8a8a", weight:20, duration:10000, desc:"2x melee damage, shockwaves"},
+  {id:'shield',     name:"Guardian Shield Tonic",  rarity:"Rare",      color:"#e8c33d", glow:"#fff1a8", weight:20, duration:14000, desc:"Blocks 3 hits, knocks enemies back"},
+  {id:'shadow',     name:"Shadow Fade Elixir",     rarity:"Epic",      color:"#6a2f9e", glow:"#b98aff", weight:12, duration:8000,  desc:"Semi-invisible, silent steps"},
+  {id:'overcharge', name:"Overcharge Pulse Drink", rarity:"Legendary", color:"#3ddc84", glow:"#9dffca", weight:6,  duration:6000,  desc:"Rapid burst shots, mini explosions"},
+];
+
+/* ============================= STATE ============================= */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const mmCanvas = document.getElementById('minimap');
+const mmCtx = mmCanvas.getContext('2d');
+
+let idCounter = 1;
+let started = false;
+let last = performance.now();
+
+const keys = {};
+const mouse = {x:0,y:0,down:false,rightDown:false,wx:0,wy:0};
+const camera = {x:0,y:0};
+let screenshake = 0;
+
+let audioCtx = null;
+let soundMuted = false;
+
+/* upgrades */
+const upgrades = {
+  health: { lvl: 0, max: 5, name: "+30 Max Health", cost: (l) => ({ wood: 15 * (l + 1), stone: 15 * (l + 1) }) },
+  speed: { lvl: 0, max: 5, name: "+10% Move Speed", cost: (l) => ({ wood: 20 * (l + 1), stone: 10 * (l + 1) }) },
+  tame: { lvl: 0, max: 4, name: "+15% Taming Odds", cost: (l) => ({ kills: 2 * (l + 1), stone: 15 * (l + 1) }) },
+  damage: { lvl: 0, max: 5, name: "+20% Attack Damage", cost: (l) => ({ kills: 2 * (l + 1), wood: 20 * (l + 1) }) },
+  armor: { lvl: 0, max: 5, name: "+10% Damage Resist", cost: (l) => ({ stone: 20 * (l + 1), wood: 15 * (l + 1) }) },
+  armyCap: { lvl: 0, max: 4, name: "+2 Army Capacity", cost: (l) => ({ kills: 3 * (l + 1) }) }
+};
+
+let player = {
+  x: WORLD_W/2, y: WORLD_H/2, hp:130, maxHp:130, speed:235,
+  radius:19, wood:0, stone:0, kills:0, angle:0,
+  attackCd:0, alive:true, lastHit:-9999, slowUntil:0,
+  speedBoostUntil:0, strengthUntil:0, shadowUntil:0,
+  shieldUntil:0, shieldHits:0,
+  overchargeUntil:0, overchargeCd:0, overchargeShot:0,
+  trail:[],
+  dashCd: 0, dashTimer: 0, dashVx: 0, dashVy: 0
+};
+
+let armyCommand = 'FOLLOW'; // 'FOLLOW' | 'ATTACK' | 'HOLD'
+let armyTargetPos = {x: WORLD_W/2, y: WORLD_H/2};
+let armyPingTimer = 0;
+let armyFocusTargetId = null; // id of the specific enemy soldier the army is ordered to attack (set when F cycles to ATTACK)
+
+let soldiers = [];     // wild / hostile / tamed
+let resources = [];    // trees / rocks
+let walls = [];        // walls, turrets, traps
+let projectiles = [];
+let floaters = [];
+let potionDrops = [];
+let shockwaves = [];
+let particles = [];
+let laserBeams = [];
+let supplyCrates = [];
+let rivalCommanders = [];
+
+let buildMode = false;
+let buildKind = 'wood'; // 'wood' | 'stone' | 'turret' | 'spike' | 'heal_beacon'
+let eWasDown = false;
+let fWasDown = false;
+let uWasDown = false;
+let tameCooldown = 0;
+let upgradeModalOpen = false;
+
+/* spawn timers */
+let soldierSpawnT = 0, treeSpawnT = 0, rockSpawnT = 0;
+let crateSpawnT = 15000, rivalSpawnT = 20000;
+
+/* ============================= AUDIO SYNTHESIZER ============================= */
+function initAudio(){
+  if(!audioCtx){
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if(AudioContextClass) audioCtx = new AudioContextClass();
+  }
+  if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playSfx(type){
+  if(!audioCtx || soundMuted) return;
+  try {
+    const now = audioCtx.currentTime;
+    if(type==='shoot'){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(280, now);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.08);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.08);
+    } else if(type==='hit'){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.linearRampToValueAtTime(30, now + 0.09);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.09);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.09);
+    } else if(type==='dash'){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.15);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.15);
+    } else if(type==='laser'){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.12);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.12);
+    } else if(type==='airdrop'){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.setValueAtTime(450, now + 0.1);
+      osc.frequency.setValueAtTime(600, now + 0.2);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.35);
+    } else if(type==='heal'){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(800, now + 0.2);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.2);
+    } else if(type==='boss_alarm'){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(110, now);
+      osc.frequency.setValueAtTime(90, now + 0.18);
+      osc.frequency.setValueAtTime(110, now + 0.36);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.5);
+    } else if(type==='tame_ok'){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.setValueAtTime(660, now + 0.08);
+      osc.frequency.setValueAtTime(880, now + 0.16);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.28);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.28);
+    } else if(type==='tame_fail'){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.linearRampToValueAtTime(110, now + 0.2);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.2);
+    } else if(type==='potion'){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(1200, now + 0.25);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.25);
+    } else if(type==='build'){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.setValueAtTime(320, now + 0.05);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.12);
+    } else if(type==='explosion'){
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(120, now);
+      osc.frequency.exponentialRampToValueAtTime(25, now + 0.35);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.35);
+    }
+  }catch(e){}
+}
+
+/* ============================= PARTICLES & SHAKE ============================= */
+function spawnParticles(x, y, count, color, speed, life, size=3){
+  for(let i=0; i<count; i++){
+    const ang = Math.random() * Math.PI * 2;
+    const spd = rand(speed*0.3, speed);
+    particles.push({
+      x, y,
+      vx: Math.cos(ang) * spd,
+      vy: Math.sin(ang) * spd,
+      color,
+      size: rand(size*0.6, size*1.4),
+      life: rand(life*0.6, life),
+      maxLife: life
+    });
+  }
+}
+
+function updateParticles(dt){
+  for(const p of particles){
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.life -= dt * 1000;
+  }
+  particles = particles.filter(p => p.life > 0);
+  if(screenshake > 0) screenshake = Math.max(0, screenshake - dt * 40);
+  if(armyPingTimer > 0) armyPingTimer -= dt;
+}
+
+function addScreenshake(amt){
+  screenshake = Math.min(26, screenshake + amt);
+}
+
+function getMaxArmyLimit(){
+  return 6 + (upgrades.armyCap.lvl * 2);
+}
+
+function getDamageMultiplier(){
+  return 1 + (upgrades.damage.lvl * 0.20);
+}
+
+function getTameOddsBonus(){
+  return upgrades.tame.lvl * 15;
+}
+
+/* ============================= INIT ============================= */
+function resize(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function initWorld(){
+  soldiers = [makeSoldier(RECRUIT, player.x-60, player.y-40, 'tamed')];
+  resources = [];
+  walls = [];
+  projectiles = [];
+  floaters = [];
+  potionDrops = [];
+  shockwaves = [];
+  particles = [];
+  laserBeams = [];
+  supplyCrates = [];
+  rivalCommanders = [];
+  armyCommand = 'FOLLOW';
+  armyFocusTargetId = null;
+  crateSpawnT = 12000;
+  rivalSpawnT = 18000;
+  for(let i=0;i<MAX_TREES;i++) spawnResource('tree');
+  for(let i=0;i<MAX_ROCKS;i++) spawnResource('rock');
+  for(let i=0;i<12;i++) spawnSoldier();
+  spawnSupplyCrate();
+  renderUpgradeList();
+}
+
+/* ============================= HELPERS ============================= */
+function rand(a,b){ return Math.random()*(b-a)+a; }
+function randInt(a,b){ return Math.floor(rand(a,b+1)); }
+function dist(x1,y1,x2,y2){ return Math.hypot(x2-x1, y2-y1); }
+function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+
+function makeSoldier(type, x, y, state){
+  return {
+    id: idCounter++, type, x, y, hp: type.hp, maxHp: type.hp,
+    state, angle: 0, attackCd: rand(0,300), wanderTx: x, wanderTy: y,
+    wanderCd: rand(0,2000), formAngle: rand(0, Math.PI*2)
+  };
+}
+
+function weightedSoldierType(){
+  const total = SOLDIER_TYPES.reduce((s,t)=>s+t.tame,0);
+  let r = Math.random()*total;
+  for(const t of SOLDIER_TYPES){
+    if(r < t.tame) return t;
+    r -= t.tame;
+  }
+  return SOLDIER_TYPES[0];
+}
+
+function spawnSoldier(){
+  const wildCount = soldiers.filter(s=>s.state==='wild'||s.state==='hostile').length;
+  if(wildCount >= MAX_WILD) return;
+  const type = weightedSoldierType();
+  let x,y,tries=0;
+  do{
+    x = randInt(150, WORLD_W-150);
+    y = randInt(150, WORLD_H-150);
+    tries++;
+  }while(dist(x,y,player.x,player.y) < 500 && tries < 10);
+  soldiers.push(makeSoldier(type, x, y, 'wild'));
+}
+
+function spawnResource(kind){
+  if(kind==='tree' && resources.filter(r=>r.kind==='tree').length>=MAX_TREES) return;
+  if(kind==='rock' && resources.filter(r=>r.kind==='rock').length>=MAX_ROCKS) return;
+  const x = randInt(80, WORLD_W-80), y = randInt(80, WORLD_H-80);
+  if(dist(x,y,player.x,player.y) < 220) return;
+  const hp = kind==='tree' ? 55 : 95;
+  resources.push({id:idCounter++, kind, x, y, hp, maxHp:hp, radius: kind==='tree'?21:25});
+}
+
+function spawnFloater(x,y,text,color){
+  floaters.push({x,y,text,color,life:900, vy:-32});
+}
+
+function armyList(){ return soldiers.filter(s=>s.state==='tamed'); }
+function hostileList(){ return soldiers.filter(s=>s.state==='hostile'); }
+
+/* ============================= POTIONS ============================= */
+function weightedPotion(){
+  const total = POTIONS.reduce((s,p)=>s+p.weight,0);
+  let r = Math.random()*total;
+  for(const p of POTIONS){
+    if(r < p.weight) return p;
+    r -= p.weight;
+  }
+  return POTIONS[0];
+}
+
+function maybeDropPotion(x,y){
+  if(Math.random() > 0.22) return; // 22% chance any mob drops a potion
+  const potion = weightedPotion();
+  potionDrops.push({id:idCounter++, x:x+rand(-14,14), y:y+rand(-14,14), potion, life:22000});
+  spawnFloater(x, y-65, potion.name+'!', potion.color);
+}
+
+function activatePotionEffect(potion){
+  const now = performance.now();
+  switch(potion.id){
+    case 'speed':
+      player.speedBoostUntil = now + potion.duration;
+      break;
+    case 'strength':
+      player.strengthUntil = now + potion.duration;
+      break;
+    case 'shadow':
+      player.shadowUntil = now + potion.duration;
+      break;
+    case 'shield':
+      player.shieldUntil = now + potion.duration;
+      player.shieldHits = 3;
+      break;
+    case 'overcharge':
+      player.overchargeUntil = now + potion.duration;
+      player.overchargeCd = 0;
+      player.overchargeShot = 0;
+      break;
+  }
+  spawnFloater(player.x, player.y-70, potion.name+' activated!', potion.color);
+}
+
+function updatePotionDrops(dt){
+  for(const d of potionDrops){
+    d.life -= dt*1000;
+    if(dist(player.x,player.y,d.x,d.y) < player.radius+16){
+      activatePotionEffect(d.potion);
+      d.dead = true;
+    }
+  }
+  potionDrops = potionDrops.filter(d=>!d.dead && d.life>0);
+}
+
+function updateShockwaves(dt){
+  for(const sw of shockwaves){ sw.r += sw.growSpeed*dt; sw.life -= dt*1000; }
+  shockwaves = shockwaves.filter(sw=>sw.life>0);
+}
+
+/* ============================= DAMAGE ============================= */
+function damageSoldier(s, dmg, creditPlayer){
+  if(s.state==='dead') return;
+  s.hp -= dmg;
+  spawnParticles(s.x, s.y, 4, s.type.color || '#ff8a8a', 90, 300, 3);
+  spawnFloater(s.x, s.y-30, '-'+Math.round(dmg), '#ff8a8a');
+  playSfx('hit');
+  if(s.hp<=0){
+    s.state='dead';
+    spawnParticles(s.x, s.y, 16, '#c23c3c', 160, 500, 4);
+    if(creditPlayer){
+      player.kills++;
+      spawnFloater(s.x, s.y-50, 'KILL +1', '#ffd76a');
+      maybeDropPotion(s.x, s.y);
+    }
+  }
+}
+
+function damagePlayer(dmg){
+  if(!player.alive) return;
+  if(player.dashTimer > 0) return; // Invincible while dodge-dashing!
+  const now = performance.now();
+  if(now < player.shieldUntil && player.shieldHits > 0){
+    player.shieldHits--;
+    spawnFloater(player.x, player.y-40, 'BLOCKED', '#e8c33d');
+    spawnParticles(player.x, player.y, 12, '#e8c33d', 140, 350, 4);
+    playSfx('hit');
+    knockbackNearbyHostiles(90, 60);
+    if(player.shieldHits<=0) player.shieldUntil = now;
+    return;
+  }
+  const armorMult = 1 - (upgrades.armor ? upgrades.armor.lvl * 0.10 : 0);
+  const actualDmg = dmg * armorMult;
+  player.hp -= actualDmg;
+  player.lastHit = now;
+  addScreenshake(7);
+  spawnParticles(player.x, player.y, 8, '#c23c3c', 110, 400, 3);
+  spawnFloater(player.x, player.y-40, '-'+Math.round(actualDmg), '#ff5555');
+  playSfx('hit');
+  if(player.hp<=0) killPlayer();
+}
+
+function knockbackNearbyHostiles(range, force){
+  for(const h of hostileList()){
+    const d = dist(player.x,player.y,h.x,h.y);
+    if(d < range && d>0.001){
+      h.x += (h.x-player.x)/d*force;
+      h.y += (h.y-player.y)/d*force;
+    }
+  }
+}
+
+function killPlayer(){
+  player.alive = false;
+  document.getElementById('deathOverlay').style.display='flex';
+  setTimeout(respawnPlayer, 1600);
+}
+function respawnPlayer(){
+  player.hp = player.maxHp;
+  player.x = WORLD_W/2 + rand(-200,200);
+  player.y = WORLD_H/2 + rand(-200,200);
+  player.alive = true;
+  document.getElementById('deathOverlay').style.display='none';
+}
+
+/* ============================= INPUT ============================= */
+window.addEventListener('keydown', e=>{
+  initAudio();
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if(k==='b'){
+    buildMode = !buildMode;
+    document.getElementById('buildBar').style.display = buildMode ? 'flex' : 'none';
+    updateBuildBarUI();
+  }
+  if(k==='u'){
+    toggleUpgradeModal();
+  }
+  if(k==='f' && !fWasDown){
+    cycleArmyCommand();
+  }
+  fWasDown = (k==='f');
+  if(e.key==='1'){ buildKind='wood'; updateBuildBarUI(); }
+  if(e.key==='2'){ buildKind='stone'; updateBuildBarUI(); }
+  if(e.key==='3'){ buildKind='turret'; updateBuildBarUI(); }
+  if(e.key==='4'){ buildKind='spike'; updateBuildBarUI(); }
+  if(e.key==='5'){ buildKind='heal_beacon'; updateBuildBarUI(); }
+});
+window.addEventListener('keyup', e=>{
+  const k = e.key.toLowerCase();
+  keys[k] = false;
+  if(k==='f') fWasDown = false;
+});
+canvas.addEventListener('mousemove', e=>{ mouse.x=e.clientX; mouse.y=e.clientY; });
+canvas.addEventListener('mousedown', e=>{
+  initAudio();
+  if(e.button===0) mouse.down = true;
+  if(e.button===2){
+    e.preventDefault();
+    setArmyTarget(mouse.wx, mouse.wy);
+  }
+});
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+window.addEventListener('mouseup', e=>{
+  if(e.button===0) mouse.down = false;
+});
+
+document.getElementById('cmdToggleBtn').addEventListener('click', cycleArmyCommand);
+document.getElementById('soundBtn').addEventListener('click', ()=>{
+  soundMuted = !soundMuted;
+  document.getElementById('soundBtn').textContent = soundMuted ? '🔇 Sound: OFF' : '🔊 Sound: ON';
+});
+document.getElementById('closeUpgradeBtn').addEventListener('click', toggleUpgradeModal);
+
+function cycleArmyCommand(){
+  if(armyCommand === 'FOLLOW') armyCommand = 'ATTACK';
+  else if(armyCommand === 'ATTACK') armyCommand = 'HOLD';
+  else armyCommand = 'FOLLOW';
+  document.getElementById('cmdText').textContent = armyCommand;
+  document.getElementById('cmdText').style.color = armyCommand==='FOLLOW'?'#5fbf6c':armyCommand==='ATTACK'?'#ff5555':'#e8a33d';
+  playSfx('build');
+  if(armyCommand === 'ATTACK'){
+    const target = pickRandomArmyTarget();
+    showPrompt(target ? 'Army Command: ATTACK &middot; targeting '+target.type.name : 'Army Command: ATTACK &middot; no enemies nearby', 1200);
+  } else {
+    armyFocusTargetId = null;
+    showPrompt('Army Command: ' + armyCommand, 1000);
+  }
+}
+
+// Picks a random soldier that isn't on the player's team (wild or hostile) for the
+// whole army to focus-fire. Wild picks get provoked to hostile so combat actually registers.
+function pickRandomArmyTarget(){
+  const candidates = soldiers.filter(s => s.state === 'wild' || s.state === 'hostile');
+  if(candidates.length === 0){
+    armyFocusTargetId = null;
+    return null;
+  }
+  const target = candidates[randInt(0, candidates.length - 1)];
+  if(target.state === 'wild'){
+    target.state = 'hostile';
+    spawnFloater(target.x, target.y - 50, 'PROVOKED', '#ff8a8a');
+  }
+  armyFocusTargetId = target.id;
+  armyTargetPos = {x: target.x, y: target.y};
+  armyPingTimer = 1.2;
+  spawnFloater(target.x, target.y - 66, 'ARMY TARGET!', '#ff5555');
+  return target;
+}
+
+function setArmyTarget(x, y){
+  armyFocusTargetId = null;
+  armyTargetPos = {x, y};
+  armyCommand = 'ATTACK';
+  armyPingTimer = 1.2;
+  document.getElementById('cmdText').textContent = 'ATTACK';
+  document.getElementById('cmdText').style.color = '#ff5555';
+  playSfx('build');
+  showPrompt('Army ordered to target area!', 1000);
+}
+
+function toggleUpgradeModal(){
+  upgradeModalOpen = !upgradeModalOpen;
+  document.getElementById('upgradeModal').style.display = upgradeModalOpen ? 'flex' : 'none';
+  if(upgradeModalOpen) renderUpgradeList();
+}
+
+function updateBuildBarUI(){
+  for(let i=1; i<=5; i++){
+    const el = document.getElementById('opt'+i);
+    if(el) el.className = 'opt' + ((buildKind==='wood'&&i===1)||(buildKind==='stone'&&i===2)||(buildKind==='turret'&&i===3)||(buildKind==='spike'&&i===4)||(buildKind==='heal_beacon'&&i===5) ? ' active':'');
+  }
+}
+
+function renderUpgradeList(){
+  const container = document.getElementById('upgradeList');
+  if(!container) return;
+  container.innerHTML = '';
+  for(const k in upgrades){
+    const u = upgrades[k];
+    const isMax = u.lvl >= u.max;
+    const cost = isMax ? {} : u.cost(u.lvl);
+    let costText = isMax ? 'MAXED' : '';
+    let canAfford = !isMax;
+    if(!isMax){
+      const parts = [];
+      if(cost.wood){ parts.push(cost.wood + ' Wood'); if(player.wood < cost.wood) canAfford = false; }
+      if(cost.stone){ parts.push(cost.stone + ' Stone'); if(player.stone < cost.stone) canAfford = false; }
+      if(cost.kills){ parts.push(cost.kills + ' Kills'); if(player.kills < cost.kills) canAfford = false; }
+      costText = 'Cost: ' + parts.join(', ');
+    }
+    const div = document.createElement('div');
+    div.className = 'up-row';
+    div.innerHTML = '<div><b>'+u.name+'</b> (Lvl '+u.lvl+'/'+u.max+')<br><span style="color:var(--ink-dim);font-size:10.5px;">'+costText+'</span></div>'+
+      '<button class="up-btn" '+(canAfford ? '' : 'disabled')+' onclick="buyUpgrade(\''+k+'\')">UPGRADE</button>';
+    container.appendChild(div);
+  }
+}
+
+window.buyUpgrade = function(key){
+  const u = upgrades[key];
+  if(!u || u.lvl >= u.max) return;
+  const cost = u.cost(u.lvl);
+  if(cost.wood && player.wood < cost.wood) return;
+  if(cost.stone && player.stone < cost.stone) return;
+  if(cost.kills && player.kills < cost.kills) return;
+  if(cost.wood) player.wood -= cost.wood;
+  if(cost.stone) player.stone -= cost.stone;
+  if(cost.kills) player.kills -= cost.kills;
+  u.lvl++;
+  if(key==='health'){
+    player.maxHp = 130 + u.lvl * 30;
+    player.hp = Math.min(player.maxHp, player.hp + 30);
+  } else if(key==='speed'){
+    player.speed = 235 * (1 + u.lvl * 0.10);
+  }
+  playSfx('tame_ok');
+  renderUpgradeList();
+};
+
+/* ============================= PLAYER UPDATE ============================= */
+function updatePlayer(dt){
+  if(!player.alive) return;
+  let dx=0, dy=0;
+  if(keys['w']) dy -= 1;
+  if(keys['s']) dy += 1;
+  if(keys['a']) dx -= 1;
+  if(keys['d']) dx += 1;
+  const len = Math.hypot(dx,dy);
+  const now0 = performance.now();
+  let spd = player.speed * (now0 < player.slowUntil ? 0.5 : 1);
+  const speedActive = now0 < player.speedBoostUntil;
+  if(speedActive) spd *= 1.8;
+
+  if(keys[' '] && player.dashCd <= 0 && len > 0){
+    player.dashTimer = 0.22;
+    player.dashCd = 1.8;
+    player.dashVx = (dx / len);
+    player.dashVy = (dy / len);
+    playSfx('dash');
+    spawnParticles(player.x, player.y, 14, '#3fa9f5', 180, 300, 3);
+    addScreenshake(3);
+  }
+
+  if(player.dashCd > 0) player.dashCd -= dt;
+
+  if(player.dashTimer > 0){
+    player.dashTimer -= dt;
+    spd *= 2.8;
+    player.x = clamp(player.x + player.dashVx * spd * dt, player.radius, WORLD_W - player.radius);
+    player.y = clamp(player.y + player.dashVy * spd * dt, player.radius, WORLD_H - player.radius);
+    player.trail.push({x: player.x, y: player.y, life: 200});
+  } else if(len>0){
+    dx/=len; dy/=len;
+    let nx = player.x + dx*spd*dt;
+    let ny = player.y + dy*spd*dt;
+    nx = clamp(nx, player.radius, WORLD_W-player.radius);
+    ny = clamp(ny, player.radius, WORLD_H-player.radius);
+    player.x = nx; player.y = ny;
+  }
+  resolveCollisions(player);
+
+  if(speedActive){
+    player.trail.push({x:player.x, y:player.y, life:260});
+  }
+  for(const t of player.trail) t.life -= dt*1000;
+  player.trail = player.trail.filter(t=>t.life>0);
+
+  // overcharge auto-fire
+  if(now0 < player.overchargeUntil){
+    player.overchargeCd -= dt*1000;
+    if(player.overchargeCd<=0){
+      player.overchargeCd = 130;
+      let target=null, bestD=650;
+      for(const h of hostileList()){
+        const d = dist(player.x,player.y,h.x,h.y);
+        if(d<bestD){ target=h; bestD=d; }
+      }
+      const ang = target ? Math.atan2(target.y-player.y, target.x-player.x) : player.angle;
+      player.overchargeShot++;
+      const explosive = player.overchargeShot % 3 === 0;
+      projectiles.push({
+        id:idCounter++, x:player.x, y:player.y,
+        vx:Math.cos(ang)*760, vy:Math.sin(ang)*760,
+        dmg:16, side:'ally', life:900, color:'#3ddc84', explosive
+      });
+    }
+  }
+
+  player.angle = Math.atan2(mouse.wy - player.y, mouse.wx - player.x);
+
+  // passive regen
+  if(performance.now() - player.lastHit > 6000 && player.hp < player.maxHp){
+    player.hp = Math.min(player.maxHp, player.hp + 8*dt);
+  }
+
+  player.attackCd -= dt*1000;
+
+  // build mode placement
+  if(buildMode){
+    if(mouse.down && player.attackCd<=0){
+      tryPlaceWall();
+      player.attackCd = 260;
+    }
+    return; // no gather/attack while placing
+  }
+
+  if(mouse.down && player.attackCd<=0){
+    playerSwing();
+    player.attackCd = RECRUIT.rate;
+  }
+
+  // taming (edge-triggered E)
+  const eDown = !!keys['e'];
+  if(eDown && !eWasDown && tameCooldown<=0){
+    attemptTame();
+    tameCooldown = 500;
+  }
+  eWasDown = eDown;
+  tameCooldown -= dt*1000;
+}
+
+function resolveCollisions(entity){
+  for(const w of walls){
+    const d = dist(entity.x,entity.y,w.x,w.y);
+    const minD = (entity.radius||16) + w.radius;
+    if(d < minD && d>0.001){
+      const push = (minD-d);
+      entity.x += (entity.x-w.x)/d*push;
+      entity.y += (entity.y-w.y)/d*push;
+    }
+  }
+  for(const r of resources){
+    const d = dist(entity.x,entity.y,r.x,r.y);
+    const minD = (entity.radius||16) + r.radius;
+    if(d < minD && d>0.001){
+      const push = (minD-d);
+      entity.x += (entity.x-r.x)/d*push;
+      entity.y += (entity.y-r.y)/d*push;
+    }
+  }
+}
+
+function playerSwing(){
+  const rank = getRank(player.kills);
+  const strengthActive = performance.now() < player.strengthUntil;
+  const dmgMult = getDamageMultiplier();
+
+  let nearRes = null, nearD = Infinity;
+  for(const o of resources){
+    const d = dist(player.x, player.y, o.x, o.y);
+    if(d <= 68 && d < nearD){ nearRes = o; nearD = d; }
+  }
+
+  if(nearRes && dist(player.x, player.y, mouse.wx, mouse.wy) < 140){
+    playSfx('hit');
+    const gatherDmg = strengthActive ? 22*2 : 22;
+    nearRes.hp -= gatherDmg;
+    spawnParticles(nearRes.x, nearRes.y, 6, nearRes.kind==='tree'?'#2f6b3a':'#787f86', 80, 250, 3);
+    spawnFloater(nearRes.x, nearRes.y-24, '-'+gatherDmg, '#e8e2c8');
+    if(nearRes.hp <= 0){
+      const amt = randInt(3,6);
+      spawnParticles(nearRes.x, nearRes.y, 14, nearRes.kind==='tree'?'#8a5a2f':'#9aa3ad', 140, 400, 4);
+      if(nearRes.kind==='tree'){ player.wood += amt; spawnFloater(nearRes.x, nearRes.y-10, '+'+amt+' wood', '#c9a227'); }
+      else { player.stone += amt; spawnFloater(nearRes.x, nearRes.y-10, '+'+amt+' stone', '#9aa3ad'); }
+      resources = resources.filter(r => r.id !== nearRes.id);
+    }
+    return;
+  }
+
+  if(!rank.ranged){
+    playSfx('shoot');
+    const range = 64;
+    let best = null, bestD = Infinity;
+    for(const s of soldiers){
+      if(s.state==='dead'||s.state==='tamed') continue;
+      const d = dist(player.x, player.y, s.x, s.y);
+      if(d <= range + 18 && d < bestD){ best = s; bestD = d; }
+    }
+    if(best){
+      if(best.state==='wild'){ best.state='hostile'; spawnFloater(best.x, best.y-50, 'PROVOKED', '#ff8a8a'); }
+      const dmg = (strengthActive ? rank.dmg*2 : rank.dmg) * dmgMult;
+      damageSoldier(best, dmg, true);
+    }
+    return;
+  }
+
+  const ang = player.angle;
+  const baseDmg = (strengthActive ? rank.dmg*1.5 : rank.dmg) * dmgMult;
+
+  if(rank.type==='pistol'){
+    playSfx('shoot');
+    projectiles.push({
+      id:idCounter++, x:player.x, y:player.y,
+      vx:Math.cos(ang)*rank.proj, vy:Math.sin(ang)*rank.proj,
+      dmg:baseDmg, side:'ally', life:1200, color:'#ffd76a'
+    });
+  } else if(rank.type==='shotgun'){
+    playSfx('shoot');
+    for(let i=-2; i<=2; i++){
+      const spread = ang + i*0.11;
+      projectiles.push({
+        id:idCounter++, x:player.x, y:player.y,
+        vx:Math.cos(spread)*rank.proj*rand(0.9,1.1), vy:Math.sin(spread)*rank.proj*rand(0.9,1.1),
+        dmg:baseDmg*0.7, side:'ally', life:700, color:'#cdd6dd'
+      });
+    }
+  } else if(rank.type==='plasma'){
+    playSfx('laser');
+    projectiles.push({
+      id:idCounter++, x:player.x, y:player.y,
+      vx:Math.cos(ang)*rank.proj, vy:Math.sin(ang)*rank.proj,
+      dmg:baseDmg, side:'ally', life:1100, color:'#f2c14e', explosive:true, big:true
+    });
+  } else if(rank.type==='railgun'){
+    playSfx('laser');
+    projectiles.push({
+      id:idCounter++, x:player.x, y:player.y,
+      vx:Math.cos(ang)*rank.proj, vy:Math.sin(ang)*rank.proj,
+      dmg:baseDmg, side:'ally', life:1400, color:'#7fe3f5', big:true, explosive:true
+    });
+    addScreenshake(4);
+  }
+}
+
+function attemptTame(){
+  if(armyList().length >= getMaxArmyLimit()){
+    showPrompt('Army at max capacity ('+getMaxArmyLimit()+')! Upgrade HQ to recruit more.', 1200);
+    return;
+  }
+  let target=null, bestD=Infinity;
+  for(const s of soldiers){
+    if(s.state!=='wild') continue;
+    const d = dist(player.x,player.y,s.x,s.y);
+    if(d < 110 && d<bestD){ target=s; bestD=d; }
+  }
+  if(!target){
+    showPrompt('No wild soldier nearby.', 900);
+    return;
+  }
+  const tameChance = Math.min(95, target.type.tame + getTameOddsBonus());
+  const roll = Math.random()*100;
+  if(roll < tameChance){
+    target.state = 'tamed';
+    spawnParticles(target.x, target.y, 18, '#5fbf6c', 140, 450, 4);
+    playSfx('tame_ok');
+    spawnFloater(target.x, target.y-50, 'TAMED!', '#5fbf6c');
+  } else {
+    target.state = 'hostile';
+    spawnParticles(target.x, target.y, 12, '#ff5555', 120, 350, 3);
+    playSfx('tame_fail');
+    spawnFloater(target.x, target.y-50, 'FAILED!', '#ff5555');
+  }
+}
+
+let promptTimer=0, promptText='';
+function showPrompt(text, ms){ promptText=text; promptTimer=ms; }
+
+function tryPlaceWall(){
+  const dirx = mouse.wx - player.x, diry = mouse.wy - player.y;
+  const d = Math.hypot(dirx,diry) || 1;
+  const px = player.x + dirx/d*70;
+  const py = player.y + diry/d*70;
+  const gx = Math.round(px/WALL_CELL)*WALL_CELL;
+  const gy = Math.round(py/WALL_CELL)*WALL_CELL;
+
+  for(const w of walls){ if(dist(w.x,w.y,gx,gy) < WALL_CELL*0.8) return; }
+
+  if(buildKind==='wood'){
+    if(player.wood < 10){ showPrompt('Not enough wood (10 needed).', 800); return; }
+    player.wood -= 10;
+    walls.push({id:idCounter++, x:gx, y:gy, hp:150, maxHp:150, kind:'wood', radius:22});
+  } else if(buildKind==='stone'){
+    if(player.stone < 10){ showPrompt('Not enough stone (10 needed).', 800); return; }
+    player.stone -= 10;
+    walls.push({id:idCounter++, x:gx, y:gy, hp:260, maxHp:260, kind:'stone', radius:22});
+  } else if(buildKind==='turret'){
+    if(player.wood < 20 || player.stone < 15){ showPrompt('Not enough resources (20 wood, 15 stone).', 800); return; }
+    player.wood -= 20; player.stone -= 15;
+    walls.push({id:idCounter++, x:gx, y:gy, hp:180, maxHp:180, kind:'turret', radius:20, attackCd:0});
+  } else if(buildKind==='spike'){
+    if(player.wood < 15){ showPrompt('Not enough wood (15 needed).', 800); return; }
+    player.wood -= 15;
+    walls.push({id:idCounter++, x:gx, y:gy, hp:200, maxHp:200, kind:'spike', radius:22});
+  } else if(buildKind==='heal_beacon'){
+    if(player.wood < 25 || player.stone < 25){ showPrompt('Not enough resources (25 wood, 25 stone).', 800); return; }
+    player.wood -= 25; player.stone -= 25;
+    walls.push({id:idCounter++, x:gx, y:gy, hp:200, maxHp:200, kind:'heal_beacon', radius:22, attackCd:0});
+  }
+  spawnParticles(gx, gy, 10, '#c9a227', 100, 300, 3);
+  playSfx('build');
+}
+
+/* ============================= SOLDIER & TURRET AI ============================= */
+function spawnSupplyCrate(){
+  const x = randInt(200, WORLD_W-200);
+  const y = randInt(200, WORLD_H-200);
+  supplyCrates.push({id:idCounter++, x, y, hp:60, maxHp:60, radius:24});
+  spawnFloater(x, y-60, '📦 SUPPLY AIRDROP LANDED!', '#f2c14e');
+  playSfx('airdrop');
+  addScreenshake(5);
+}
+
+function updateSupplyCrates(dt){
+  for(const c of supplyCrates){
+    if(dist(player.x, player.y, c.x, c.y) < player.radius + c.radius + 10){
+      c.hp -= 30 * dt;
+      spawnParticles(c.x, c.y, 2, '#f2c14e', 60, 200, 2);
+      if(c.hp <= 0){
+        c.dead = true;
+        player.wood += 30;
+        player.stone += 30;
+        maybeDropPotion(c.x, c.y);
+        maybeDropPotion(c.x, c.y);
+        spawnParticles(c.x, c.y, 24, '#f2c14e', 180, 500, 4);
+        spawnFloater(c.x, c.y-50, 'AIRDROP OPENED! +30 Wood +30 Stone', '#5fbf6c');
+        playSfx('potion');
+      }
+    }
+  }
+  supplyCrates = supplyCrates.filter(c => !c.dead);
+}
+
+function spawnRivalCommander(){
+  if(rivalCommanders.filter(r => r.state!=='dead').length >= 2) return;
+  const names = ["Commander Vex", "Rival Apex", "Captain Steele", "Warlord Drake"];
+  const name = names[randInt(0, names.length-1)];
+  const rivalType = {
+    name: name, weapon: "Assault Rifle", color: "#e63946", accent: "#1d3557",
+    ranged: true, dmg: 32, hp: 400, tame: 0, range: 380, rate: 450, proj: 720, rarity: "Epic", boss: true
+  };
+  const x = clamp(player.x + rand(-800, 800), 200, WORLD_W-200);
+  const y = clamp(player.y + rand(-800, 800), 200, WORLD_H-200);
+  const cmd = makeSoldier(rivalType, x, y, 'hostile');
+  soldiers.push(cmd);
+  rivalCommanders.push(cmd);
+  spawnFloater(cmd.x, cmd.y - 60, '⚔️ RIVAL COMMANDER SPOTTED!', '#ff5555');
+  playSfx('boss_alarm');
+}
+
+function updateSoldiers(dt){
+  laserBeams = [];
+
+  // If the army's focus-fire target died or vanished, auto-pick a fresh random one
+  // while ATTACK is still active, so the command keeps working after each kill.
+  if(armyCommand === 'ATTACK' && armyFocusTargetId != null){
+    const stillValid = soldiers.some(s => s.id === armyFocusTargetId && s.state !== 'dead' && s.state !== 'tamed');
+    if(!stillValid) pickRandomArmyTarget();
+  }
+
+  // Update Turrets, Spikes, & Heal Beacons
+  for(const w of walls){
+    if(w.kind === 'turret'){
+      w.attackCd = (w.attackCd || 0) - dt * 1000;
+      if(w.attackCd <= 0){
+        let target = null, bestD = 340;
+        for(const h of hostileList()){
+          const d = dist(w.x, w.y, h.x, h.y);
+          if(d < bestD){ target = h; bestD = d; }
+        }
+        if(target){
+          w.attackCd = 450;
+          const ang = Math.atan2(target.y - w.y, target.x - w.x);
+          projectiles.push({
+            id: idCounter++, x: w.x, y: w.y,
+            vx: Math.cos(ang) * 620, vy: Math.sin(ang) * 620,
+            dmg: 18 * getDamageMultiplier(), side: 'ally', life: 1000, color: '#c9a227'
+          });
+          playSfx('shoot');
+        }
+      }
+    } else if(w.kind === 'spike'){
+      for(const h of hostileList()){
+        if(dist(w.x, w.y, h.x, h.y) < 28){
+          damageSoldier(h, 15 * dt * getDamageMultiplier(), true);
+          h.x += rand(-1, 1); h.y += rand(-1, 1);
+        }
+      }
+    } else if(w.kind === 'heal_beacon'){
+      w.attackCd = (w.attackCd || 0) - dt * 1000;
+      if(w.attackCd <= 0){
+        w.attackCd = 1500;
+        spawnParticles(w.x, w.y, 16, '#5fbf6c', 100, 400, 3);
+        playSfx('heal');
+        if(dist(player.x, player.y, w.x, w.y) < 180){
+          player.hp = Math.min(player.maxHp, player.hp + 18);
+          spawnFloater(player.x, player.y-30, '+18 HP', '#5fbf6c');
+        }
+        for(const a of armyList()){
+          if(dist(a.x, a.y, w.x, w.y) < 180){
+            a.hp = Math.min(a.maxHp, a.hp + 22);
+            spawnFloater(a.x, a.y-30, '+22 HP', '#5fbf6c');
+          }
+        }
+        for(const w2 of walls){
+          if(w2 !== w && dist(w2.x, w2.y, w.x, w.y) < 180){
+            w2.hp = Math.min(w2.maxHp, w2.hp + 30);
+          }
+        }
+      }
+    }
+  }
+
+  for(const s of soldiers){
+    if(s.state==='dead') continue;
+
+    if(s.type.heals && s.state==='tamed'){
+      let healTarget = null, lowestHpPct = 0.95;
+      if(player.hp / player.maxHp < lowestHpPct){
+        healTarget = player; lowestHpPct = player.hp / player.maxHp;
+      }
+      for(const a of armyList()){
+        if(a !== s && a.hp / a.maxHp < lowestHpPct){
+          healTarget = a; lowestHpPct = a.hp / a.maxHp;
+        }
+      }
+      if(healTarget && dist(s.x, s.y, healTarget.x, healTarget.y) < 260){
+        healTarget.hp = Math.min(healTarget.maxHp, healTarget.hp + 14 * dt);
+        laserBeams.push({ x1: s.x, y1: s.y, x2: healTarget.x, y2: healTarget.y, color: '#5fbf6c' });
+      }
+    }
+
+    if(s.state==='wild'){
+      s.wanderCd -= dt*1000;
+      if(s.wanderCd<=0){
+        s.wanderTx = clamp(s.x + rand(-160,160), 40, WORLD_W-40);
+        s.wanderTy = clamp(s.y + rand(-160,160), 40, WORLD_H-40);
+        s.wanderCd = rand(1800,3600);
+      }
+      moveToward(s, s.wanderTx, s.wanderTy, 55, dt);
+      resolveCollisions(s);
+      continue;
+    }
+
+    if(s.state==='hostile'){
+      let target=null, bestD=540;
+      const shadowActive = performance.now() < player.shadowUntil;
+      const pd = dist(s.x,s.y,player.x,player.y);
+      const playerDetectable = !shadowActive || pd < 130;
+      if(playerDetectable && pd<bestD){ target=player; bestD=pd; }
+      for(const a of armyList()){
+        const d = dist(s.x,s.y,a.x,a.y);
+        if(d<bestD){ target=a; bestD=d; }
+      }
+      for(const w of walls){
+        if(w.kind==='turret'){
+          const d = dist(s.x,s.y,w.x,w.y);
+          if(d<bestD*0.8){ target=w; bestD=d; }
+        }
+      }
+
+      if(!target){
+        s.wanderCd -= dt*1000;
+        if(s.wanderCd<=0){
+          s.wanderTx = clamp(s.x+rand(-160,160),40,WORLD_W-40);
+          s.wanderTy = clamp(s.y+rand(-160,160),40,WORLD_H-40);
+          s.wanderCd = rand(1500,3000);
+        }
+        moveToward(s, s.wanderTx, s.wanderTy, 60, dt);
+      } else {
+        s.angle = Math.atan2(target.y-s.y, target.x-s.x);
+        const d = dist(s.x,s.y,target.x,target.y);
+        if(d > s.type.range*0.75){
+          moveToward(s, target.x, target.y, 120, dt);
+        }
+        s.attackCd -= dt*1000;
+        if(d <= s.type.range && s.attackCd<=0){
+          s.attackCd = s.type.rate;
+          fireWeapon(s, target, 'enemy');
+        }
+      }
+      resolveCollisions(s);
+      continue;
+    }
+
+    if(s.state==='tamed'){
+      let enemy=null, bestD=480;
+      for(const h of hostileList()){
+        const d = dist(s.x,s.y,h.x,h.y);
+        if(d<bestD){ enemy=h; bestD=d; }
+      }
+
+      if(armyCommand === 'ATTACK'){
+        let focusTarget = null;
+        if(armyFocusTargetId != null){
+          focusTarget = soldiers.find(x => x.id === armyFocusTargetId && x.state !== 'dead' && x.state !== 'tamed');
+        }
+        if(focusTarget){
+          const fd = dist(s.x, s.y, focusTarget.x, focusTarget.y);
+          if(fd <= s.type.range){
+            s.angle = Math.atan2(focusTarget.y-s.y, focusTarget.x-s.x);
+            s.attackCd -= dt*1000;
+            if(s.attackCd<=0){
+              s.attackCd = s.type.rate;
+              fireWeapon(s, focusTarget, 'ally');
+            }
+          } else {
+            moveToward(s, focusTarget.x, focusTarget.y, 180, dt);
+          }
+        } else {
+          const dtTarget = dist(s.x, s.y, armyTargetPos.x, armyTargetPos.y);
+          if(enemy && dist(s.x, s.y, enemy.x, enemy.y) <= s.type.range){
+            s.angle = Math.atan2(enemy.y-s.y, enemy.x-s.x);
+            s.attackCd -= dt*1000;
+            if(s.attackCd<=0){
+              s.attackCd = s.type.rate;
+              fireWeapon(s, enemy, 'ally');
+            }
+          } else if(dtTarget > 30){
+            moveToward(s, armyTargetPos.x, armyTargetPos.y, 180, dt);
+          }
+        }
+      } else if(armyCommand === 'HOLD'){
+        if(enemy && dist(s.x, s.y, enemy.x, enemy.y) <= s.type.range){
+          s.angle = Math.atan2(enemy.y-s.y, enemy.x-s.x);
+          s.attackCd -= dt*1000;
+          if(s.attackCd<=0){
+            s.attackCd = s.type.rate;
+            fireWeapon(s, enemy, 'ally');
+          }
+        }
+      } else {
+        // FOLLOW
+        if(enemy && dist(s.x, s.y, enemy.x, enemy.y) <= s.type.range){
+          s.angle = Math.atan2(enemy.y-s.y, enemy.x-s.x);
+          s.attackCd -= dt*1000;
+          if(s.attackCd<=0){
+            s.attackCd = s.type.rate;
+            fireWeapon(s, enemy, 'ally');
+          }
+        } else {
+          const fx = player.x + Math.cos(s.formAngle)*95;
+          const fy = player.y + Math.sin(s.formAngle)*95;
+          if(dist(s.x,s.y,fx,fy) > 22) moveToward(s, fx, fy, 195, dt);
+          s.angle = player.angle;
+        }
+      }
+      resolveCollisions(s);
+    }
+  }
+  soldiers = soldiers.filter(s=>s.state!=='dead');
+}
+
+function moveToward(entity, tx, ty, speed, dt){
+  const d = dist(entity.x,entity.y,tx,ty);
+  if(d < 2) return;
+  const vx = (tx-entity.x)/d, vy=(ty-entity.y)/d;
+  entity.x = clamp(entity.x + vx*speed*dt, 20, WORLD_W-20);
+  entity.y = clamp(entity.y + vy*speed*dt, 20, WORLD_H-20);
+  entity.angle = Math.atan2(vy,vx);
+}
+
+function fireWeapon(shooter, target, side){
+  const t = shooter.type;
+  playSfx('shoot');
+  if(!t.ranged){
+    const dmgMult = (side==='ally') ? getDamageMultiplier() : 1;
+    if(side==='enemy'){
+      if(target===player) damagePlayer(t.dmg);
+      else if(target.hp) damageSoldier(target, t.dmg, false);
+    } else {
+      damageSoldier(target, t.dmg * dmgMult, true);
+    }
+    return;
+  }
+  const ang = Math.atan2(target.y-shooter.y, target.x-shooter.x);
+  const strengthActive = side==='ally' && performance.now() < player.strengthUntil;
+  const dmgMult = (side==='ally') ? getDamageMultiplier() : 1;
+  const baseDmg = (strengthActive ? t.dmg*1.5 : t.dmg) * dmgMult;
+
+  if(t.weapon === "Flamethrower"){
+    for(let i=0; i<3; i++){
+      const spread = ang + rand(-0.35, 0.35);
+      projectiles.push({
+        id:idCounter++, x:shooter.x, y:shooter.y,
+        vx:Math.cos(spread)*t.proj*rand(0.7,1.1), vy:Math.sin(spread)*t.proj*rand(0.7,1.1),
+        dmg: baseDmg * 0.4, side, life:450, color:'#ff5500', isFlame:true
+      });
+    }
+    return;
+  }
+
+  projectiles.push({
+    id:idCounter++, x:shooter.x, y:shooter.y,
+    vx:Math.cos(ang)*t.proj, vy:Math.sin(ang)*t.proj,
+    dmg: baseDmg, side, life:1400, color:t.color, slow:!!t.slow, big:strengthActive || t.boss,
+    explosive: t.weapon.includes("Rocket") || t.weapon.includes("Grenade") || t.weapon.includes("Nuke")
+  });
+}
+
+/* ============================= PROJECTILES ============================= */
+function updateProjectiles(dt){
+  for(const p of projectiles){
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.life -= dt*1000;
+    if(p.life<=0){ p.dead=true; continue; }
+    if(p.x<0||p.x>WORLD_W||p.y<0||p.y>WORLD_H){ p.dead=true; continue; }
+
+    if(p.explosive || p.big){
+      if(Math.random() < 0.4){
+        particles.push({
+          x: p.x, y: p.y, vx: rand(-20,20), vy: rand(-20,20),
+          color: p.color, size: rand(2, 4), life: 200, maxLife: 200
+        });
+      }
+    }
+
+    if(p.side==='enemy'){
+      if(dist(p.x,p.y,player.x,player.y) < player.radius+8){
+        damagePlayer(p.dmg);
+        if(p.slow) player.slowUntil = performance.now()+1600;
+        p.dead=true; continue;
+      }
+      for(const a of armyList()){
+        if(dist(p.x,p.y,a.x,a.y) < 20){
+          damageSoldier(a, p.dmg, false);
+          p.dead=true; break;
+        }
+      }
+    } else {
+      for(const h of hostileList()){
+        if(dist(p.x,p.y,h.x,h.y) < (p.big?26:20)){
+          damageSoldier(h, p.dmg, true);
+          p.dead=true;
+          if(p.explosive){
+            shockwaves.push({x:p.x, y:p.y, r:8, growSpeed:340, life:300, color:'#3ddc84'});
+            for(const h2 of hostileList()){
+              if(h2!==h && dist(p.x,p.y,h2.x,h2.y) < 70) damageSoldier(h2, 20, true);
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+  projectiles = projectiles.filter(p=>!p.dead);
+}
+
+/* ============================= FLOATERS / SPAWNING ============================= */
+function updateFloaters(dt){
+  for(const f of floaters){ f.y += f.vy*dt; f.life -= dt*1000; }
+  floaters = floaters.filter(f=>f.life>0);
+  if(promptTimer>0) promptTimer -= dt*1000;
+}
+
+function handleSpawning(dt){
+  soldierSpawnT -= dt*1000;
+  if(soldierSpawnT<=0){ spawnSoldier(); soldierSpawnT = rand(2600,4200); }
+  treeSpawnT -= dt*1000;
+  if(treeSpawnT<=0){ spawnResource('tree'); treeSpawnT = rand(3500,6000); }
+  rockSpawnT -= dt*1000;
+  if(rockSpawnT<=0){ spawnResource('rock'); rockSpawnT = rand(4500,7000); }
+  crateSpawnT -= dt*1000;
+  if(crateSpawnT<=0){ spawnSupplyCrate(); crateSpawnT = rand(45000, 65000); }
+  rivalSpawnT -= dt*1000;
+  if(rivalSpawnT<=0){ spawnRivalCommander(); rivalSpawnT = rand(50000, 80000); }
+}
+
+/* ============================= CAMERA ============================= */
+function updateCamera(){
+  let shakeX = (Math.random() - 0.5) * screenshake;
+  let shakeY = (Math.random() - 0.5) * screenshake;
+  camera.x = clamp(player.x - canvas.width/2 + shakeX, 0, WORLD_W-canvas.width);
+  camera.y = clamp(player.y - canvas.height/2 + shakeY, 0, WORLD_H-canvas.height);
+  mouse.wx = mouse.x + camera.x;
+  mouse.wy = mouse.y + camera.y;
+}
+
+/* ============================= RENDER ============================= */
+function drawBackground(){
+  ctx.fillStyle = '#141a12';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+  ctx.lineWidth = 1;
+  const grid = 100;
+  const startX = -((camera.x) % grid);
+  const startY = -((camera.y) % grid);
+  ctx.beginPath();
+  for(let x=startX; x<canvas.width; x+=grid){ ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); }
+  for(let y=startY; y<canvas.height; y+=grid){ ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); }
+  ctx.stroke();
+  // world border
+  ctx.strokeStyle = 'rgba(232,163,61,0.4)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(-camera.x, -camera.y, WORLD_W, WORLD_H);
+}
+
+function drawResource(r){
+  const sx = r.x-camera.x, sy = r.y-camera.y;
+  if(sx<-40||sx>canvas.width+40||sy<-40||sy>canvas.height+40) return;
+  if(r.kind==='tree'){
+    ctx.fillStyle = '#5b3a22';
+    ctx.fillRect(sx-4, sy-2, 8, 20);
+    ctx.beginPath();
+    ctx.fillStyle = '#2f6b3a';
+    ctx.arc(sx, sy-14, r.radius, 0, 7);
+    ctx.fill();
+    ctx.strokeStyle='#1c4023'; ctx.lineWidth=2; ctx.stroke();
+  } else {
+    ctx.fillStyle = '#6b7178';
+    ctx.beginPath();
+    ctx.arc(sx, sy, r.radius, 0, 7);
+    ctx.fill();
+    ctx.strokeStyle = '#3f4448'; ctx.lineWidth=2; ctx.stroke();
+  }
+  if(r.hp < r.maxHp) drawHealthBar(sx, sy - r.radius - 12, r.hp, r.maxHp, 30);
+}
+
+function drawWall(w){
+  const sx = w.x-camera.x, sy = w.y-camera.y;
+  if(sx<-40||sx>canvas.width+40||sy<-40||sy>canvas.height+40) return;
+  if(w.kind==='turret'){
+    ctx.fillStyle = '#c9a227';
+    ctx.strokeStyle = '#7a5f13';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(sx, sy, w.radius, 0, 7);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#1a1408';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 7, 0, 7);
+    ctx.fill();
+  } else if(w.kind==='spike'){
+    ctx.fillStyle = '#4a3f34';
+    ctx.strokeStyle = '#8a641f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, w.radius, 0, 7);
+    ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#e8a33d';
+    ctx.lineWidth = 2;
+    for(let a=0; a<Math.PI*2; a+=Math.PI/3){
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + Math.cos(a)*18, sy + Math.sin(a)*18);
+      ctx.stroke();
+    }
+  } else if(w.kind==='heal_beacon'){
+    ctx.fillStyle = '#1e4d2b';
+    ctx.strokeStyle = '#5fbf6c';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(sx, sy, w.radius, 0, 7);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#5fbf6c';
+    ctx.fillRect(sx-3, sy-9, 6, 18);
+    ctx.fillRect(sx-9, sy-3, 18, 6);
+  } else {
+    ctx.fillStyle = w.kind==='wood' ? '#8a5a2f' : '#787f86';
+    ctx.strokeStyle = w.kind==='wood' ? '#4d3013' : '#4a4f54';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(sx,sy,w.radius,0,7);
+    ctx.fill(); ctx.stroke();
+  }
+  if(w.hp < w.maxHp) drawHealthBar(sx, sy-w.radius-10, w.hp, w.maxHp, 28);
+}
+
+function drawHealthBar(sx, sy, hp, maxHp, width){
+  const h=4;
+  ctx.fillStyle='rgba(0,0,0,.5)';
+  ctx.fillRect(sx-width/2-1, sy-1, width+2, h+2);
+  ctx.fillStyle = hp/maxHp > .4 ? '#5fbf6c' : '#c23c3c';
+  ctx.fillRect(sx-width/2, sy, width*clamp(hp/maxHp,0,1), h);
+}
+
+function drawSoldier(s){
+  const sx = s.x-camera.x, sy = s.y-camera.y;
+  if(sx<-60||sx>canvas.width+60||sy<-60||sy>canvas.height+60) return;
+  const t = s.type;
+  const radius = 17;
+
+  // outline color by state
+  let outline = '#ffffff';
+  if(s.state==='hostile') outline = (Math.floor(performance.now()/220)%2===0) ? '#ff3b3b' : '#8a1414';
+  if(s.state==='tamed') outline = '#5fbf6c';
+
+  // weapon line (behind body, pointing facing dir)
+  ctx.strokeStyle = t.accent;
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(sx + Math.cos(s.angle)*24, sy + Math.sin(s.angle)*24);
+  ctx.stroke();
+
+  // body
+  ctx.beginPath();
+  ctx.fillStyle = t.color;
+  ctx.arc(sx, sy, radius, 0, 7);
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = outline;
+  ctx.stroke();
+
+  // accent helmet dot
+  ctx.beginPath();
+  ctx.fillStyle = t.accent;
+  ctx.arc(sx + Math.cos(s.angle)*7, sy + Math.sin(s.angle)*7, 5, 0, 7);
+  ctx.fill();
+
+  if(s.type.boss){
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('👑 ' + t.name, sx, sy - radius - 18);
+  }
+
+  if(s.hp < s.maxHp || s.type.boss) drawHealthBar(sx, sy-radius-12, s.hp, s.maxHp, s.type.boss ? 50 : 34);
+
+  if(s.state==='tamed'){
+    ctx.fillStyle='rgba(255,255,255,0.75)';
+    ctx.font='10px monospace';
+    ctx.textAlign='center';
+    ctx.fillText(t.name, sx, sy+radius+14);
+  }
+}
+
+function drawPlayer(){
+  const now = performance.now();
+  const sx = player.x-camera.x, sy = player.y-camera.y;
+
+  // neon speed trail
+  if(now < player.speedBoostUntil){
+    for(const t of player.trail){
+      ctx.globalAlpha = clamp(t.life/260,0,1)*0.5;
+      ctx.beginPath();
+      ctx.fillStyle = '#8fd3ff';
+      ctx.arc(t.x-camera.x, t.y-camera.y, 12, 0, 7);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.save();
+  if(!player.alive) ctx.globalAlpha = 0.25;
+  else if(now < player.shadowUntil) ctx.globalAlpha = 0.35;
+
+  // knife
+  ctx.strokeStyle = '#d8dcd2';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(sx,sy);
+  ctx.lineTo(sx+Math.cos(player.angle)*30, sy+Math.sin(player.angle)*30);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.fillStyle = '#e8a33d';
+  ctx.arc(sx, sy, 19, 0, 7);
+  ctx.fill();
+  ctx.lineWidth=3;
+  ctx.strokeStyle='#1a1408';
+  ctx.stroke();
+
+  ctx.restore();
+
+  // guardian shield ring
+  if(now < player.shieldUntil && player.shieldHits>0){
+    const spin = (now/500) % (Math.PI*2);
+    ctx.strokeStyle = '#e8c33d';
+    ctx.lineWidth = 3;
+    for(let i=0;i<player.shieldHits;i++){
+      const a0 = spin + i*(Math.PI*2/3);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 30, a0, a0+1.6);
+      ctx.stroke();
+    }
+  }
+
+  // overcharge glow
+  if(now < player.overchargeUntil){
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(61,220,132,0.6)';
+    ctx.lineWidth = 2;
+    ctx.arc(sx, sy, 26, 0, 7);
+    ctx.stroke();
+  }
+}
+
+function drawProjectile(p){
+  const sx = p.x-camera.x, sy = p.y-camera.y;
+  ctx.beginPath();
+  ctx.fillStyle = p.color;
+  ctx.arc(sx,sy,p.big?8:5,0,7);
+  ctx.fill();
+}
+
+function drawPotionDrop(d){
+  const sx = d.x-camera.x, sy = d.y-camera.y;
+  if(sx<-30||sx>canvas.width+30||sy<-30||sy>canvas.height+30) return;
+  const bob = Math.sin(performance.now()/260 + d.id)*4;
+  ctx.beginPath();
+  ctx.fillStyle = d.potion.glow;
+  ctx.globalAlpha = 0.25;
+  ctx.arc(sx, sy+bob, 18, 0, 7);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.beginPath();
+  ctx.fillStyle = d.potion.color;
+  ctx.arc(sx, sy+bob, 9, 0, 7);
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#0b0f0d';
+  ctx.stroke();
+}
+
+function drawShockwave(sw){
+  const sx = sw.x-camera.x, sy = sw.y-camera.y;
+  ctx.globalAlpha = clamp(sw.life/300,0,1)*0.7;
+  ctx.beginPath();
+  ctx.strokeStyle = sw.color;
+  ctx.lineWidth = 3;
+  ctx.arc(sx, sy, sw.r, 0, 7);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+function drawFloaters(){
+  ctx.textAlign='center';
+  ctx.font='bold 13px monospace';
+  for(const f of floaters){
+    const sx = f.x-camera.x, sy = f.y-camera.y;
+    ctx.globalAlpha = clamp(f.life/900,0,1);
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.text, sx, sy);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawSupplyCrate(c){
+  const sx = c.x-camera.x, sy = c.y-camera.y;
+  if(sx<-40||sx>canvas.width+40||sy<-40||sy>canvas.height+40) return;
+  const bob = Math.sin(performance.now()/300)*3;
+  ctx.fillStyle = '#f2c14e';
+  ctx.strokeStyle = '#1a1408';
+  ctx.lineWidth = 2;
+  ctx.fillRect(sx-16, sy-16+bob, 32, 32);
+  ctx.strokeRect(sx-16, sy-16+bob, 32, 32);
+  ctx.fillStyle = '#1a1408';
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('📦', sx, sy+5+bob);
+  if(c.hp < c.maxHp) drawHealthBar(sx, sy - 24 + bob, c.hp, c.maxHp, 32);
+}
+
+function drawBuildPreview(){
+  if(!buildMode) return;
+  const dirx = mouse.wx - player.x, diry = mouse.wy - player.y;
+  const d = Math.hypot(dirx,diry) || 1;
+  const px = player.x + dirx/d*70;
+  const py = player.y + diry/d*70;
+  const gx = Math.round(px/WALL_CELL)*WALL_CELL;
+  const gy = Math.round(py/WALL_CELL)*WALL_CELL;
+  const sx = gx-camera.x, sy = gy-camera.y;
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  ctx.fillStyle = buildKind==='wood' ? '#8a5a2f' : buildKind==='stone' ? '#787f86' : buildKind==='turret' ? '#c9a227' : buildKind==='spike' ? '#4a3f34' : '#5fbf6c';
+  ctx.arc(sx,sy,22,0,7);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function render(){
+  drawBackground();
+  if(armyPingTimer > 0){
+    const px = armyTargetPos.x - camera.x, py = armyTargetPos.y - camera.y;
+    ctx.strokeStyle = '#ff5555';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(px, py, (1.2 - armyPingTimer) * 40 + 10, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  for(const r of resources) drawResource(r);
+  for(const w of walls) drawWall(w);
+  for(const c of supplyCrates) drawSupplyCrate(c);
+  for(const d of potionDrops) drawPotionDrop(d);
+  for(const s of soldiers) drawSoldier(s);
+  for(const p of projectiles) drawProjectile(p);
+  for(const sw of shockwaves) drawShockwave(sw);
+  for(const b of laserBeams){
+    ctx.strokeStyle = b.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(b.x1 - camera.x, b.y1 - camera.y);
+    ctx.lineTo(b.x2 - camera.x, b.y2 - camera.y);
+    ctx.stroke();
+  }
+  for(const p of particles){
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
+    ctx.beginPath();
+    ctx.arc(p.x - camera.x, p.y - camera.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  drawPlayer();
+  drawFloaters();
+  drawBuildPreview();
+  renderMinimap();
+}
+
+function renderMinimap(){
+  mmCtx.clearRect(0,0,150,150);
+  mmCtx.fillStyle = '#0e130f';
+  mmCtx.fillRect(0,0,150,150);
+  const sc = 150/WORLD_W;
+  for(const r of resources){
+    mmCtx.fillStyle = r.kind==='tree' ? '#2f6b3a' : '#6b7178';
+    mmCtx.fillRect(r.x*sc, r.y*sc, 2,2);
+  }
+  for(const c of supplyCrates){
+    mmCtx.fillStyle = '#f2c14e';
+    mmCtx.fillRect(c.x*sc-2, c.y*sc-2, 4,4);
+  }
+  for(const s of soldiers){
+    mmCtx.fillStyle = s.state==='tamed' ? '#5fbf6c' : s.state==='hostile' ? (s.type.boss ? '#ff0000' : '#ff3b3b') : '#dddddd';
+    const sz = s.type.boss ? 5 : 3;
+    mmCtx.fillRect(s.x*sc-sz/2, s.y*sc-sz/2, sz, sz);
+  }
+  mmCtx.fillStyle = '#e8a33d';
+  mmCtx.beginPath();
+  mmCtx.arc(player.x*sc, player.y*sc, 3.5, 0, 7);
+  mmCtx.fill();
+  // viewport rect
+  mmCtx.strokeStyle='rgba(255,255,255,.3)';
+  mmCtx.strokeRect(camera.x*sc, camera.y*sc, canvas.width*sc, canvas.height*sc);
+}
+
+/* ============================= HUD SYNC ============================= */
+function syncHUD(){
+  const hpPct = clamp(player.hp/player.maxHp,0,1)*100;
+  document.getElementById('hpFill').style.width = hpPct+'%';
+  document.getElementById('hpNum').textContent = Math.max(0,Math.round(player.hp))+'/'+player.maxHp;
+  document.getElementById('woodNum').textContent = player.wood;
+  document.getElementById('stoneNum').textContent = player.stone;
+  const rank = getRank(player.kills);
+  const rn = document.getElementById('rankName');
+  rn.textContent = rank.name;
+  rn.style.color = rank.color;
+  document.getElementById('killCount').textContent = player.kills+' kills';
+
+  const wEl = document.getElementById('weaponNameText');
+  if(wEl) wEl.textContent = rank.weapon;
+
+  const dashPct = clamp((1.8 - Math.max(0, player.dashCd)) / 1.8, 0, 1) * 100;
+  const dashFill = document.getElementById('dashFill');
+  if(dashFill) dashFill.style.width = dashPct + '%';
+  const dashTxt = document.getElementById('dashText');
+  if(dashTxt) dashTxt.textContent = player.dashCd <= 0 ? 'READY' : Math.ceil(player.dashCd) + 's';
+
+  const boss = soldiers.find(s => s.type.boss && s.state!=='dead');
+  const bossBar = document.getElementById('bossBarWrap');
+  if(bossBar){
+    if(boss){
+      bossBar.style.display = 'block';
+      document.getElementById('bossName').textContent = boss.type.name;
+      const bossHpPct = clamp(boss.hp / boss.maxHp, 0, 1) * 100;
+      document.getElementById('bossHpFill').style.width = bossHpPct + '%';
+    } else {
+      bossBar.style.display = 'none';
+    }
+  }
+
+  const army = armyList();
+  document.getElementById('armyCount').textContent = army.length;
+  document.getElementById('armyMax').textContent = getMaxArmyLimit();
+  const counts = {};
+  for(const a of army){
+    counts[a.type.name] = counts[a.type.name] || {n:0, color:a.type.color};
+    counts[a.type.name].n++;
+  }
+  const list = document.getElementById('armyList');
+  list.innerHTML = '';
+  const names = Object.keys(counts);
+  if(names.length===0){ list.innerHTML = '<div style="color:#8a9186">No soldiers tamed yet.</div>'; }
+  for(const n of names){
+    const div = document.createElement('div');
+    div.className='arow';
+    div.innerHTML = '<div class="dot" style="background:'+counts[n].color+'"></div><div>'+n+' x'+counts[n].n+'</div>';
+    list.appendChild(div);
+  }
+
+  // active effects bar
+  const now = performance.now();
+  const effEl = document.getElementById('effectsBar');
+  const active = [];
+  if(now < player.speedBoostUntil) active.push({p:POTIONS[0], t:player.speedBoostUntil-now});
+  if(now < player.strengthUntil)   active.push({p:POTIONS[1], t:player.strengthUntil-now});
+  if(now < player.shieldUntil && player.shieldHits>0) active.push({p:POTIONS[2], t:player.shieldUntil-now, extra:player.shieldHits+' left'});
+  if(now < player.shadowUntil)     active.push({p:POTIONS[3], t:player.shadowUntil-now});
+  if(now < player.overchargeUntil) active.push({p:POTIONS[4], t:player.overchargeUntil-now});
+  if(active.length===0){
+    effEl.style.display='none';
+  } else {
+    effEl.style.display='flex';
+    effEl.innerHTML = active.map(a=>
+      '<div class="eff" style="border-color:'+a.p.color+'"><div class="swatch" style="background:'+a.p.color+'"></div>'+
+      a.p.name.split(' ')[0]+' '+(a.extra?a.extra:Math.ceil(a.t/1000)+'s')+'</div>'
+    ).join('');
+  }
+
+  // context prompt
+  const promptEl = document.getElementById('prompt');
+  if(promptTimer>0 && promptText){
+    promptEl.style.display='block';
+    promptEl.innerHTML = promptText;
+  } else {
+    let near=null, bestD=100;
+    for(const s of soldiers){
+      if(s.state!=='wild') continue;
+      const d = dist(player.x,player.y,s.x,s.y);
+      if(d<bestD){ near=s; bestD=d; }
+    }
+    if(buildMode){
+      promptEl.style.display='block';
+      promptEl.innerHTML = 'Build mode: click to place <b>'+(buildKind==='wood'?'Wood Wall (10 wood)':'Stone Wall (10 stone)')+'</b>';
+    } else if(near){
+      promptEl.style.display='block';
+      promptEl.innerHTML = 'Press <b>E</b> to tame '+near.type.name+' &middot; '+near.type.tame+'% chance &middot; '+near.type.weapon;
+    } else {
+      promptEl.style.display='none';
+    }
+  }
+}
+
+/* ============================= LOOP ============================= */
+function loop(now){
+  let dt = (now-last)/1000;
+  last = now;
+  dt = Math.min(dt, 0.05);
+
+  if(started){
+    updatePlayer(dt);
+    updateSoldiers(dt);
+    updateSupplyCrates(dt);
+    updateProjectiles(dt);
+    updateFloaters(dt);
+    updatePotionDrops(dt);
+    updateShockwaves(dt);
+    updateParticles(dt);
+    handleSpawning(dt);
+    updateCamera();
+    render();
+    syncHUD();
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ============================= START ============================= */
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  document.getElementById('startOverlay').style.display='none';
+  initWorld();
+  started = true;
+  last = performance.now();
+});
+
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

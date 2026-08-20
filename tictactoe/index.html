@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Responsive Tic-Tac-Toe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+            touch-action: manipulation; 
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        
+        #status {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(70px, 100px));
+            gap: 8px;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+            max-width: 320px;
+            width: 90%;
+        }
+
+        .cell {
+            aspect-ratio: 1 / 1;
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            font-size: 2.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent; 
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+
+        @media (hover: hover) {
+            .cell:hover {
+                background-color: #e9e9e9;
+            }
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        select {
+            padding: 10px 15px;
+            font-size: 1rem;
+            border-radius: 25px;
+            border: 2px solid #333;
+            background-color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        button {
+            padding: 12px 28px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Tic-Tac-Toe</h1>
+    <div id="status">Player O's turn</div>
+    
+    <div class="board">
+        <div class="cell" data-index="0"></div>
+        <div class="cell" data-index="1"></div>
+        <div class="cell" data-index="2"></div>
+        <div class="cell" data-index="3"></div>
+        <div class="cell" data-index="4"></div>
+        <div class="cell" data-index="5"></div>
+        <div class="cell" data-index="6"></div>
+        <div class="cell" data-index="7"></div>
+        <div class="cell" data-index="8"></div>
+    </div>
+
+    <div class="controls">
+        <select id="modeSelect">
+            <option value="pvp">Player vs Player</option>
+            <option value="pve">Player vs AI</option>
+        </select>
+        <button id="restartBtn">Restart Game</button>
+    </div>
+
+    <script>
+        const cells = document.querySelectorAll('.cell');
+        const statusText = document.querySelector('#status');
+        const restartBtn = document.querySelector('#restartBtn');
+        const modeSelect = document.querySelector('#modeSelect');
+        
+        let boardState = ["", "", "", "", "", "", "", "", ""];
+        let currentPlayer = "O";
+        let running = false;
+        let gameMode = "pvp"; // default mode
+
+        const winConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+            [0, 4, 8], [2, 4, 6]             // Diagonals
+        ];
+
+        initializeGame();
+
+        function initializeGame() {
+            cells.forEach(cell => cell.addEventListener('click', cellClicked));
+            restartBtn.addEventListener('click', restartGame);
+            modeSelect.addEventListener('change', (e) => {
+                gameMode = e.target.value;
+                restartGame();
+            });
+            running = true;
+        }
+
+        function cellClicked() {
+            const cellIndex = this.getAttribute('data-index');
+
+            // Prevent clicking if cell is full, game is over, or it's the AI's turn
+            if (boardState[cellIndex] !== "" || !running || (gameMode === "pve" && currentPlayer === "X")) {
+                return;
+            }
+
+            updateCell(this, cellIndex);
+            checkWinner();
+        }
+
+        function updateCell(cell, index) {
+            boardState[index] = currentPlayer;
+            cell.textContent = currentPlayer;
+            cell.style.color = currentPlayer === "O" ? "#2196F3" : "#F44336";
+        }
+
+        function checkWinner() {
+            let roundWon = false;
+
+            for (let i = 0; i < winConditions.length; i++) {
+                const condition = winConditions[i];
+                const cellA = boardState[condition[0]];
+                const cellB = boardState[condition[1]];
+                const cellC = boardState[condition[2]];
+
+                if (cellA === "" || cellB === "" || cellC === "") {
+                    continue;
+                }
+                if (cellA === cellB && cellB === cellC) {
+                    roundWon = true;
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                statusText.textContent = `Player ${currentPlayer} Wins! 🎉`;
+                running = false;
+            } else if (!boardState.includes("")) {
+                statusText.textContent = `It's a Draw! 🤝`;
+                running = false;
+            } else {
+                // Alternates to the next player
+                currentPlayer = (currentPlayer === "O") ? "X" : "O";
+                statusText.textContent = `Player ${currentPlayer}'s turn`;
+                
+                // Trigger AI move if it's PvE mode and AI's turn
+                if (gameMode === "pve" && currentPlayer === "X" && running) {
+                    makeAIMove();
+                }
+            }
+        }
+
+        // --- AI LOGIC (Minimax Algorithm) ---
+        
+        function makeAIMove() {
+            statusText.textContent = "AI is thinking...";
+            
+            // Short delay so it feels like the AI is actually thinking
+            setTimeout(() => {
+                let bestMove = getBestMove();
+                if (bestMove !== undefined) {
+                    let cell = document.querySelector(`.cell[data-index='${bestMove}']`);
+                    updateCell(cell, bestMove);
+                    checkWinner();
+                }
+            }, 500);
+        }
+
+        function getBestMove() {
+            let bestScore = -Infinity;
+            let move;
+            for (let i = 0; i < 9; i++) {
+                if (boardState[i] === "") {
+                    boardState[i] = "X";
+                    let score = minimax(boardState, 0, false);
+                    boardState[i] = "";
+                    if (score > bestScore) {
+                        bestScore = score;
+                        move = i;
+                    }
+                }
+            }
+            return move;
+        }
+
+        function minimax(board, depth, isMaximizing) {
+            let result = checkWinState(board);
+            if (result === "X") return 10 - depth;
+            if (result === "O") return depth - 10;
+            if (result === "tie") return 0;
+
+            if (isMaximizing) {
+                let bestScore = -Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (board[i] === "") {
+                        board[i] = "X";
+                        let score = minimax(board, depth + 1, false);
+                        board[i] = "";
+                        bestScore = Math.max(score, bestScore);
+                    }
+                }
+                return bestScore;
+            } else {
+                let bestScore = Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (board[i] === "") {
+                        board[i] = "O";
+                        let score = minimax(board, depth + 1, true);
+                        board[i] = "";
+                        bestScore = Math.min(score, bestScore);
+                    }
+                }
+                return bestScore;
+            }
+        }
+
+        // Helper function for the AI to check the board state without updating the UI
+        function checkWinState(board) {
+            for (let i = 0; i < winConditions.length; i++) {
+                const [a, b, c] = winConditions[i];
+                if (board[a] !== "" && board[a] === board[b] && board[a] === board[c]) {
+                    return board[a];
+                }
+            }
+            if (!board.includes("")) return "tie";
+            return null;
+        }
+
+        function restartGame() {
+            currentPlayer = "O";
+            boardState = ["", "", "", "", "", "", "", "", ""];
+            statusText.textContent = `Player ${currentPlayer}'s turn`;
+            cells.forEach(cell => {
+                cell.textContent = "";
+                cell.style.color = "#000";
+            });
+            running = true;
+        }
+    </script>
+</body>
+</html>

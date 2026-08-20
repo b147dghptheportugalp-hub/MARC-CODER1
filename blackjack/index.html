@@ -1,0 +1,117 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Casino Blackjack</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <h1>🃏 Casino Blackjack</h1>
+        <p>Play at a table with up to 6 seats</p>
+    </header>
+
+    <div id="topBar">
+
+        <div class="stat">
+            <span>💰 Balance</span>
+            <h2 id="balance">$1000</h2>
+        </div>
+
+        <div class="stat">
+            <span>🎲 Bet</span>
+            <h2 id="currentBet">$100</h2>
+        </div>
+
+        <div class="stat">
+            <span>🏆 Wins</span>
+            <h2 id="wins">0</h2>
+        </div>
+
+        <div class="stat">
+            <span>❌ Losses</span>
+            <h2 id="losses">0</h2>
+        </div>
+
+    </div>
+
+    <main id="table">
+
+        <section class="handArea">
+            <h2>Dealer</h2>
+            <div class="score">
+                Score:
+                <span id="dealerScore">0</span>
+            </div>
+            <div id="dealerCards" class="cards"></div>
+        </section>
+
+        <div id="gameMessage">
+            Press <strong>Deal Cards</strong> to begin.
+        </div>
+
+        <section id="seatArea">
+            <div id="seatHeader">
+                <h2>Table Seats</h2>
+                <div class="settingPanel">
+                    <label for="playerCount">Table size</label>
+                    <select id="playerCount">
+                        <option value="1">1 player</option>
+                        <option value="2">2 players</option>
+                        <option value="3">3 players</option>
+                        <option value="4">4 players</option>
+                        <option value="5">5 players</option>
+                        <option value="6">6 players</option>
+                    </select>
+                </div>
+                <div class="settingPanel">
+                    <label for="humanCount">Human players</label>
+                    <select id="humanCount">
+                        <option value="1">1 human</option>
+                        <option value="2">2 humans</option>
+                        <option value="3">3 humans</option>
+                        <option value="4">4 humans</option>
+                        <option value="5">5 humans</option>
+                        <option value="6">6 humans</option>
+                    </select>
+                </div>
+            </div>
+            <div id="seats" class="seatGrid"></div>
+        </section>
+
+    </main>
+
+    <section id="betting">
+        <button class="betBtn" data-bet="10">+$10</button>
+        <button class="betBtn" data-bet="25">+$25</button>
+        <button class="betBtn" data-bet="50">+$50</button>
+        <button class="betBtn" data-bet="100">+$100</button>
+        <button id="clearBet">Clear Bet</button>
+    </section>
+
+    <section id="controls">
+        <button id="dealBtn" class="primary">🎴 Deal Cards</button>
+        <button id="hitBtn">➕ Hit</button>
+        <button id="standBtn">✋ Stand</button>
+        <button id="doubleBtn">💵 Double</button>
+        <button id="newGameBtn">🔄 New Game</button>
+    </section>
+
+    <div id="overlay" class="hidden">
+        <div id="popup">
+            <h2 id="popupTitle">Winner!</h2>
+            <p id="popupText"></p>
+            <button id="continueBtn">Continue</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+</html>
+```

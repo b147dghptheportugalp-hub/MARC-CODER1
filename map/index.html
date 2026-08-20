@@ -1,0 +1,8300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width,
+               initial-scale=1.0,
+               maximum-scale=1.0,
+               user-scalable=no">
+
+<title>World Explorer</title>
+
+<!-- Cesium -->
+<link
+    href="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Widgets/widgets.css"
+    rel="stylesheet">
+
+<script
+    src="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Cesium.js">
+</script>
+
+<style>
+
+/* =========================================================
+   GLOBAL
+   ========================================================= */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+
+    width: 100%;
+    height: 100%;
+
+    margin: 0;
+    padding: 0;
+
+    overflow: hidden;
+
+    background: #000;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+}
+
+#cesiumContainer {
+
+    position: fixed;
+
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+}
+
+/* =========================================================
+   CESIUM CLEANUP
+   ========================================================= */
+
+.cesium-viewer-bottom {
+
+    display: none !important;
+
+}
+
+.cesium-viewer-animationContainer {
+
+    display: none !important;
+
+}
+
+.cesium-viewer-timelineContainer {
+
+    display: none !important;
+
+}
+
+.cesium-viewer-fullscreenContainer {
+
+    display: none !important;
+
+}
+
+.cesium-viewer-geocoderContainer {
+
+    display: none !important;
+
+}
+
+.cesium-viewer-navigationHelpButton {
+
+    display: none !important;
+
+}
+
+.cesium-viewer-toolbar {
+
+    display: none !important;
+
+}
+
+/* =========================================================
+   LOADING SCREEN
+   ========================================================= */
+
+#loadingScreen {
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 10000;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    flex-direction: column;
+
+    background:
+
+        radial-gradient(
+            circle at center,
+            #17233b 0%,
+            #080d18 45%,
+            #020306 100%
+        );
+
+    color: white;
+
+    transition:
+        opacity .6s ease,
+        visibility .6s ease;
+
+}
+
+#loadingScreen.hidden {
+
+    opacity: 0;
+
+    visibility: hidden;
+
+    pointer-events: none;
+
+}
+
+.loadingGlobe {
+
+    width: 90px;
+
+    height: 90px;
+
+    border-radius: 50%;
+
+    border: 3px solid rgba(80,180,255,.35);
+
+    border-top-color: #42a5ff;
+
+    border-right-color: #72d5ff;
+
+    animation:
+        loadingSpin 1.2s linear infinite;
+
+    box-shadow:
+        0 0 40px rgba(50,160,255,.25);
+
+}
+
+@keyframes loadingSpin {
+
+    to {
+
+        transform: rotate(360deg);
+
+    }
+
+}
+
+#loadingText {
+
+    margin-top: 25px;
+
+    font-size: 20px;
+
+    font-weight: 600;
+
+    letter-spacing: .5px;
+
+}
+
+#loadingSubtext {
+
+    margin-top: 8px;
+
+    color: rgba(255,255,255,.55);
+
+    font-size: 13px;
+
+}
+
+/* =========================================================
+   TOP BAR
+   ========================================================= */
+
+#topBar {
+
+    position: fixed;
+
+    top: 18px;
+
+    left: 50%;
+
+    transform: translateX(-50%);
+
+    z-index: 5000;
+
+    width: min(760px, calc(100% - 30px));
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+}
+
+/* =========================================================
+   SEARCH WRAPPER
+   ========================================================= */
+
+#searchWrapper {
+
+    position: relative;
+
+    flex: 1;
+
+    min-width: 0;
+
+}
+
+#searchIcon {
+
+    position: absolute;
+
+    left: 15px;
+
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    color: #666;
+
+    font-size: 18px;
+
+    pointer-events: none;
+
+}
+
+#searchInput {
+
+    width: 100%;
+
+    height: 52px;
+
+    padding:
+        0 45px
+        0 45px;
+
+    border: 1px solid
+        rgba(255,255,255,.25);
+
+    border-radius: 27px;
+
+    outline: none;
+
+    background:
+        rgba(255,255,255,.96);
+
+    color: #111;
+
+    font-size: 16px;
+
+    box-shadow:
+        0 8px 30px
+        rgba(0,0,0,.35);
+
+    transition:
+        box-shadow .2s,
+        border .2s;
+
+}
+
+#searchInput:focus {
+
+    border-color: #42a5ff;
+
+    box-shadow:
+        0 8px 35px
+        rgba(0,0,0,.45),
+        0 0 0 2px
+        rgba(66,165,255,.25);
+
+}
+
+#searchClear {
+
+    position: absolute;
+
+    right: 12px;
+
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    width: 32px;
+
+    height: 32px;
+
+    border: none;
+
+    border-radius: 50%;
+
+    background: transparent;
+
+    color: #777;
+
+    font-size: 20px;
+
+    cursor: pointer;
+
+    display: none;
+
+}
+
+#searchClear:hover {
+
+    background: #eee;
+
+}
+
+/* =========================================================
+   TOP BUTTONS
+   ========================================================= */
+
+.topButton {
+
+    height: 52px;
+
+    padding: 0 18px;
+
+    border: 1px solid
+        rgba(255,255,255,.2);
+
+    border-radius: 26px;
+
+    color: white;
+
+    background:
+        rgba(20,25,35,.88);
+
+    backdrop-filter:
+        blur(12px);
+
+    -webkit-backdrop-filter:
+        blur(12px);
+
+    cursor: pointer;
+
+    font-size: 14px;
+
+    font-weight: 600;
+
+    box-shadow:
+        0 8px 25px
+        rgba(0,0,0,.3);
+
+    transition:
+        background .2s,
+        transform .2s;
+
+    white-space: nowrap;
+
+}
+
+.topButton:hover {
+
+    background:
+        rgba(40,120,210,.95);
+
+    transform: translateY(-1px);
+
+}
+
+#gpsButton {
+
+    width: 52px;
+
+    padding: 0;
+
+    font-size: 20px;
+
+}
+
+/* =========================================================
+   LEFT TOOL PANEL
+   ========================================================= */
+
+#leftTools {
+
+    position: fixed;
+
+    left: 18px;
+
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    z-index: 4000;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+
+    padding: 9px;
+
+    border-radius: 18px;
+
+    background:
+        rgba(15,20,30,.84);
+
+    border: 1px solid
+        rgba(255,255,255,.14);
+
+    backdrop-filter:
+        blur(15px);
+
+    -webkit-backdrop-filter:
+        blur(15px);
+
+    box-shadow:
+        0 12px 35px
+        rgba(0,0,0,.4);
+
+}
+
+.toolButton {
+
+    width: 48px;
+
+    height: 48px;
+
+    border: none;
+
+    border-radius: 13px;
+
+    background:
+        rgba(255,255,255,.08);
+
+    color: white;
+
+    font-size: 21px;
+
+    cursor: pointer;
+
+    transition:
+        background .2s,
+        transform .15s;
+
+}
+
+.toolButton:hover {
+
+    background:
+        rgba(66,165,255,.8);
+
+    transform: scale(1.04);
+
+}
+
+.toolButton.active {
+
+    background:
+        #1976d2;
+
+}
+
+/* =========================================================
+   RIGHT CAMERA PANEL
+   ========================================================= */
+
+#cameraControls {
+
+    position: fixed;
+
+    right: 18px;
+
+    bottom: 30px;
+
+    z-index: 4000;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+
+    padding: 9px;
+
+    border-radius: 18px;
+
+    background:
+        rgba(15,20,30,.84);
+
+    border: 1px solid
+        rgba(255,255,255,.14);
+
+    backdrop-filter:
+        blur(15px);
+
+    -webkit-backdrop-filter:
+        blur(15px);
+
+    box-shadow:
+        0 12px 35px
+        rgba(0,0,0,.4);
+
+}
+
+.cameraButton {
+
+    width: 50px;
+
+    height: 50px;
+
+    border: none;
+
+    border-radius: 13px;
+
+    background:
+        rgba(255,255,255,.08);
+
+    color: white;
+
+    font-size: 21px;
+
+    cursor: pointer;
+
+    transition:
+        background .2s,
+        transform .15s;
+
+}
+
+.cameraButton:hover {
+
+    background:
+        rgba(66,165,255,.8);
+
+    transform: scale(1.04);
+
+}
+
+/* =========================================================
+   ZOOM CONTROL
+   ========================================================= */
+
+#zoomGroup {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 4px;
+
+}
+
+.zoomButton {
+
+    width: 50px;
+
+    height: 45px;
+
+    border: none;
+
+    background:
+        rgba(255,255,255,.08);
+
+    color: white;
+
+    font-size: 24px;
+
+    cursor: pointer;
+
+}
+
+.zoomButton:first-child {
+
+    border-radius:
+        12px 12px 5px 5px;
+
+}
+
+.zoomButton:last-child {
+
+    border-radius:
+        5px 5px 12px 12px;
+
+}
+
+.zoomButton:hover {
+
+    background:
+        rgba(66,165,255,.8);
+
+}
+
+/* =========================================================
+   BOTTOM INFO
+   ========================================================= */
+
+#bottomInfo {
+
+    position: fixed;
+
+    left: 18px;
+
+    bottom: 20px;
+
+    z-index: 3500;
+
+    max-width: 310px;
+
+    padding: 14px 17px;
+
+    border-radius: 15px;
+
+    color: white;
+
+    background:
+        rgba(10,15,24,.78);
+
+    border:
+        1px solid
+        rgba(255,255,255,.12);
+
+    backdrop-filter:
+        blur(12px);
+
+    -webkit-backdrop-filter:
+        blur(12px);
+
+    box-shadow:
+        0 8px 30px
+        rgba(0,0,0,.35);
+
+}
+
+#locationTitle {
+
+    font-size: 15px;
+
+    font-weight: 700;
+
+    margin-bottom: 7px;
+
+}
+
+#coordinates {
+
+    font-size: 12px;
+
+    line-height: 1.6;
+
+    color:
+        rgba(255,255,255,.65);
+
+}
+
+/* =========================================================
+   MODE PANEL
+   ========================================================= */
+
+#modePanel {
+
+    position: fixed;
+
+    top: 82px;
+
+    right: 18px;
+
+    z-index: 4000;
+
+    display: flex;
+
+    gap: 5px;
+
+    padding: 5px;
+
+    border-radius: 13px;
+
+    background:
+        rgba(15,20,30,.85);
+
+    border:
+        1px solid
+        rgba(255,255,255,.13);
+
+    backdrop-filter:
+        blur(12px);
+
+}
+
+.modeButton {
+
+    padding:
+        9px 13px;
+
+    border: none;
+
+    border-radius: 9px;
+
+    background:
+        transparent;
+
+    color:
+        rgba(255,255,255,.65);
+
+    cursor: pointer;
+
+    font-size: 12px;
+
+}
+
+.modeButton.active {
+
+    color: white;
+
+    background:
+        #1976d2;
+
+}
+
+/* =========================================================
+   SEARCH RESULTS
+   ========================================================= */
+
+#searchResults {
+
+    position: absolute;
+
+    top: 58px;
+
+    left: 0;
+
+    width: 100%;
+
+    max-height: 380px;
+
+    overflow-y: auto;
+
+    display: none;
+
+    border-radius: 15px;
+
+    background:
+        rgba(255,255,255,.97);
+
+    box-shadow:
+        0 15px 40px
+        rgba(0,0,0,.35);
+
+}
+
+.searchResult {
+
+    padding:
+        13px 17px;
+
+    border-bottom:
+        1px solid #eee;
+
+    color: #222;
+
+    cursor: pointer;
+
+}
+
+.searchResult:last-child {
+
+    border-bottom: none;
+
+}
+
+.searchResult:hover {
+
+    background: #f1f5f9;
+
+}
+
+.resultTitle {
+
+    font-weight: 600;
+
+    font-size: 14px;
+
+}
+
+.resultSubtitle {
+
+    margin-top: 3px;
+
+    color: #777;
+
+    font-size: 11px;
+
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media(max-width:700px){
+
+    #topBar {
+
+        top: 10px;
+
+        width:
+            calc(100% - 20px);
+
+    }
+
+    #searchInput {
+
+        height: 46px;
+
+        font-size: 14px;
+
+    }
+
+    .topButton {
+
+        height: 46px;
+
+    }
+
+    #gpsButton {
+
+        width: 46px;
+
+    }
+
+    #leftTools {
+
+        left: 10px;
+
+        top: auto;
+
+        bottom: 125px;
+
+        transform: none;
+
+    }
+
+    .toolButton {
+
+        width: 43px;
+
+        height: 43px;
+
+        font-size: 18px;
+
+    }
+
+    #cameraControls {
+
+        right: 10px;
+
+        bottom: 20px;
+
+    }
+
+    .cameraButton {
+
+        width: 45px;
+
+        height: 45px;
+
+    }
+
+    .zoomButton {
+
+        width: 45px;
+
+        height: 40px;
+
+    }
+
+    #bottomInfo {
+
+        left: 10px;
+
+        bottom: 20px;
+
+        max-width: 220px;
+
+        padding: 10px 12px;
+
+    }
+
+    #modePanel {
+
+        top: 66px;
+
+        right: 10px;
+
+    }
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- =====================================================
+     LOADING
+     ===================================================== -->
+
+<div id="loadingScreen">
+
+    <div class="loadingGlobe"></div>
+
+    <div id="loadingText">
+        Loading Earth...
+    </div>
+
+    <div id="loadingSubtext">
+        Preparing the 3D world
+    </div>
+
+</div>
+
+<!-- =====================================================
+     TOP SEARCH
+     ===================================================== -->
+
+<div id="topBar">
+
+    <div id="searchWrapper">
+
+        <span id="searchIcon">⌕</span>
+
+        <input
+            id="searchInput"
+            type="text"
+            autocomplete="off"
+            placeholder="Search anywhere on Earth...">
+
+        <button
+            id="searchClear"
+            type="button">
+            ×
+        </button>
+
+        <div id="searchResults"></div>
+
+    </div>
+
+    <button
+        id="gpsButton"
+        class="topButton"
+        title="My location">
+        📍
+    </button>
+
+</div>
+
+<!-- =====================================================
+     LEFT TOOLS
+     ===================================================== -->
+
+<div id="leftTools">
+
+    <button
+        id="homeButton"
+        class="toolButton"
+        title="Whole Earth">
+        🌍
+    </button>
+
+    <button
+        id="mapButton"
+        class="toolButton active"
+        title="Map">
+        🗺️
+    </button>
+
+    <button
+        id="satelliteButton"
+        class="toolButton"
+        title="Satellite">
+        🛰️
+    </button>
+
+    <button
+        id="terrainButton"
+        class="toolButton"
+        title="Terrain">
+        ⛰️
+    </button>
+
+    <button
+        id="dayNightButton"
+        class="toolButton"
+        title="Day / Night">
+        ☀️
+    </button>
+
+    <button
+        id="streetButton"
+        class="toolButton"
+        title="Street View">
+        🚗
+    </button>
+
+</div>
+
+<!-- =====================================================
+     MAP MODE
+     ===================================================== -->
+
+<div id="modePanel">
+
+    <button
+        id="mapMode"
+        class="modeButton active">
+        Map
+    </button>
+
+    <button
+        id="satelliteMode"
+        class="modeButton">
+        Satellite
+    </button>
+
+</div>
+
+<!-- =====================================================
+     CAMERA CONTROLS
+     ===================================================== -->
+
+<div id="cameraControls">
+
+    <button
+        id="compassButton"
+        class="cameraButton"
+        title="Reset north">
+        🧭
+    </button>
+
+    <button
+        id="tiltUpButton"
+        class="cameraButton"
+        title="Tilt up">
+        ▲
+    </button>
+
+    <button
+        id="tiltDownButton"
+        class="cameraButton"
+        title="Tilt down">
+        ▼
+    </button>
+
+    <button
+        id="rotateLeftButton"
+        class="cameraButton"
+        title="Rotate left">
+        ↶
+    </button>
+
+    <button
+        id="rotateRightButton"
+        class="cameraButton"
+        title="Rotate right">
+        ↷
+    </button>
+
+    <div id="zoomGroup">
+
+        <button
+            id="zoomInButton"
+            class="zoomButton">
+            +
+        </button>
+
+        <button
+            id="zoomOutButton"
+            class="zoomButton">
+            −
+        </button>
+
+    </div>
+
+</div>
+
+<!-- =====================================================
+     LOCATION INFO
+     ===================================================== -->
+
+<div id="bottomInfo">
+
+    <div id="locationTitle">
+        🌍 Earth
+    </div>
+
+    <div id="coordinates">
+
+        Latitude: --<br>
+        Longitude: --<br>
+        Altitude: --
+
+    </div>
+
+</div>
+
+<!-- =====================================================
+     CESIUM
+     ===================================================== -->
+
+<div id="cesiumContainer"></div>
+
+<!-- =====================================================
+     JAVASCRIPT START
+     ===================================================== -->
+
+<script>
+
+/* =========================================================
+   CESIUM TOKEN
+   =========================================================
+
+   IMPORTANT:
+
+   Put your Cesium Ion token between the quotes.
+
+   Example:
+
+   Cesium.Ion.defaultAccessToken =
+       "eyJhbGciOi...";
+
+   ========================================================= */
+
+Cesium.Ion.defaultAccessToken =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIwOTA5YzE5ZS0yZDMwLTQyZjYtYTk2ZS04ODY1MTAyZTZhNDYiLCJpZCI6NDY1MTAzLCJzdWIiOiJteXVzZXJtYW5lIiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6Im15dXNlcm1hbmVfZGVmYXVsdCIsImlhdCI6MTc4NjEzMzM0Nn0.my5EPUP3vA2MrAPRsk56Ikm58FQM8epWYNS20g1rdbA"
+
+/* =========================================================
+   GLOBAL VARIABLES
+   ========================================================= */
+
+let viewer = null;
+
+let terrainProvider = null;
+
+let buildings = null;
+
+let currentMarker = null;
+
+let currentLatitude = 20;
+
+let currentLongitude = 0;
+
+let currentLocationName = "Earth";
+
+let isSatellite = false;
+
+let isNight = false;
+
+let isTerrainEnabled = true;
+
+let searchTimer = null;
+
+
+/* =========================================================
+   DOM REFERENCES
+   ========================================================= */
+
+const loadingScreen =
+    document.getElementById("loadingScreen");
+
+const searchInput =
+    document.getElementById("searchInput");
+
+const searchClear =
+    document.getElementById("searchClear");
+
+const searchResults =
+    document.getElementById("searchResults");
+
+const coordinatesBox =
+    document.getElementById("coordinates");
+
+const locationTitle =
+    document.getElementById("locationTitle");
+
+
+/* =========================================================
+   CREATE CESIUM VIEWER
+   ========================================================= */
+
+async function createWorld() {
+
+    try {
+
+        /*
+         * World terrain
+         */
+
+        terrainProvider =
+            await Cesium.Terrain
+                .fromWorldTerrainAsync();
+
+
+        /*
+         * Create viewer
+         */
+
+        viewer = new Cesium.Viewer(
+            "cesiumContainer",
+            {
+
+                animation: false,
+
+                timeline: false,
+
+                geocoder: false,
+
+                homeButton: false,
+
+                sceneModePicker: false,
+
+                baseLayerPicker: false,
+
+                navigationHelpButton: false,
+
+                fullscreenButton: false,
+
+                infoBox: false,
+
+                selectionIndicator: false,
+
+                terrainProvider:
+                    terrainProvider,
+
+                shouldAnimate: true
+
+            }
+        );
+
+
+        /*
+         * Globe settings
+         */
+
+        viewer.scene.globe.show = true;
+
+        viewer.scene.globe.enableLighting = true;
+
+        viewer.scene.globe.showGroundAtmosphere = true;
+
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+
+
+        /*
+         * Atmosphere
+         */
+
+        viewer.scene.skyAtmosphere.show = true;
+
+        viewer.scene.sun.show = true;
+
+        viewer.scene.moon.show = true;
+
+
+        /*
+         * Fog
+         */
+
+        viewer.scene.fog.enabled = true;
+
+        viewer.scene.fog.density = 0.00008;
+
+
+        /*
+         * Camera limits
+         */
+
+        viewer.scene.screenSpaceCameraController
+            .minimumZoomDistance = 25;
+
+        viewer.scene.screenSpaceCameraController
+            .maximumZoomDistance = 50000000;
+
+
+        /*
+         * Smooth camera movement
+         */
+
+        viewer.scene.screenSpaceCameraController
+            .inertiaSpin = 0.9;
+
+        viewer.scene.screenSpaceCameraController
+            .inertiaTranslate = 0.9;
+
+        viewer.scene.screenSpaceCameraController
+            .inertiaZoom = 0.85;
+
+
+        /*
+         * High quality rendering
+         */
+
+        viewer.scene.postProcessStages
+            .fxaa.enabled = true;
+
+
+        /*
+         * Load worldwide OSM 3D buildings.
+         *
+         * This is separate from the old
+         * OSMBuildings library that caused
+         * the black-square problem.
+         */
+
+        try {
+
+            buildings =
+                await Cesium
+                    .createOsmBuildingsAsync();
+
+            viewer.scene.primitives
+                .add(buildings);
+
+        }
+
+        catch (buildingError) {
+
+            console.warn(
+                "3D buildings could not load:",
+                buildingError
+            );
+
+        }
+
+
+        /*
+         * Start at the whole Earth.
+         */
+
+        viewer.camera.setView({
+
+            destination:
+                Cesium.Cartesian3
+                    .fromDegrees(
+                        0,
+                        20,
+                        25000000
+                    ),
+
+            orientation: {
+
+                heading: 0,
+
+                pitch:
+                    Cesium.Math
+                        .toRadians(-90),
+
+                roll: 0
+
+            }
+
+        });
+
+
+        /*
+         * Enable controls.
+         */
+
+        setupCameraControls();
+
+        setupMapControls();
+
+        setupSearch();
+
+        setupGPS();
+
+        setupMouseControls();
+
+        setupKeyboardControls();
+
+        setupLocationTracking();
+
+
+        /*
+         * Finish loading screen.
+         */
+
+        setTimeout(() => {
+
+            loadingScreen
+                .classList
+                .add("hidden");
+
+        }, 1200);
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "World initialization failed:",
+            error
+        );
+
+        document.getElementById(
+            "loadingText"
+        ).textContent =
+            "Unable to load Earth";
+
+        document.getElementById(
+            "loadingSubtext"
+        ).textContent =
+            "Check your Cesium Ion token";
+
+    }
+
+}
+
+
+/* =========================================================
+   HOME / WHOLE EARTH
+   ========================================================= */
+
+function goHome() {
+
+    if (!viewer) return;
+
+    viewer.camera.flyTo({
+
+        destination:
+            Cesium.Cartesian3.fromDegrees(
+                0,
+                20,
+                25000000
+            ),
+
+        orientation: {
+
+            heading: 0,
+
+            pitch:
+                Cesium.Math
+                    .toRadians(-90),
+
+            roll: 0
+
+        },
+
+        duration: 2.5
+
+    });
+
+}
+
+
+/* =========================================================
+   START
+   ========================================================= */
+
+createWorld();
+/* =========================================================
+   SEARCH SYSTEM
+   ========================================================= */
+
+function setupSearch() {
+
+    searchInput.addEventListener(
+        "input",
+        handleSearchInput
+    );
+
+    searchInput.addEventListener(
+        "keydown",
+        function(event) {
+
+            if (event.key === "Enter") {
+
+                event.preventDefault();
+
+                performSearch(
+                    searchInput.value.trim()
+                );
+
+            }
+
+            if (event.key === "Escape") {
+
+                closeSearchResults();
+
+            }
+
+        }
+    );
+
+
+    searchClear.addEventListener(
+        "click",
+        function() {
+
+            searchInput.value = "";
+
+            searchClear.style.display =
+                "none";
+
+            closeSearchResults();
+
+            searchInput.focus();
+
+        }
+    );
+
+
+    document.addEventListener(
+        "click",
+        function(event) {
+
+            if (
+                !event.target.closest(
+                    "#searchWrapper"
+                )
+            ) {
+
+                closeSearchResults();
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   SEARCH INPUT
+   ========================================================= */
+
+function handleSearchInput() {
+
+    const query =
+        searchInput.value.trim();
+
+    if (query.length > 0) {
+
+        searchClear.style.display =
+            "block";
+
+    } else {
+
+        searchClear.style.display =
+            "none";
+
+        closeSearchResults();
+
+        return;
+
+    }
+
+
+    clearTimeout(searchTimer);
+
+
+    if (query.length < 2) {
+
+        closeSearchResults();
+
+        return;
+
+    }
+
+
+    searchTimer = setTimeout(
+        function() {
+
+            getSearchSuggestions(query);
+
+        },
+        350
+    );
+
+}
+
+
+/* =========================================================
+   SEARCH SUGGESTIONS
+   ========================================================= */
+
+async function getSearchSuggestions(query) {
+
+    try {
+
+        const response =
+            await fetch(
+
+                "https://nominatim.openstreetmap.org/" +
+                "search?format=json" +
+                "&addressdetails=1" +
+                "&limit=6" +
+                "&accept-language=en" +
+                "&q=" +
+                encodeURIComponent(query)
+
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Search request failed"
+            );
+
+        }
+
+
+        const results =
+            await response.json();
+
+
+        displaySearchResults(results);
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Search suggestion error:",
+            error
+        );
+
+        closeSearchResults();
+
+    }
+
+}
+
+
+/* =========================================================
+   DISPLAY SEARCH RESULTS
+   ========================================================= */
+
+function displaySearchResults(results) {
+
+    searchResults.innerHTML = "";
+
+
+    if (!results || !results.length) {
+
+        const empty =
+            document.createElement("div");
+
+        empty.className =
+            "searchResult";
+
+        empty.innerHTML = `
+            <div class="resultTitle">
+                No locations found
+            </div>
+            <div class="resultSubtitle">
+                Try another place name
+            </div>
+        `;
+
+        searchResults.appendChild(
+            empty
+        );
+
+        searchResults.style.display =
+            "block";
+
+        return;
+
+    }
+
+
+    results.forEach(
+        function(result) {
+
+            const item =
+                document.createElement("div");
+
+            item.className =
+                "searchResult";
+
+
+            const name =
+                getResultName(result);
+
+
+            const description =
+                getResultDescription(result);
+
+
+            item.innerHTML = `
+                <div class="resultTitle">
+                    📍 ${escapeHTML(name)}
+                </div>
+
+                <div class="resultSubtitle">
+                    ${escapeHTML(description)}
+                </div>
+            `;
+
+
+            item.addEventListener(
+                "click",
+                function() {
+
+                    selectSearchResult(
+                        result
+                    );
+
+                }
+            );
+
+
+            searchResults.appendChild(
+                item
+            );
+
+        }
+    );
+
+
+    searchResults.style.display =
+        "block";
+
+}
+
+
+/* =========================================================
+   SEARCH RESULT NAME
+   ========================================================= */
+
+function getResultName(result) {
+
+    if (
+        result.address &&
+        result.address.city
+    ) {
+
+        if (
+            result.type === "city" ||
+            result.type === "town" ||
+            result.type === "village"
+        ) {
+
+            return result.address.city;
+
+        }
+
+    }
+
+
+    if (result.name) {
+
+        return result.name;
+
+    }
+
+
+    if (
+        result.display_name
+    ) {
+
+        return result.display_name
+            .split(",")[0];
+
+    }
+
+
+    return "Location";
+
+}
+
+
+/* =========================================================
+   SEARCH RESULT DESCRIPTION
+   ========================================================= */
+
+function getResultDescription(result) {
+
+    if (
+        result.display_name
+    ) {
+
+        const parts =
+            result.display_name
+                .split(",");
+
+        if (parts.length > 1) {
+
+            return parts
+                .slice(1, 4)
+                .join(",")
+                .trim();
+
+        }
+
+        return result.display_name;
+
+    }
+
+
+    return "World location";
+
+}
+
+
+/* =========================================================
+   SELECT SEARCH RESULT
+   ========================================================= */
+
+function selectSearchResult(result) {
+
+    const latitude =
+        parseFloat(result.lat);
+
+    const longitude =
+        parseFloat(result.lon);
+
+
+    if (
+        Number.isNaN(latitude) ||
+        Number.isNaN(longitude)
+    ) {
+
+        return;
+
+    }
+
+
+    currentLatitude =
+        latitude;
+
+    currentLongitude =
+        longitude;
+
+
+    currentLocationName =
+        getResultName(result);
+
+
+    searchInput.value =
+        currentLocationName;
+
+
+    searchClear.style.display =
+        "block";
+
+
+    closeSearchResults();
+
+
+    updateLocationInfo(
+        latitude,
+        longitude,
+        currentLocationName
+    );
+
+
+    placeLocationMarker(
+        latitude,
+        longitude,
+        currentLocationName
+    );
+
+
+    flyToLocation(
+        latitude,
+        longitude,
+        calculateSearchHeight(result)
+    );
+
+}
+
+
+/* =========================================================
+   DIRECT SEARCH
+   ========================================================= */
+
+async function performSearch(query) {
+
+    if (!query) return;
+
+
+    try {
+
+        const response =
+            await fetch(
+
+                "https://nominatim.openstreetmap.org/" +
+                "search?format=json" +
+                "&addressdetails=1" +
+                "&limit=1" +
+                "&accept-language=en" +
+                "&q=" +
+                encodeURIComponent(query)
+
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Search failed"
+            );
+
+        }
+
+
+        const results =
+            await response.json();
+
+
+        if (!results.length) {
+
+            locationTitle.textContent =
+                "Location not found";
+
+            return;
+
+        }
+
+
+        selectSearchResult(
+            results[0]
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Search error:",
+            error
+        );
+
+        locationTitle.textContent =
+            "Search unavailable";
+
+    }
+
+}
+
+
+/* =========================================================
+   SEARCH CAMERA HEIGHT
+   ========================================================= */
+
+function calculateSearchHeight(result) {
+
+    const type =
+        String(result.type || "")
+            .toLowerCase();
+
+
+    const category =
+        String(result.class || "")
+            .toLowerCase();
+
+
+    if (
+        type === "country"
+    ) {
+
+        return 900000;
+
+    }
+
+
+    if (
+        type === "state" ||
+        type === "region"
+    ) {
+
+        return 300000;
+
+    }
+
+
+    if (
+        type === "city" ||
+        type === "town"
+    ) {
+
+        return 18000;
+
+    }
+
+
+    if (
+        type === "village"
+    ) {
+
+        return 9000;
+
+    }
+
+
+    if (
+        category === "building" ||
+        type === "house" ||
+        type === "residential"
+    ) {
+
+        return 1800;
+
+    }
+
+
+    return 5000;
+
+}
+
+
+/* =========================================================
+   SMOOTH FLY TO LOCATION
+   ========================================================= */
+
+function flyToLocation(
+    latitude,
+    longitude,
+    height = 5000
+) {
+
+    if (!viewer) return;
+
+
+    const destination =
+        Cesium.Cartesian3.fromDegrees(
+
+            longitude,
+
+            latitude,
+
+            height
+
+        );
+
+
+    viewer.camera.flyTo({
+
+        destination:
+
+            destination,
+
+        orientation: {
+
+            heading: 0,
+
+            pitch:
+                Cesium.Math.toRadians(-45),
+
+            roll: 0
+
+        },
+
+        duration: 2.8,
+
+        easingFunction:
+            Cesium.EasingFunction
+                .CUBIC_IN_OUT
+
+    });
+
+}
+
+
+/* =========================================================
+   LOCATION MARKER
+   ========================================================= */
+
+function placeLocationMarker(
+    latitude,
+    longitude,
+    name
+) {
+
+    if (!viewer) return;
+
+
+    if (currentMarker) {
+
+        viewer.entities.remove(
+            currentMarker
+        );
+
+        currentMarker = null;
+
+    }
+
+
+    currentMarker =
+        viewer.entities.add({
+
+            name: name,
+
+            position:
+                Cesium.Cartesian3
+                    .fromDegrees(
+                        longitude,
+                        latitude
+                    ),
+
+            point: {
+
+                pixelSize: 14,
+
+                color:
+                    Cesium.Color
+                        .fromCssColorString(
+                            "#29a9ff"
+                        ),
+
+                outlineColor:
+                    Cesium.Color.WHITE,
+
+                outlineWidth: 3,
+
+                heightReference:
+                    Cesium.HeightReference
+                        .CLAMP_TO_GROUND
+
+            },
+
+            label: {
+
+                text: name,
+
+                font:
+                    "600 14px Arial",
+
+                fillColor:
+                    Cesium.Color.WHITE,
+
+                outlineColor:
+                    Cesium.Color.BLACK,
+
+                outlineWidth: 4,
+
+                style:
+                    Cesium.LabelStyle
+                        .FILL_AND_OUTLINE,
+
+                verticalOrigin:
+                    Cesium.VerticalOrigin
+                        .BOTTOM,
+
+                pixelOffset:
+                    new Cesium.Cartesian2(
+                        0,
+                        -20
+                    ),
+
+                showBackground: true,
+
+                backgroundColor:
+                    Cesium.Color
+                        .fromCssColorString(
+                            "rgba(15,20,30,.85)"
+                        ),
+
+                backgroundPadding:
+                    new Cesium.Cartesian2(
+                        8,
+                        5
+                    )
+
+            }
+
+        });
+
+}
+
+
+/* =========================================================
+   CLOSE SEARCH RESULTS
+   ========================================================= */
+
+function closeSearchResults() {
+
+    searchResults.style.display =
+        "none";
+
+    searchResults.innerHTML =
+        "";
+
+}
+
+
+/* =========================================================
+   SAFE HTML
+   ========================================================= */
+
+function escapeHTML(value) {
+
+    return String(value)
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+/* =========================================================
+   GPS SYSTEM
+   ========================================================= */
+
+function setupGPS() {
+
+    document
+        .getElementById("gpsButton")
+        .addEventListener(
+            "click",
+            locateUser
+        );
+
+}
+
+
+/* =========================================================
+   LOCATE USER
+   ========================================================= */
+
+function locateUser() {
+
+    if (!navigator.geolocation) {
+
+        locationTitle.textContent =
+            "GPS is not supported";
+
+        return;
+
+    }
+
+
+    locationTitle.textContent =
+        "Finding your location...";
+
+
+    navigator.geolocation.getCurrentPosition(
+
+        function(position) {
+
+            const latitude =
+                position.coords.latitude;
+
+            const longitude =
+                position.coords.longitude;
+
+
+            currentLatitude =
+                latitude;
+
+            currentLongitude =
+                longitude;
+
+
+            currentLocationName =
+                "My Location";
+
+
+            updateLocationInfo(
+                latitude,
+                longitude,
+                "📍 My Location"
+            );
+
+
+            placeLocationMarker(
+                latitude,
+                longitude,
+                "My Location"
+            );
+
+
+            flyToLocation(
+                latitude,
+                longitude,
+                1800
+            );
+
+        },
+
+
+        function(error) {
+
+            console.warn(
+                "GPS error:",
+                error
+            );
+
+
+            let message =
+                "Unable to find your location";
+
+
+            if (
+                error.code ===
+                error.PERMISSION_DENIED
+            ) {
+
+                message =
+                    "Location permission was denied";
+
+            }
+
+
+            locationTitle.textContent =
+                message;
+
+        },
+
+
+        {
+
+            enableHighAccuracy: true,
+
+            timeout: 15000,
+
+            maximumAge: 30000
+
+        }
+
+    );
+
+}
+
+
+/* =========================================================
+   LOCATION INFO
+   ========================================================= */
+
+function updateLocationInfo(
+    latitude,
+    longitude,
+    name
+) {
+
+    locationTitle.textContent =
+        name;
+
+
+    coordinatesBox.innerHTML =
+
+        "Latitude: " +
+        latitude.toFixed(6) +
+
+        "<br>" +
+
+        "Longitude: " +
+        longitude.toFixed(6) +
+
+        "<br>" +
+
+        "Altitude: calculating...";
+
+}
+
+
+/* =========================================================
+   CAMERA LOCATION TRACKING
+   ========================================================= */
+
+function setupLocationTracking() {
+
+    if (!viewer) return;
+
+
+    viewer.camera.changed.addEventListener(
+        updateCameraCoordinates
+    );
+
+}
+
+
+/* =========================================================
+   UPDATE CAMERA COORDINATES
+   ========================================================= */
+
+function updateCameraCoordinates() {
+
+    if (!viewer) return;
+
+
+    const position =
+        viewer.camera.position;
+
+
+    const cartographic =
+        Cesium.Cartographic
+            .fromCartesian(
+                position
+            );
+
+
+    if (!cartographic) return;
+
+
+    const latitude =
+        Cesium.Math.toDegrees(
+            cartographic.latitude
+        );
+
+
+    const longitude =
+        Cesium.Math.toDegrees(
+            cartographic.longitude
+        );
+
+
+    const height =
+        Math.max(
+            0,
+            cartographic.height
+        );
+
+
+    coordinatesBox.innerHTML =
+
+        "Latitude: " +
+        latitude.toFixed(6) +
+
+        "<br>" +
+
+        "Longitude: " +
+        longitude.toFixed(6) +
+
+        "<br>" +
+
+        "Altitude: " +
+        formatDistance(height);
+
+}
+
+
+/* =========================================================
+   DISTANCE FORMATTER
+   ========================================================= */
+
+function formatDistance(meters) {
+
+    if (
+        meters >= 1000000
+    ) {
+
+        return (
+            meters / 1000000
+        ).toFixed(2) +
+        " million km";
+
+    }
+
+
+    if (
+        meters >= 1000
+    ) {
+
+        return (
+            meters / 1000
+        ).toFixed(2) +
+        " km";
+
+    }
+
+
+    return (
+        Math.round(meters)
+    ) + " m";
+
+}
+/* =========================================================
+   MAP / SATELLITE / TERRAIN CONTROLS
+   ========================================================= */
+
+function setupMapControls() {
+
+    const homeButton =
+        document.getElementById("homeButton");
+
+    const mapButton =
+        document.getElementById("mapButton");
+
+    const satelliteButton =
+        document.getElementById("satelliteButton");
+
+    const terrainButton =
+        document.getElementById("terrainButton");
+
+    const dayNightButton =
+        document.getElementById("dayNightButton");
+
+    const streetButton =
+        document.getElementById("streetButton");
+
+    const mapMode =
+        document.getElementById("mapMode");
+
+    const satelliteMode =
+        document.getElementById("satelliteMode");
+
+
+    homeButton.addEventListener(
+        "click",
+        goHome
+    );
+
+
+    mapButton.addEventListener(
+        "click",
+        function() {
+
+            setMapMode(false);
+
+        }
+    );
+
+
+    satelliteButton.addEventListener(
+        "click",
+        function() {
+
+            setMapMode(true);
+
+        }
+    );
+
+
+    mapMode.addEventListener(
+        "click",
+        function() {
+
+            setMapMode(false);
+
+        }
+    );
+
+
+    satelliteMode.addEventListener(
+        "click",
+        function() {
+
+            setMapMode(true);
+
+        }
+    );
+
+
+    terrainButton.addEventListener(
+        "click",
+        toggleTerrain
+    );
+
+
+    dayNightButton.addEventListener(
+        "click",
+        toggleDayNight
+    );
+
+
+    streetButton.addEventListener(
+        "click",
+        openStreetView
+    );
+
+}
+
+
+/* =========================================================
+   MAP MODE
+   ========================================================= */
+
+async function setMapMode(satellite) {
+
+    if (!viewer) return;
+
+
+    isSatellite = satellite;
+
+
+    const mapButton =
+        document.getElementById(
+            "mapButton"
+        );
+
+    const satelliteButton =
+        document.getElementById(
+            "satelliteButton"
+        );
+
+    const mapMode =
+        document.getElementById(
+            "mapMode"
+        );
+
+    const satelliteMode =
+        document.getElementById(
+            "satelliteMode"
+        );
+
+
+    if (satellite) {
+
+        mapButton.classList.remove(
+            "active"
+        );
+
+        satelliteButton.classList.add(
+            "active"
+        );
+
+        mapMode.classList.remove(
+            "active"
+        );
+
+        satelliteMode.classList.add(
+            "active"
+        );
+
+        try {
+
+            await switchToSatellite();
+
+        }
+
+        catch (error) {
+
+            console.warn(
+                "Satellite imagery unavailable:",
+                error
+            );
+
+        }
+
+    }
+
+    else {
+
+        satelliteButton.classList.remove(
+            "active"
+        );
+
+        mapButton.classList.add(
+            "active"
+        );
+
+        satelliteMode.classList.remove(
+            "active"
+        );
+
+        mapMode.classList.add(
+            "active"
+        );
+
+        switchToMap();
+
+    }
+
+}
+
+
+/* =========================================================
+   NORMAL MAP IMAGERY
+   ========================================================= */
+
+function switchToMap() {
+
+    if (!viewer) return;
+
+
+    const layers =
+        viewer.imageryLayers;
+
+
+    layers.removeAll();
+
+
+    try {
+
+        const provider =
+            new Cesium.OpenStreetMapImageryProvider({
+
+                url:
+                    "https://tile.openstreetmap.org/"
+
+            });
+
+
+        layers.addImageryProvider(
+            provider
+        );
+
+    }
+
+    catch (error) {
+
+        console.warn(
+            "Map imagery failed:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   SATELLITE IMAGERY
+   ========================================================= */
+
+async function switchToSatellite() {
+
+    if (!viewer) return;
+
+
+    const layers =
+        viewer.imageryLayers;
+
+
+    layers.removeAll();
+
+
+    try {
+
+        /*
+         * Cesium Ion asset 2 is the
+         * Cesium World Imagery layer.
+         */
+
+        const provider =
+            await Cesium.IonImageryProvider
+                .fromAssetId(2);
+
+
+        layers.addImageryProvider(
+            provider
+        );
+
+    }
+
+    catch (error) {
+
+        console.warn(
+            "Cesium satellite imagery failed:",
+            error
+        );
+
+
+        /*
+         * If the Ion imagery layer
+         * cannot load, restore OSM.
+         */
+
+        switchToMap();
+
+
+        throw error;
+
+    }
+
+}
+
+
+/* =========================================================
+   TERRAIN
+   ========================================================= */
+
+function toggleTerrain() {
+
+    if (!viewer) return;
+
+
+    const terrainButton =
+        document.getElementById(
+            "terrainButton"
+        );
+
+
+    isTerrainEnabled =
+        !isTerrainEnabled;
+
+
+    if (isTerrainEnabled) {
+
+        terrainButton.classList.add(
+            "active"
+        );
+
+
+        viewer.scene.setTerrain(
+
+            Cesium.Terrain
+                .fromWorldTerrain()
+
+        );
+
+    }
+
+    else {
+
+        terrainButton.classList.remove(
+            "active"
+        );
+
+
+        viewer.scene.setTerrain(
+            new Cesium.Terrain(
+                Cesium.TerrainProvider
+                    .getEllipsoid()
+            )
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   DAY / NIGHT MODE
+   ========================================================= */
+
+function toggleDayNight() {
+
+    if (!viewer) return;
+
+
+    isNight =
+        !isNight;
+
+
+    const button =
+        document.getElementById(
+            "dayNightButton"
+        );
+
+
+    if (isNight) {
+
+        button.innerHTML =
+            "🌙";
+
+        button.classList.add(
+            "active"
+        );
+
+
+        viewer.scene.globe
+            .enableLighting = true;
+
+
+        viewer.scene.sun.show =
+            true;
+
+
+        viewer.scene.skyAtmosphere
+            .show = true;
+
+
+        /*
+         * Move the sun so the
+         * selected side of Earth
+         * is illuminated differently.
+         */
+
+        setNightView();
+
+    }
+
+    else {
+
+        button.innerHTML =
+            "☀️";
+
+        button.classList.remove(
+            "active"
+        );
+
+
+        viewer.scene.globe
+            .enableLighting = true;
+
+
+        viewer.scene.sun.show =
+            true;
+
+
+        resetDayView();
+
+    }
+
+}
+
+
+/* =========================================================
+   NIGHT VIEW
+   ========================================================= */
+
+function setNightView() {
+
+    if (!viewer) return;
+
+
+    /*
+     * A real-time astronomical clock
+     * will be added later.
+     *
+     * For now this changes the
+     * globe lighting state and
+     * lets Cesium calculate
+     * illumination naturally.
+     */
+
+    viewer.scene.globe
+        .dynamicAtmosphereLighting = true;
+
+
+    viewer.scene.globe
+        .dynamicAtmosphereLightingFromSun =
+        true;
+
+
+    viewer.scene.backgroundColor =
+        Cesium.Color.BLACK;
+
+}
+
+
+/* =========================================================
+   DAY VIEW
+   ========================================================= */
+
+function resetDayView() {
+
+    if (!viewer) return;
+
+
+    viewer.scene.backgroundColor =
+        Cesium.Color.BLACK;
+
+}
+
+
+/* =========================================================
+   CAMERA CONTROLS
+   ========================================================= */
+
+function setupCameraControls() {
+
+    document
+        .getElementById("zoomInButton")
+        .addEventListener(
+            "click",
+            zoomIn
+        );
+
+
+    document
+        .getElementById("zoomOutButton")
+        .addEventListener(
+            "click",
+            zoomOut
+        );
+
+
+    document
+        .getElementById("tiltUpButton")
+        .addEventListener(
+            "click",
+            tiltUp
+        );
+
+
+    document
+        .getElementById("tiltDownButton")
+        .addEventListener(
+            "click",
+            tiltDown
+        );
+
+
+    document
+        .getElementById("rotateLeftButton")
+        .addEventListener(
+            "click",
+            rotateLeft
+        );
+
+
+    document
+        .getElementById("rotateRightButton")
+        .addEventListener(
+            "click",
+            rotateRight
+        );
+
+
+    document
+        .getElementById("compassButton")
+        .addEventListener(
+            "click",
+            resetCompass
+        );
+
+}
+
+
+/* =========================================================
+   ZOOM IN
+   ========================================================= */
+
+function zoomIn() {
+
+    if (!viewer) return;
+
+
+    const height =
+        getCameraHeight();
+
+
+    const amount =
+        Math.max(
+            30,
+            height * 0.35
+        );
+
+
+    viewer.camera.zoomIn(
+        amount
+    );
+
+}
+
+
+/* =========================================================
+   ZOOM OUT
+   ========================================================= */
+
+function zoomOut() {
+
+    if (!viewer) return;
+
+
+    const height =
+        getCameraHeight();
+
+
+    const amount =
+        Math.max(
+            100,
+            height * 0.45
+        );
+
+
+    viewer.camera.zoomOut(
+        amount
+    );
+
+}
+
+
+/* =========================================================
+   CAMERA HEIGHT
+   ========================================================= */
+
+function getCameraHeight() {
+
+    if (!viewer) return 1000;
+
+
+    const cartographic =
+        Cesium.Cartographic
+            .fromCartesian(
+                viewer.camera.position
+            );
+
+
+    if (!cartographic) {
+
+        return 1000;
+
+    }
+
+
+    return Math.max(
+        1,
+        cartographic.height
+    );
+
+}
+
+
+/* =========================================================
+   TILT UP
+   ========================================================= */
+
+function tiltUp() {
+
+    if (!viewer) return;
+
+
+    const amount =
+        Cesium.Math.toRadians(8);
+
+
+    viewer.camera.lookUp(
+        amount
+    );
+
+}
+
+
+/* =========================================================
+   TILT DOWN
+   ========================================================= */
+
+function tiltDown() {
+
+    if (!viewer) return;
+
+
+    const amount =
+        Cesium.Math.toRadians(8);
+
+
+    viewer.camera.lookDown(
+        amount
+    );
+
+}
+
+
+/* =========================================================
+   ROTATE LEFT
+   ========================================================= */
+
+function rotateLeft() {
+
+    if (!viewer) return;
+
+
+    viewer.camera.rotateLeft(
+
+        Cesium.Math.toRadians(12)
+
+    );
+
+}
+
+
+/* =========================================================
+   ROTATE RIGHT
+   ========================================================= */
+
+function rotateRight() {
+
+    if (!viewer) return;
+
+
+    viewer.camera.rotateRight(
+
+        Cesium.Math.toRadians(12)
+
+    );
+
+}
+
+
+/* =========================================================
+   RESET COMPASS
+   ========================================================= */
+
+function resetCompass() {
+
+    if (!viewer) return;
+
+
+    const position =
+        viewer.camera.position;
+
+
+    const pitch =
+        viewer.camera.pitch;
+
+
+    const roll =
+        viewer.camera.roll;
+
+
+    viewer.camera.flyTo({
+
+        destination:
+            position,
+
+        orientation: {
+
+            heading: 0,
+
+            pitch: pitch,
+
+            roll: roll
+
+        },
+
+        duration: 0.8
+
+    });
+
+}
+
+
+/* =========================================================
+   MOUSE INTERACTION
+   ========================================================= */
+
+function setupMouseControls() {
+
+    if (!viewer) return;
+
+
+    const handler =
+        new Cesium.ScreenSpaceEventHandler(
+
+            viewer.scene.canvas
+
+        );
+
+
+    /*
+     * Single click.
+     */
+
+    handler.setInputAction(
+
+        function(click) {
+
+            handleMapClick(
+                click.position
+            );
+
+        },
+
+        Cesium.ScreenSpaceEventType
+            .LEFT_CLICK
+
+    );
+
+
+    /*
+     * Double click is deliberately
+     * not used for flying.
+     *
+     * Cesium already has natural
+     * double-click camera behavior.
+     */
+
+}
+
+
+/* =========================================================
+   MAP CLICK
+   ========================================================= */
+
+function handleMapClick(position) {
+
+    if (!viewer) return;
+
+
+    const ray =
+        viewer.camera.getPickRay(
+            position
+        );
+
+
+    if (!ray) return;
+
+
+    let worldPosition =
+        viewer.scene.globe.pick(
+            ray,
+            viewer.scene
+        );
+
+
+    /*
+     * If terrain cannot be picked,
+     * try the ellipsoid.
+     */
+
+    if (!worldPosition) {
+
+        worldPosition =
+            viewer.camera
+                .pickEllipsoid(
+                    position,
+                    viewer.scene
+                        .globe
+                        .ellipsoid
+                );
+
+    }
+
+
+    if (!worldPosition) return;
+
+
+    const cartographic =
+        Cesium.Cartographic
+            .fromCartesian(
+                worldPosition
+            );
+
+
+    if (!cartographic) return;
+
+
+    const latitude =
+        Cesium.Math.toDegrees(
+            cartographic.latitude
+        );
+
+
+    const longitude =
+        Cesium.Math.toDegrees(
+            cartographic.longitude
+        );
+
+
+    currentLatitude =
+        latitude;
+
+
+    currentLongitude =
+        longitude;
+
+
+    currentLocationName =
+        "Selected location";
+
+
+    updateLocationInfo(
+
+        latitude,
+
+        longitude,
+
+        "📍 Selected location"
+
+    );
+
+
+    placeLocationMarker(
+
+        latitude,
+
+        longitude,
+
+        "Selected location"
+
+    );
+
+}
+
+
+/* =========================================================
+   KEYBOARD CONTROLS
+   ========================================================= */
+
+function setupKeyboardControls() {
+
+    document.addEventListener(
+        "keydown",
+        handleKeyboard
+    );
+
+}
+
+
+/* =========================================================
+   KEYBOARD MOVEMENT
+   ========================================================= */
+
+function handleKeyboard(event) {
+
+    if (!viewer) return;
+
+
+    /*
+     * Don't control the camera while
+     * typing into the search box.
+     */
+
+    if (
+        document.activeElement ===
+        searchInput
+    ) {
+
+        return;
+
+    }
+
+
+    const key =
+        event.key.toLowerCase();
+
+
+    const distance =
+        Math.max(
+            20,
+            getCameraHeight() * 0.08
+        );
+
+
+    switch (key) {
+
+        case "w":
+
+            viewer.camera.moveForward(
+                distance
+            );
+
+            break;
+
+
+        case "s":
+
+            viewer.camera.moveBackward(
+                distance
+            );
+
+            break;
+
+
+        case "a":
+
+            viewer.camera.moveLeft(
+                distance
+            );
+
+            break;
+
+
+        case "d":
+
+            viewer.camera.moveRight(
+                distance
+            );
+
+            break;
+
+
+        case "q":
+
+            viewer.camera.rotateLeft(
+
+                Cesium.Math.toRadians(5)
+
+            );
+
+            break;
+
+
+        case "e":
+
+            viewer.camera.rotateRight(
+
+                Cesium.Math.toRadians(5)
+
+            );
+
+            break;
+
+
+        case "r":
+
+            viewer.camera.lookUp(
+
+                Cesium.Math.toRadians(5)
+
+            );
+
+            break;
+
+
+        case "f":
+
+            viewer.camera.lookDown(
+
+                Cesium.Math.toRadians(5)
+
+            );
+
+            break;
+
+
+        case "+":
+
+        case "=":
+
+            zoomIn();
+
+            break;
+
+
+        case "-":
+
+        case "_":
+
+            zoomOut();
+
+            break;
+
+
+        case "h":
+
+            goHome();
+
+            break;
+
+    }
+
+}
+
+
+/* =========================================================
+   MOUSE WHEEL BEHAVIOUR
+   ========================================================= */
+
+function setupSmoothWheel() {
+
+    if (!viewer) return;
+
+
+    viewer.scene
+        .screenSpaceCameraController
+        .inertiaZoom = 0.9;
+
+}
+
+
+/* =========================================================
+   INITIAL MAP MODE
+   ========================================================= */
+
+function initializeMapMode() {
+
+    if (!viewer) return;
+
+
+    /*
+     * Keep Cesium's default imagery
+     * until the viewer has completely
+     * initialized.
+     */
+
+    isSatellite = false;
+
+
+    document
+        .getElementById("mapButton")
+        .classList.add("active");
+
+
+    document
+        .getElementById("mapMode")
+        .classList.add("active");
+
+}
+
+
+/* =========================================================
+   CAMERA COLLISION SETTINGS
+   ========================================================= */
+
+function setupCameraLimits() {
+
+    if (!viewer) return;
+
+
+    const controller =
+        viewer.scene
+            .screenSpaceCameraController;
+
+
+    controller.enableCollisionDetection =
+        true;
+
+
+    controller.minimumZoomDistance =
+        20;
+
+
+    controller.maximumZoomDistance =
+        50000000;
+
+
+    controller.minimumPickingTerrainHeight =
+        150;
+
+
+}
+
+
+/* =========================================================
+   CAMERA QUALITY
+   ========================================================= */
+
+function setupCameraQuality() {
+
+    if (!viewer) return;
+
+
+    const controller =
+        viewer.scene
+            .screenSpaceCameraController;
+
+
+    controller.inertiaSpin =
+        0.92;
+
+
+    controller.inertiaTranslate =
+        0.92;
+
+
+    controller.inertiaZoom =
+        0.88;
+
+
+    controller.enableRotate =
+        true;
+
+
+    controller.enableTranslate =
+        true;
+
+
+    controller.enableZoom =
+        true;
+
+
+    controller.enableTilt =
+        true;
+
+
+    controller.enableLook =
+        true;
+
+}
+
+
+/* =========================================================
+   RUN ADDITIONAL SETUP
+   ========================================================= */
+
+setTimeout(
+    function() {
+
+        if (!viewer) return;
+
+
+        initializeMapMode();
+
+        setupSmoothWheel();
+
+        setupCameraLimits();
+
+        setupCameraQuality();
+
+    },
+    1000
+);
+/* =========================================================
+   STREET VIEW
+   ========================================================= */
+
+function openStreetView() {
+
+    const latitude =
+        currentLatitude;
+
+    const longitude =
+        currentLongitude;
+
+
+    if (
+        typeof latitude !== "number" ||
+        typeof longitude !== "number"
+    ) {
+
+        return;
+
+    }
+
+
+    const url =
+        "https://www.google.com/maps/@?" +
+        "api=1&map_action=pano" +
+        "&viewpoint=" +
+        encodeURIComponent(
+            latitude + "," + longitude
+        );
+
+
+    window.open(
+        url,
+        "_blank",
+        "noopener,noreferrer"
+    );
+
+}
+
+
+/* =========================================================
+   CAMERA DOUBLE CLICK
+   ========================================================= */
+
+function setupDoubleClickFly() {
+
+    if (!viewer) return;
+
+
+    const handler =
+        new Cesium.ScreenSpaceEventHandler(
+
+            viewer.scene.canvas
+
+        );
+
+
+    handler.setInputAction(
+
+        function(click) {
+
+            const ray =
+                viewer.camera.getPickRay(
+                    click.position
+                );
+
+
+            if (!ray) return;
+
+
+            let position =
+                viewer.scene.globe.pick(
+                    ray,
+                    viewer.scene
+                );
+
+
+            if (!position) {
+
+                position =
+                    viewer.camera
+                        .pickEllipsoid(
+                            click.position,
+                            viewer.scene
+                                .globe
+                                .ellipsoid
+                        );
+
+            }
+
+
+            if (!position) return;
+
+
+            const cartographic =
+                Cesium.Cartographic
+                    .fromCartesian(
+                        position
+                    );
+
+
+            if (!cartographic) return;
+
+
+            const latitude =
+                Cesium.Math.toDegrees(
+                    cartographic.latitude
+                );
+
+
+            const longitude =
+                Cesium.Math.toDegrees(
+                    cartographic.longitude
+                );
+
+
+            currentLatitude =
+                latitude;
+
+            currentLongitude =
+                longitude;
+
+
+            currentLocationName =
+                "Selected location";
+
+
+            placeLocationMarker(
+
+                latitude,
+
+                longitude,
+
+                "Selected location"
+
+            );
+
+
+            updateLocationInfo(
+
+                latitude,
+
+                longitude,
+
+                "📍 Selected location"
+
+            );
+
+
+            viewer.camera.flyTo({
+
+                destination:
+                    Cesium.Cartesian3
+                        .fromDegrees(
+                            longitude,
+                            latitude,
+                            1200
+                        ),
+
+                orientation: {
+
+                    heading: 0,
+
+                    pitch:
+                        Cesium.Math
+                            .toRadians(-35),
+
+                    roll: 0
+
+                },
+
+                duration: 1.8,
+
+                easingFunction:
+                    Cesium.EasingFunction
+                        .CUBIC_IN_OUT
+
+            });
+
+        },
+
+        Cesium.ScreenSpaceEventType
+            .LEFT_DOUBLE_CLICK
+
+    );
+
+}
+
+
+/* =========================================================
+   MARKER PULSE EFFECT
+   ========================================================= */
+
+let markerPulseTime = 0;
+
+
+function animateMarker() {
+
+    if (!viewer) return;
+
+
+    markerPulseTime += 0.03;
+
+
+    if (!currentMarker) return;
+
+
+    if (!currentMarker.point) return;
+
+
+    const pulse =
+        13 +
+        Math.sin(
+            markerPulseTime
+        ) * 2;
+
+
+    currentMarker.point.pixelSize =
+        pulse;
+
+}
+
+
+/* =========================================================
+   PRE-RENDER LOOP
+   ========================================================= */
+
+function setupRenderLoop() {
+
+    if (!viewer) return;
+
+
+    viewer.scene.preRender.addEventListener(
+        animateMarker
+    );
+
+}
+
+
+/* =========================================================
+   COMPASS VISUAL ROTATION
+   ========================================================= */
+
+function updateCompassVisual() {
+
+    const button =
+        document.getElementById(
+            "compassButton"
+        );
+
+
+    if (!viewer || !button) return;
+
+
+    const heading =
+        viewer.camera.heading;
+
+
+    const degrees =
+        Cesium.Math.toDegrees(
+            heading
+        );
+
+
+    button.style.transform =
+        "rotate(" +
+        (-degrees) +
+        "deg)";
+
+}
+
+
+/* =========================================================
+   CAMERA CHANGE LISTENER
+   ========================================================= */
+
+function setupCameraListeners() {
+
+    if (!viewer) return;
+
+
+    viewer.camera.changed.addEventListener(
+        function() {
+
+            updateCompassVisual();
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   SELECTED LOCATION DESCRIPTION
+   ========================================================= */
+
+async function reverseGeocode(
+    latitude,
+    longitude
+) {
+
+    try {
+
+        const response =
+            await fetch(
+
+                "https://nominatim.openstreetmap.org/" +
+                "reverse?format=json" +
+                "&zoom=18" +
+                "&addressdetails=1" +
+                "&accept-language=en" +
+                "&lat=" +
+                encodeURIComponent(
+                    latitude
+                ) +
+                "&lon=" +
+                encodeURIComponent(
+                    longitude
+                )
+
+            );
+
+
+        if (!response.ok) {
+
+            return null;
+
+        }
+
+
+        const result =
+            await response.json();
+
+
+        return result;
+
+    }
+
+    catch (error) {
+
+        console.warn(
+            "Reverse geocoding failed:",
+            error
+        );
+
+
+        return null;
+
+    }
+
+}
+
+
+/* =========================================================
+   CLICK LOCATION NAME
+   ========================================================= */
+
+async function identifyLocation(
+    latitude,
+    longitude
+) {
+
+    locationTitle.textContent =
+        "📍 Looking up location...";
+
+
+    const result =
+        await reverseGeocode(
+            latitude,
+            longitude
+        );
+
+
+    if (
+        result &&
+        result.display_name
+    ) {
+
+        const name =
+            getResultName(result);
+
+
+        currentLocationName =
+            name;
+
+
+        locationTitle.textContent =
+            "📍 " + name;
+
+
+        if (currentMarker) {
+
+            currentMarker.name =
+                name;
+
+
+            if (
+                currentMarker.label
+            ) {
+
+                currentMarker.label.text =
+                    name;
+
+            }
+
+        }
+
+    }
+
+    else {
+
+        locationTitle.textContent =
+            "📍 Selected location";
+
+    }
+
+}
+
+
+/* =========================================================
+   REPLACE MAP CLICK WITH IDENTIFICATION
+   ========================================================= */
+
+function setupAdvancedMapClick() {
+
+    if (!viewer) return;
+
+
+    const handler =
+        new Cesium.ScreenSpaceEventHandler(
+
+            viewer.scene.canvas
+
+        );
+
+
+    handler.setInputAction(
+
+        async function(click) {
+
+            const ray =
+                viewer.camera.getPickRay(
+                    click.position
+                );
+
+
+            if (!ray) return;
+
+
+            let position =
+                viewer.scene.globe.pick(
+                    ray,
+                    viewer.scene
+                );
+
+
+            if (!position) {
+
+                position =
+                    viewer.camera
+                        .pickEllipsoid(
+                            click.position,
+                            viewer.scene
+                                .globe
+                                .ellipsoid
+                        );
+
+            }
+
+
+            if (!position) return;
+
+
+            const cartographic =
+                Cesium.Cartographic
+                    .fromCartesian(
+                        position
+                    );
+
+
+            if (!cartographic) return;
+
+
+            const latitude =
+                Cesium.Math.toDegrees(
+                    cartographic.latitude
+                );
+
+
+            const longitude =
+                Cesium.Math.toDegrees(
+                    cartographic.longitude
+                );
+
+
+            currentLatitude =
+                latitude;
+
+
+            currentLongitude =
+                longitude;
+
+
+            currentLocationName =
+                "Selected location";
+
+
+            updateLocationInfo(
+
+                latitude,
+
+                longitude,
+
+                "📍 Selected location"
+
+            );
+
+
+            placeLocationMarker(
+
+                latitude,
+
+                longitude,
+
+                "Selected location"
+
+            );
+
+
+            identifyLocation(
+
+                latitude,
+
+                longitude
+
+            );
+
+        },
+
+        Cesium.ScreenSpaceEventType
+            .LEFT_CLICK
+
+    );
+
+}
+
+
+/* =========================================================
+   SAVED PLACES
+   ========================================================= */
+
+const savedPlacesKey =
+    "worldExplorerSavedPlaces";
+
+
+function getSavedPlaces() {
+
+    try {
+
+        const saved =
+            localStorage.getItem(
+                savedPlacesKey
+            );
+
+
+        if (!saved) {
+
+            return [];
+
+        }
+
+
+        const parsed =
+            JSON.parse(saved);
+
+
+        if (
+            !Array.isArray(parsed)
+        ) {
+
+            return [];
+
+        }
+
+
+        return parsed;
+
+    }
+
+    catch (error) {
+
+        console.warn(
+            "Could not load saved places:",
+            error
+        );
+
+
+        return [];
+
+    }
+
+}
+
+
+/* =========================================================
+   SAVE CURRENT PLACE
+   ========================================================= */
+
+function saveCurrentPlace() {
+
+    const places =
+        getSavedPlaces();
+
+
+    const place = {
+
+        name:
+            currentLocationName ||
+            "Saved location",
+
+        latitude:
+            currentLatitude,
+
+        longitude:
+            currentLongitude,
+
+        created:
+            Date.now()
+
+    };
+
+
+    const duplicate =
+        places.some(
+            function(item) {
+
+                return (
+                    Math.abs(
+                        item.latitude -
+                        place.latitude
+                    ) < 0.0001
+                    &&
+                    Math.abs(
+                        item.longitude -
+                        place.longitude
+                    ) < 0.0001
+                );
+
+            }
+        );
+
+
+    if (!duplicate) {
+
+        places.push(place);
+
+    }
+
+
+    try {
+
+        localStorage.setItem(
+
+            savedPlacesKey,
+
+            JSON.stringify(places)
+
+        );
+
+        locationTitle.textContent =
+            "❤️ Place saved";
+
+    }
+
+    catch (error) {
+
+        console.warn(
+            "Could not save place:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   REMOVE SAVED PLACE
+   ========================================================= */
+
+function removeSavedPlace(
+    latitude,
+    longitude
+) {
+
+    const places =
+        getSavedPlaces();
+
+
+    const filtered =
+        places.filter(
+            function(place) {
+
+                return !(
+                    Math.abs(
+                        place.latitude -
+                        latitude
+                    ) < 0.0001
+                    &&
+                    Math.abs(
+                        place.longitude -
+                        longitude
+                    ) < 0.0001
+                );
+
+            }
+        );
+
+
+    try {
+
+        localStorage.setItem(
+
+            savedPlacesKey,
+
+            JSON.stringify(filtered)
+
+        );
+
+    }
+
+    catch (error) {
+
+        console.warn(
+            "Could not remove place:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   IS PLACE SAVED
+   ========================================================= */
+
+function isPlaceSaved(
+    latitude,
+    longitude
+) {
+
+    const places =
+        getSavedPlaces();
+
+
+    return places.some(
+        function(place) {
+
+            return (
+
+                Math.abs(
+                    place.latitude -
+                    latitude
+                ) < 0.0001
+
+                &&
+
+                Math.abs(
+                    place.longitude -
+                    longitude
+                ) < 0.0001
+
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   CREATE SAVE BUTTON
+   ========================================================= */
+
+function createSaveButton() {
+
+    const button =
+        document.createElement(
+            "button"
+        );
+
+
+    button.id =
+        "savePlaceButton";
+
+
+    button.className =
+        "toolButton";
+
+
+    button.title =
+        "Save this location";
+
+
+    button.innerHTML =
+        "♡";
+
+
+    document
+        .getElementById(
+            "leftTools"
+        )
+        .appendChild(
+            button
+        );
+
+
+    button.addEventListener(
+        "click",
+        function() {
+
+            if (
+                isPlaceSaved(
+                    currentLatitude,
+                    currentLongitude
+                )
+            ) {
+
+                removeSavedPlace(
+
+                    currentLatitude,
+
+                    currentLongitude
+
+                );
+
+
+                button.innerHTML =
+                    "♡";
+
+
+                locationTitle.textContent =
+                    "Removed from saved places";
+
+            }
+
+            else {
+
+                saveCurrentPlace();
+
+                button.innerHTML =
+                    "♥";
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   SAVED PLACES PANEL
+   ========================================================= */
+
+function createSavedPlacesButton() {
+
+    const button =
+        document.createElement(
+            "button"
+        );
+
+
+    button.id =
+        "savedPlacesButton";
+
+
+    button.className =
+        "toolButton";
+
+
+    button.title =
+        "Saved places";
+
+
+    button.innerHTML =
+        "⭐";
+
+
+    document
+        .getElementById(
+            "leftTools"
+        )
+        .appendChild(
+            button
+        );
+
+
+    button.addEventListener(
+        "click",
+        showSavedPlaces
+    );
+
+}
+
+
+/* =========================================================
+   SHOW SAVED PLACES
+   ========================================================= */
+
+function showSavedPlaces() {
+
+    const places =
+        getSavedPlaces();
+
+
+    if (!places.length) {
+
+        locationTitle.textContent =
+            "No saved places yet";
+
+        return;
+
+    }
+
+
+    const existing =
+        document.getElementById(
+            "savedPanel"
+        );
+
+
+    if (existing) {
+
+        existing.remove();
+
+    }
+
+
+    const panel =
+        document.createElement(
+            "div"
+        );
+
+
+    panel.id =
+        "savedPanel";
+
+
+    panel.style.position =
+        "fixed";
+
+
+    panel.style.left =
+        "85px";
+
+
+    panel.style.top =
+        "50%";
+
+
+    panel.style.transform =
+        "translateY(-50%)";
+
+
+    panel.style.width =
+        "280px";
+
+
+    panel.style.maxHeight =
+        "400px";
+
+
+    panel.style.overflowY =
+        "auto";
+
+
+    panel.style.zIndex =
+        "6000";
+
+
+    panel.style.padding =
+        "14px";
+
+
+    panel.style.borderRadius =
+        "18px";
+
+
+    panel.style.background =
+        "rgba(12,18,28,.94)";
+
+
+    panel.style.color =
+        "white";
+
+
+    panel.style.border =
+        "1px solid rgba(255,255,255,.14)";
+
+
+    panel.style.backdropFilter =
+        "blur(15px)";
+
+
+    panel.innerHTML =
+        "<h3 style='margin:4px 0 12px'>" +
+        "⭐ Saved Places" +
+        "</h3>";
+
+
+    places
+        .slice()
+        .reverse()
+        .forEach(
+            function(place) {
+
+                const item =
+                    document.createElement(
+                        "button"
+                    );
+
+
+                item.style.display =
+                    "block";
+
+
+                item.style.width =
+                    "100%";
+
+
+                item.style.textAlign =
+                    "left";
+
+
+                item.style.marginBottom =
+                    "6px";
+
+
+                item.style.padding =
+                    "10px";
+
+
+                item.style.border =
+                    "none";
+
+
+                item.style.borderRadius =
+                    "10px";
+
+
+                item.style.background =
+                    "rgba(255,255,255,.08)";
+
+
+                item.style.color =
+                    "white";
+
+
+                item.style.cursor =
+                    "pointer";
+
+
+                item.innerHTML =
+                    "📍 " +
+                    escapeHTML(
+                        place.name
+                    );
+
+
+                item.addEventListener(
+                    "click",
+                    function() {
+
+                        currentLatitude =
+                            place.latitude;
+
+
+                        currentLongitude =
+                            place.longitude;
+
+
+                        currentLocationName =
+                            place.name;
+
+
+                        updateLocationInfo(
+
+                            place.latitude,
+
+                            place.longitude,
+
+                            "📍 " +
+                            place.name
+
+                        );
+
+
+                        placeLocationMarker(
+
+                            place.latitude,
+
+                            place.longitude,
+
+                            place.name
+
+                        );
+
+
+                        flyToLocation(
+
+                            place.latitude,
+
+                            place.longitude,
+
+                            2500
+
+                        );
+
+
+                        panel.remove();
+
+                    }
+                );
+
+
+                panel.appendChild(
+                    item
+                );
+
+            }
+        );
+
+
+    document.body.appendChild(
+        panel
+    );
+
+
+    setTimeout(
+        function() {
+
+            document.addEventListener(
+                "click",
+                function closeSaved(event) {
+
+                    if (
+                        !panel.contains(
+                            event.target
+                        )
+                        &&
+                        event.target.id !==
+                            "savedPlacesButton"
+                    ) {
+
+                        panel.remove();
+
+                        document.removeEventListener(
+                            "click",
+                            closeSaved
+                        );
+
+                    }
+
+                }
+            );
+
+        },
+        50
+    );
+
+}
+
+
+/* =========================================================
+   CREATE EXTRA UI
+   ========================================================= */
+
+function createExtraUI() {
+
+    createSaveButton();
+
+    createSavedPlacesButton();
+
+}
+
+
+/* =========================================================
+   START ADVANCED FEATURES
+   ========================================================= */
+
+setTimeout(
+    function() {
+
+        if (!viewer) return;
+
+
+        setupDoubleClickFly();
+
+        setupRenderLoop();
+
+        setupCameraListeners();
+
+        setupAdvancedMapClick();
+
+        createExtraUI();
+
+    },
+    1500
+);
+
+
+/* =========================================================
+   MOBILE TOUCH IMPROVEMENTS
+   ========================================================= */
+
+function setupMobileSupport() {
+
+    if (!viewer) return;
+
+
+    const canvas =
+        viewer.scene.canvas;
+
+
+    canvas.style.touchAction =
+        "none";
+
+
+    let touchStartX = 0;
+
+    let touchStartY = 0;
+
+
+    canvas.addEventListener(
+        "touchstart",
+        function(event) {
+
+            if (
+                event.touches.length !== 1
+            ) {
+
+                return;
+
+            }
+
+
+            touchStartX =
+                event.touches[0].clientX;
+
+
+            touchStartY =
+                event.touches[0].clientY;
+
+        },
+        {
+            passive: true
+        }
+    );
+
+
+    canvas.addEventListener(
+        "touchend",
+        function(event) {
+
+            if (
+                event.changedTouches.length !== 1
+            ) {
+
+                return;
+
+            }
+
+
+            const x =
+                event.changedTouches[0]
+                    .clientX;
+
+
+            const y =
+                event.changedTouches[0]
+                    .clientY;
+
+
+            const distance =
+                Math.sqrt(
+
+                    Math.pow(
+                        x - touchStartX,
+                        2
+                    )
+
+                    +
+
+                    Math.pow(
+                        y - touchStartY,
+                        2
+                    )
+
+                );
+
+
+            if (distance < 15) {
+
+                /*
+                 * Cesium handles normal
+                 * tap navigation itself.
+                 */
+
+            }
+
+        },
+        {
+            passive: true
+        }
+    );
+
+}
+
+
+/* =========================================================
+   INITIALIZE MOBILE
+   ========================================================= */
+
+setTimeout(
+    function() {
+
+        setupMobileSupport();
+
+    },
+    2000
+);
+
+
+/* =========================================================
+   RESIZE HANDLING
+   ========================================================= */
+
+window.addEventListener(
+    "resize",
+    function() {
+
+        if (!viewer) return;
+
+        viewer.resize();
+
+    }
+);
+
+
+/* =========================================================
+   VISIBILITY HANDLING
+   ========================================================= */
+
+document.addEventListener(
+    "visibilitychange",
+    function() {
+
+        if (!viewer) return;
+
+
+        if (
+            document.hidden
+        ) {
+
+            viewer.useDefaultRenderLoop =
+                false;
+
+        }
+
+        else {
+
+            viewer.useDefaultRenderLoop =
+                true;
+
+        }
+
+    }
+);
+/* =========================================================
+   WORLD EXPLORER — CHUNK 5
+   EXTRA MAP FEATURES
+   ========================================================= */
+
+
+/* =========================================================
+   MAP SCALE DISPLAY
+   ========================================================= */
+
+function createScaleDisplay() {
+
+    const scale =
+        document.createElement("div");
+
+
+    scale.id =
+        "mapScale";
+
+
+    scale.style.position =
+        "fixed";
+
+
+    scale.style.right =
+        "18px";
+
+
+    scale.style.bottom =
+        "18px";
+
+
+    scale.style.zIndex =
+        "3000";
+
+
+    scale.style.padding =
+        "5px 9px";
+
+
+    scale.style.borderRadius =
+        "7px";
+
+
+    scale.style.background =
+        "rgba(0,0,0,.55)";
+
+
+    scale.style.color =
+        "white";
+
+
+    scale.style.fontSize =
+        "11px";
+
+
+    scale.style.pointerEvents =
+        "none";
+
+
+    scale.textContent =
+        "Scale";
+
+
+    document.body.appendChild(
+        scale
+    );
+
+}
+
+
+/* =========================================================
+   UPDATE SCALE
+   ========================================================= */
+
+function updateMapScale() {
+
+    if (!viewer) return;
+
+
+    const scale =
+        document.getElementById(
+            "mapScale"
+        );
+
+
+    if (!scale) return;
+
+
+    const height =
+        getCameraHeight();
+
+
+    let distance;
+
+
+    if (height > 10000000) {
+
+        distance = "5,000 km";
+
+    }
+
+    else if (height > 5000000) {
+
+        distance = "2,000 km";
+
+    }
+
+    else if (height > 1000000) {
+
+        distance = "500 km";
+
+    }
+
+    else if (height > 500000) {
+
+        distance = "200 km";
+
+    }
+
+    else if (height > 100000) {
+
+        distance = "50 km";
+
+    }
+
+    else if (height > 10000) {
+
+        distance = "5 km";
+
+    }
+
+    else if (height > 1000) {
+
+        distance = "1 km";
+
+    }
+
+    else if (height > 100) {
+
+        distance = "100 m";
+
+    }
+
+    else {
+
+        distance = "20 m";
+
+    }
+
+
+    scale.textContent =
+        "Scale: " + distance;
+
+}
+
+
+/* =========================================================
+   UPDATE SCALE WITH CAMERA
+   ========================================================= */
+
+function setupScaleTracking() {
+
+    if (!viewer) return;
+
+
+    viewer.camera.changed.addEventListener(
+        updateMapScale
+    );
+
+
+    updateMapScale();
+
+}
+
+
+/* =========================================================
+   COORDINATE FORMAT
+   ========================================================= */
+
+function formatCoordinate(
+    value,
+    positive,
+    negative
+) {
+
+    const direction =
+        value >= 0
+            ? positive
+            : negative;
+
+
+    return (
+        Math.abs(value)
+            .toFixed(5)
+        +
+        "° "
+        +
+        direction
+    );
+
+}
+
+
+/* =========================================================
+   BETTER LOCATION INFO
+   ========================================================= */
+
+function updateDetailedLocationInfo() {
+
+    if (!viewer) return;
+
+
+    const position =
+        viewer.camera.position;
+
+
+    const cartographic =
+        Cesium.Cartographic
+            .fromCartesian(
+                position
+            );
+
+
+    if (!cartographic) return;
+
+
+    const latitude =
+        Cesium.Math.toDegrees(
+            cartographic.latitude
+        );
+
+
+    const longitude =
+        Cesium.Math.toDegrees(
+            cartographic.longitude
+        );
+
+
+    const altitude =
+        Math.max(
+            0,
+            cartographic.height
+        );
+
+
+    const latText =
+        formatCoordinate(
+            latitude,
+            "N",
+            "S"
+        );
+
+
+    const lonText =
+        formatCoordinate(
+            longitude,
+            "E",
+            "W"
+        );
+
+
+    coordinatesBox.innerHTML =
+
+        "Latitude: " +
+        latText +
+
+        "<br>" +
+
+        "Longitude: " +
+        lonText +
+
+        "<br>" +
+
+        "Altitude: " +
+        formatDistance(
+            altitude
+        );
+
+}
+
+
+/* =========================================================
+   BETTER CAMERA TRACKING
+   ========================================================= */
+
+function setupDetailedCameraTracking() {
+
+    if (!viewer) return;
+
+
+    viewer.camera.changed.addEventListener(
+        updateDetailedLocationInfo
+    );
+
+
+    updateDetailedLocationInfo();
+
+}
+
+
+/* =========================================================
+   ORIENTATION HUD
+   ========================================================= */
+
+function createOrientationHUD() {
+
+    const hud =
+        document.createElement(
+            "div"
+        );
+
+
+    hud.id =
+        "orientationHUD";
+
+
+    hud.style.position =
+        "fixed";
+
+
+    hud.style.top =
+        "82px";
+
+
+    hud.style.left =
+        "18px";
+
+
+    hud.style.zIndex =
+        "3000";
+
+
+    hud.style.padding =
+        "8px 12px";
+
+
+    hud.style.borderRadius =
+        "10px";
+
+
+    hud.style.background =
+        "rgba(10,15,25,.7)";
+
+
+    hud.style.border =
+        "1px solid rgba(255,255,255,.12)";
+
+
+    hud.style.color =
+        "white";
+
+
+    hud.style.fontSize =
+        "11px";
+
+
+    hud.style.backdropFilter =
+        "blur(10px)";
+
+
+    hud.innerHTML =
+        "Heading: 0°";
+
+
+    document.body.appendChild(
+        hud
+    );
+
+}
+
+
+/* =========================================================
+   UPDATE ORIENTATION
+   ========================================================= */
+
+function updateOrientationHUD() {
+
+    if (!viewer) return;
+
+
+    const hud =
+        document.getElementById(
+            "orientationHUD"
+        );
+
+
+    if (!hud) return;
+
+
+    let heading =
+        Cesium.Math.toDegrees(
+            viewer.camera.heading
+        );
+
+
+    heading =
+        (heading + 360) % 360;
+
+
+    const pitch =
+        Cesium.Math.toDegrees(
+            viewer.camera.pitch
+        );
+
+
+    hud.innerHTML =
+
+        "Heading: " +
+        heading.toFixed(0) +
+        "°<br>" +
+
+        "Tilt: " +
+        pitch.toFixed(0) +
+        "°";
+
+}
+
+
+/* =========================================================
+   ORIENTATION TRACKING
+   ========================================================= */
+
+function setupOrientationTracking() {
+
+    if (!viewer) return;
+
+
+    viewer.camera.changed.addEventListener(
+        updateOrientationHUD
+    );
+
+
+    updateOrientationHUD();
+
+}
+
+
+/* =========================================================
+   WORLD CLOCK
+   ========================================================= */
+
+function createWorldClock() {
+
+    const clock =
+        document.createElement(
+            "div"
+        );
+
+
+    clock.id =
+        "worldClock";
+
+
+    clock.style.position =
+        "fixed";
+
+
+    clock.style.top =
+        "18px";
+
+
+    clock.style.left =
+        "18px";
+
+
+    clock.style.zIndex =
+        "3000";
+
+
+    clock.style.padding =
+        "8px 12px";
+
+
+    clock.style.borderRadius =
+        "10px";
+
+
+    clock.style.background =
+        "rgba(10,15,25,.72)";
+
+
+    clock.style.border =
+        "1px solid rgba(255,255,255,.12)";
+
+
+    clock.style.color =
+        "white";
+
+
+    clock.style.fontSize =
+        "11px";
+
+
+    clock.style.backdropFilter =
+        "blur(10px)";
+
+
+    clock.textContent =
+        "UTC";
+
+
+    document.body.appendChild(
+        clock
+    );
+
+}
+
+
+/* =========================================================
+   UPDATE WORLD CLOCK
+   ========================================================= */
+
+function updateWorldClock() {
+
+    const clock =
+        document.getElementById(
+            "worldClock"
+        );
+
+
+    if (!clock) return;
+
+
+    const now =
+        new Date();
+
+
+    const time =
+        now.toISOString()
+            .substring(11, 19);
+
+
+    clock.textContent =
+        "UTC " + time;
+
+}
+
+
+/* =========================================================
+   CLOCK LOOP
+   ========================================================= */
+
+function startWorldClock() {
+
+    updateWorldClock();
+
+
+    setInterval(
+        updateWorldClock,
+        1000
+    );
+
+}
+
+
+/* =========================================================
+   LOCATION URL
+   ========================================================= */
+
+function createShareButton() {
+
+    const button =
+        document.createElement(
+            "button"
+        );
+
+
+    button.id =
+        "shareButton";
+
+
+    button.className =
+        "toolButton";
+
+
+    button.title =
+        "Share location";
+
+
+    button.innerHTML =
+        "🔗";
+
+
+    document
+        .getElementById(
+            "leftTools"
+        )
+        .appendChild(
+            button
+        );
+
+
+    button.addEventListener(
+        "click",
+        shareCurrentLocation
+    );
+
+}
+
+
+/* =========================================================
+   SHARE LOCATION
+   ========================================================= */
+
+async function shareCurrentLocation() {
+
+    const latitude =
+        currentLatitude;
+
+
+    const longitude =
+        currentLongitude;
+
+
+    const url =
+        window.location.href.split(
+            "#"
+        )[0]
+        +
+        "#location="
+        +
+        latitude.toFixed(6)
+        +
+        ","
+        +
+        longitude.toFixed(6);
+
+
+    try {
+
+        if (
+            navigator.clipboard
+        ) {
+
+            await navigator.clipboard
+                .writeText(url);
+
+            locationTitle.textContent =
+                "🔗 Location link copied";
+
+        }
+
+        else {
+
+            window.prompt(
+                "Copy this location link:",
+                url
+            );
+
+        }
+
+    }
+
+    catch (error) {
+
+        window.prompt(
+            "Copy this location link:",
+            url
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   LOAD LOCATION FROM URL
+   ========================================================= */
+
+function loadLocationFromURL() {
+
+    const hash =
+        window.location.hash;
+
+
+    if (
+        !hash.startsWith(
+            "#location="
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    const coordinates =
+        hash
+            .replace(
+                "#location=",
+                ""
+            )
+            .split(",");
+
+
+    if (
+        coordinates.length !== 2
+    ) {
+
+        return;
+
+    }
+
+
+    const latitude =
+        parseFloat(
+            coordinates[0]
+        );
+
+
+    const longitude =
+        parseFloat(
+            coordinates[1]
+        );
+
+
+    if (
+        Number.isNaN(latitude) ||
+        Number.isNaN(longitude)
+    ) {
+
+        return;
+
+    }
+
+
+    currentLatitude =
+        latitude;
+
+
+    currentLongitude =
+        longitude;
+
+
+    currentLocationName =
+        "Shared location";
+
+
+    updateLocationInfo(
+
+        latitude,
+
+        longitude,
+
+        "📍 Shared location"
+
+    );
+
+
+    placeLocationMarker(
+
+        latitude,
+
+        longitude,
+
+        "Shared location"
+
+    );
+
+
+    setTimeout(
+        function() {
+
+            flyToLocation(
+
+                latitude,
+
+                longitude,
+
+                2500
+
+            );
+
+        },
+        1500
+    );
+
+}
+
+
+/* =========================================================
+   MEASUREMENT TOOL
+   ========================================================= */
+
+let measurementMode =
+    false;
+
+let measurementPoints = [];
+
+let measurementEntities = [];
+
+
+/* =========================================================
+   CREATE MEASURE BUTTON
+   ========================================================= */
+
+function createMeasureButton() {
+
+    const button =
+        document.createElement(
+            "button"
+        );
+
+
+    button.id =
+        "measureButton";
+
+
+    button.className =
+        "toolButton";
+
+
+    button.title =
+        "Measure distance";
+
+
+    button.innerHTML =
+        "📏";
+
+
+    document
+        .getElementById(
+            "leftTools"
+        )
+        .appendChild(
+            button
+        );
+
+
+    button.addEventListener(
+        "click",
+        toggleMeasurement
+    );
+
+}
+
+
+/* =========================================================
+   TOGGLE MEASUREMENT
+   ========================================================= */
+
+function toggleMeasurement() {
+
+    measurementMode =
+        !measurementMode;
+
+
+    const button =
+        document.getElementById(
+            "measureButton"
+        );
+
+
+    if (
+        measurementMode
+    ) {
+
+        button.classList.add(
+            "active"
+        );
+
+
+        locationTitle.textContent =
+            "📏 Click two points to measure";
+
+    }
+
+    else {
+
+        button.classList.remove(
+            "active"
+        );
+
+
+        clearMeasurement();
+
+
+        locationTitle.textContent =
+            "Measurement cancelled";
+
+    }
+
+}
+
+
+/* =========================================================
+   MEASUREMENT CLICK
+   ========================================================= */
+
+function handleMeasurementClick(
+    position
+) {
+
+    if (!measurementMode) return;
+
+
+    const cartesian =
+        getWorldPosition(
+            position
+        );
+
+
+    if (!cartesian) return;
+
+
+    measurementPoints.push(
+        cartesian
+    );
+
+
+    const pointEntity =
+        viewer.entities.add({
+
+            position:
+                cartesian,
+
+            point: {
+
+                pixelSize: 10,
+
+                color:
+                    Cesium.Color.YELLOW,
+
+                outlineColor:
+                    Cesium.Color.BLACK,
+
+                outlineWidth: 2
+
+            }
+
+        });
+
+
+    measurementEntities.push(
+        pointEntity
+    );
+
+
+    if (
+        measurementPoints.length >= 2
+    ) {
+
+        drawMeasurement();
+
+    }
+
+}
+
+
+/* =========================================================
+   WORLD POSITION HELPER
+   ========================================================= */
+
+function getWorldPosition(
+    screenPosition
+) {
+
+    if (!viewer) return null;
+
+
+    const ray =
+        viewer.camera.getPickRay(
+            screenPosition
+        );
+
+
+    if (!ray) return null;
+
+
+    let position =
+        viewer.scene.globe.pick(
+            ray,
+            viewer.scene
+        );
+
+
+    if (!position) {
+
+        position =
+            viewer.camera
+                .pickEllipsoid(
+                    screenPosition,
+                    viewer.scene
+                        .globe
+                        .ellipsoid
+                );
+
+    }
+
+
+    return position;
+
+}
+
+
+/* =========================================================
+   DRAW MEASUREMENT
+   ========================================================= */
+
+function drawMeasurement() {
+
+    if (
+        measurementPoints.length < 2
+    ) {
+
+        return;
+
+    }
+
+
+    const start =
+        measurementPoints[
+            measurementPoints.length - 2
+        ];
+
+
+    const end =
+        measurementPoints[
+            measurementPoints.length - 1
+        ];
+
+
+    const line =
+        viewer.entities.add({
+
+            polyline: {
+
+                positions: [
+                    start,
+                    end
+                ],
+
+                width: 4,
+
+                material:
+                    Cesium.Color.YELLOW,
+
+                clampToGround:
+                    true
+
+            }
+
+        });
+
+
+    measurementEntities.push(
+        line
+    );
+
+
+    const startCarto =
+        Cesium.Cartographic
+            .fromCartesian(
+                start
+            );
+
+
+    const endCarto =
+        Cesium.Cartographic
+            .fromCartesian(
+                end
+            );
+
+
+    if (
+        startCarto &&
+        endCarto
+    ) {
+
+        const distance =
+            calculateSurfaceDistance(
+                startCarto,
+                endCarto
+            );
+
+
+        locationTitle.textContent =
+            "📏 Distance: " +
+            formatDistance(
+                distance
+            );
+
+    }
+
+}
+
+
+/* =========================================================
+   SURFACE DISTANCE
+   ========================================================= */
+
+function calculateSurfaceDistance(
+    start,
+    end
+) {
+
+    const geodesic =
+        new Cesium.EllipsoidGeodesic(
+            start,
+            end
+        );
+
+
+    return geodesic.surfaceDistance;
+
+}
+
+
+/* =========================================================
+   CLEAR MEASUREMENT
+   ========================================================= */
+
+function clearMeasurement() {
+
+    if (!viewer) return;
+
+
+    measurementEntities.forEach(
+        function(entity) {
+
+            viewer.entities.remove(
+                entity
+            );
+
+        }
+    );
+
+
+    measurementEntities = [];
+
+    measurementPoints = [];
+
+}
+
+
+/* =========================================================
+   MEASUREMENT INPUT
+   ========================================================= */
+
+function setupMeasurementInput() {
+
+    if (!viewer) return;
+
+
+    const handler =
+        new Cesium.ScreenSpaceEventHandler(
+
+            viewer.scene.canvas
+
+        );
+
+
+    handler.setInputAction(
+
+        function(click) {
+
+            if (
+                measurementMode
+            ) {
+
+                handleMeasurementClick(
+                    click.position
+                );
+
+            }
+
+        },
+
+        Cesium.ScreenSpaceEventType
+            .LEFT_CLICK
+
+    );
+
+}
+
+
+/* =========================================================
+   WEATHER-LIKE ATMOSPHERE
+   ========================================================= */
+
+function createAtmosphereButton() {
+
+    const button =
+        document.createElement(
+            "button"
+        );
+
+
+    button.id =
+        "atmosphereButton";
+
+
+    button.className =
+        "toolButton";
+
+
+    button.title =
+        "Atmosphere";
+
+
+    button.innerHTML =
+        "☁️";
+
+
+    document
+        .getElementById(
+            "leftTools"
+        )
+        .appendChild(
+            button
+        );
+
+
+    button.addEventListener(
+        "click",
+        toggleAtmosphere
+    );
+
+}
+
+
+/* =========================================================
+   ATMOSPHERE TOGGLE
+   ========================================================= */
+
+let atmosphereEnabled =
+    true;
+
+
+function toggleAtmosphere() {
+
+    if (!viewer) return;
+
+
+    atmosphereEnabled =
+        !atmosphereEnabled;
+
+
+    const button =
+        document.getElementById(
+            "atmosphereButton"
+        );
+
+
+    viewer.scene.skyAtmosphere.show =
+        atmosphereEnabled;
+
+
+    viewer.scene.globe
+        .showGroundAtmosphere =
+        atmosphereEnabled;
+
+
+    if (
+        atmosphereEnabled
+    ) {
+
+        button.classList.add(
+            "active"
+        );
+
+    }
+
+    else {
+
+        button.classList.remove(
+            "active"
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   FULLSCREEN BUTTON
+   ========================================================= */
+
+function createFullscreenButton() {
+
+    const button =
+        document.createElement(
+            "button"
+        );
+
+
+    button.id =
+        "fullscreenButton";
+
+
+    button.className =
+        "toolButton";
+
+
+    button.title =
+        "Fullscreen";
+
+
+    button.innerHTML =
+        "⛶";
+
+
+    document
+        .getElementById(
+            "leftTools"
+        )
+        .appendChild(
+            button
+        );
+
+
+    button.addEventListener(
+        "click",
+        toggleFullscreen
+    );
+
+}
+
+
+/* =========================================================
+   FULLSCREEN
+   ========================================================= */
+
+function toggleFullscreen() {
+
+    if (
+        !document.fullscreenElement
+    ) {
+
+        document.documentElement
+            .requestFullscreen()
+            .catch(
+                function(error) {
+
+                    console.warn(
+                        "Fullscreen failed:",
+                        error
+                    );
+
+                }
+            );
+
+    }
+
+    else {
+
+        document.exitFullscreen();
+
+    }
+
+}
+
+
+/* =========================================================
+   KEYBOARD ESCAPE
+   ========================================================= */
+
+document.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (
+            event.key === "Escape"
+        ) {
+
+            if (
+                measurementMode
+            ) {
+
+                measurementMode =
+                    false;
+
+
+                clearMeasurement();
+
+
+                const button =
+                    document.getElementById(
+                        "measureButton"
+                    );
+
+
+                if (button) {
+
+                    button.classList.remove(
+                        "active"
+                    );
+
+                }
+
+            }
+
+
+            const panel =
+                document.getElementById(
+                    "savedPanel"
+                );
+
+
+            if (panel) {
+
+                panel.remove();
+
+            }
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   RIGHT CLICK DISABLE
+   ========================================================= */
+
+document.addEventListener(
+    "contextmenu",
+    function(event) {
+
+        if (
+            event.target.closest(
+                "#cesiumContainer"
+            )
+        ) {
+
+            event.preventDefault();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   EXTRA FEATURE INITIALIZATION
+   ========================================================= */
+
+function initializeExtraFeatures() {
+
+    if (!viewer) return;
+
+
+    createScaleDisplay();
+
+    createOrientationHUD();
+
+    createWorldClock();
+
+    createShareButton();
+
+    createMeasureButton();
+
+    createAtmosphereButton();
+
+    createFullscreenButton();
+
+
+    setupScaleTracking();
+
+    setupDetailedCameraTracking();
+
+    setupOrientationTracking();
+
+    startWorldClock();
+
+    setupMeasurementInput();
+
+    loadLocationFromURL();
+
+}
+
+
+/* =========================================================
+   WAIT FOR WORLD
+   ========================================================= */
+
+setTimeout(
+    function() {
+
+        if (!viewer) return;
+
+
+        initializeExtraFeatures();
+
+    },
+    2500
+);
+
+
+/* =========================================================
+   PERFORMANCE MONITOR
+   ========================================================= */
+
+let lastFrameTime =
+    performance.now();
+
+
+let frameCounter =
+    0;
+
+
+let fps =
+    60;
+
+
+/* =========================================================
+   FPS TRACKER
+   ========================================================= */
+
+function updateFPS() {
+
+    const now =
+        performance.now();
+
+
+    frameCounter++;
+
+
+    if (
+        now - lastFrameTime >= 1000
+    ) {
+
+        fps =
+            frameCounter;
+
+
+        frameCounter = 0;
+
+        lastFrameTime =
+            now;
+
+    }
+
+}
+
+
+/* =========================================================
+   PERFORMANCE LOOP
+   ========================================================= */
+
+function setupPerformanceTracking() {
+
+    if (!viewer) return;
+
+
+    viewer.scene.preRender
+        .addEventListener(
+            updateFPS
+        );
+
+}
+
+
+/* =========================================================
+   LOW PERFORMANCE MODE
+   ========================================================= */
+
+function checkPerformance() {
+
+    if (!viewer) return;
+
+
+    if (
+        fps < 25
+    ) {
+
+        viewer.scene
+            .postProcessStages
+            .fxaa.enabled = false;
+
+    }
+
+    else {
+
+        viewer.scene
+            .postProcessStages
+            .fxaa.enabled = true;
+
+    }
+
+}
+
+
+/* =========================================================
+   PERFORMANCE CHECK LOOP
+   ========================================================= */
+
+setInterval(
+    function() {
+
+        checkPerformance();
+
+    },
+    5000
+);
+
+
+/* =========================================================
+   START PERFORMANCE TRACKING
+   ========================================================= */
+
+setTimeout(
+    function() {
+
+        setupPerformanceTracking();
+
+    },
+    3000
+);
+
+
+/* =========================================================
+   CAMERA PRESET: LOW ORBIT
+   ========================================================= */
+
+function lowOrbit() {
+
+    if (!viewer) return;
+
+
+    viewer.camera.flyTo({
+
+        destination:
+            Cesium.Cartesian3.fromDegrees(
+                currentLongitude,
+                currentLatitude,
+                3000
+            ),
+
+        orientation: {
+
+            heading:
+                Cesium.Math.toRadians(
+                    0
+                ),
+
+            pitch:
+                Cesium.Math.toRadians(
+                    -70
+                ),
+
+            roll: 0
+
+        },
+
+        duration: 2
+
+    });
+
+}
+
+
+/* =========================================================
+   CAMERA PRESET: HIGH ORBIT
+   ========================================================= */
+
+function highOrbit() {
+
+    if (!viewer) return;
+
+
+    viewer.camera.flyTo({
+
+        destination:
+            Cesium.Cartesian3.fromDegrees(
+                currentLongitude,
+                currentLatitude,
+                100000
+            ),
+
+        orientation: {
+
+            heading:
+                Cesium.Math.toRadians(
+                    0
+                ),
+
+            pitch:
+                Cesium.Math.toRadians(
+                    -80
+                ),
+
+            roll: 0
+
+        },
+
+        duration: 2
+
+    });
+
+}
+
+
+/* =========================================================
+   CAMERA PRESET BUTTONS
+   ========================================================= */
+
+function createOrbitButtons() {
+
+    const low =
+        document.createElement(
+            "button"
+        );
+
+
+    low.className =
+        "cameraButton";
+
+
+    low.title =
+        "Low orbit";
+
+
+    low.innerHTML =
+        "◉";
+
+
+    const high =
+        document.createElement(
+            "button"
+        );
+
+
+    high.className =
+        "cameraButton";
+
+
+    high.title =
+        "High orbit";
+
+
+    high.innerHTML =
+        "◎";
+
+
+    const controls =
+        document.getElementById(
+            "cameraControls"
+        );
+
+
+    controls.appendChild(
+        low
+    );
+
+
+    controls.appendChild(
+        high
+    );
+
+
+    low.addEventListener(
+        "click",
+        lowOrbit
+    );
+
+
+    high.addEventListener(
+        "click",
+        highOrbit
+    );
+
+}
+
+
+/* =========================================================
+   START ORBIT BUTTONS
+   ========================================================= */
+
+setTimeout(
+    function() {
+
+        createOrbitButtons();
+
+    },
+    3000
+);
+/* =========================================================
+   FINAL WORLD EXPLORER INITIALIZATION
+   ========================================================= */
+
+
+/*
+ * Make sure the map starts in normal
+ * map mode.
+ */
+
+function finalizeWorldExplorer() {
+
+    if (!viewer) return;
+
+
+    /*
+     * Enable the normal map layer.
+     */
+
+    if (!isSatellite) {
+
+        try {
+
+            switchToMap();
+
+        }
+
+        catch (error) {
+
+            console.warn(
+                "Initial map layer failed:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /*
+     * Enable camera controls.
+     */
+
+    setupCameraQuality();
+
+    setupCameraLimits();
+
+
+    /*
+     * Update the information HUD.
+     */
+
+    updateDetailedLocationInfo();
+
+    updateOrientationHUD();
+
+    updateMapScale();
+
+
+    /*
+     * Make the globe render correctly
+     * after the UI has loaded.
+     */
+
+    viewer.resize();
+
+
+    /*
+     * Hide loading screen if it is
+     * still visible.
+     */
+
+    loadingScreen.classList.add(
+        "hidden"
+    );
+
+}
+
+
+/* =========================================================
+   LOCATION SELECTION WITH URL
+   ========================================================= */
+
+function updateURLLocation(
+    latitude,
+    longitude
+) {
+
+    const base =
+        window.location.href
+            .split("#")[0];
+
+
+    const newURL =
+        base +
+        "#location=" +
+        latitude.toFixed(6) +
+        "," +
+        longitude.toFixed(6);
+
+
+    try {
+
+        window.history.replaceState(
+            {},
+            "",
+            newURL
+        );
+
+    }
+
+    catch (error) {
+
+        console.warn(
+            "Could not update URL:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   UPDATE URL WHEN LOCATION CHANGES
+   ========================================================= */
+
+function setupURLTracking() {
+
+    if (!viewer) return;
+
+
+    viewer.camera.changed.addEventListener(
+        function() {
+
+            /*
+             * Only update the URL when
+             * there is an actual selected
+             * location.
+             */
+
+            if (
+                currentLocationName &&
+                currentLocationName !==
+                    "Earth"
+            ) {
+
+                updateURLLocation(
+
+                    currentLatitude,
+
+                    currentLongitude
+
+                );
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   BETTER SEARCH ENTER BEHAVIOUR
+   ========================================================= */
+
+function setupSearchKeyboard() {
+
+    searchInput.addEventListener(
+        "keydown",
+        function(event) {
+
+            if (
+                event.key === "ArrowDown"
+            ) {
+
+                const first =
+                    searchResults
+                        .querySelector(
+                            ".searchResult"
+                        );
+
+
+                if (first) {
+
+                    first.focus();
+
+                }
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   GEOLOCATION FOLLOW MODE
+   ========================================================= */
+
+let followUser =
+    false;
+
+
+/* =========================================================
+   CREATE FOLLOW BUTTON
+   ========================================================= */
+
+function createFollowButton() {
+
+    const button =
+        document.createElement(
+            "button"
+        );
+
+
+    button.id =
+        "followButton";
+
+
+    button.className =
+        "toolButton";
+
+
+    button.title =
+        "Follow my location";
+
+
+    button.innerHTML =
+        "🎯";
+
+
+    document
+        .getElementById(
+            "leftTools"
+        )
+        .appendChild(
+            button
+        );
+
+
+    button.addEventListener(
+        "click",
+        function() {
+
+            followUser =
+                !followUser;
+
+
+            if (
+                followUser
+            ) {
+
+                button.classList.add(
+                    "active"
+                );
+
+
+                locateAndFollowUser();
+
+            }
+
+            else {
+
+                button.classList.remove(
+                    "active"
+                );
+
+
+                locationTitle.textContent =
+                    "Location following disabled";
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   FOLLOW USER
+   ========================================================= */
+
+function locateAndFollowUser() {
+
+    if (
+        !navigator.geolocation
+    ) {
+
+        return;
+
+    }
+
+
+    navigator.geolocation.getCurrentPosition(
+
+        function(position) {
+
+            const latitude =
+                position.coords.latitude;
+
+
+            const longitude =
+                position.coords.longitude;
+
+
+            currentLatitude =
+                latitude;
+
+
+            currentLongitude =
+                longitude;
+
+
+            currentLocationName =
+                "My Location";
+
+
+            placeLocationMarker(
+
+                latitude,
+
+                longitude,
+
+                "My Location"
+
+            );
+
+
+            updateLocationInfo(
+
+                latitude,
+
+                longitude,
+
+                "📍 My Location"
+
+            );
+
+
+            flyToLocation(
+
+                latitude,
+
+                longitude,
+
+                1800
+
+            );
+
+        },
+
+        function(error) {
+
+            console.warn(
+                "Follow location error:",
+                error
+            );
+
+
+            followUser =
+                false;
+
+        },
+
+        {
+
+            enableHighAccuracy:
+                true,
+
+            timeout:
+                15000,
+
+            maximumAge:
+                5000
+
+        }
+
+    );
+
+}
+
+
+/* =========================================================
+   LOCATION WATCH
+   ========================================================= */
+
+let locationWatchID =
+    null;
+
+
+/* =========================================================
+   START LOCATION WATCH
+   ========================================================= */
+
+function startLocationWatch() {
+
+    if (
+        !navigator.geolocation
+    ) {
+
+        return;
+
+    }
+
+
+    locationWatchID =
+        navigator.geolocation.watchPosition(
+
+            function(position) {
+
+                if (!followUser) {
+
+                    return;
+
+                }
+
+
+                const latitude =
+                    position.coords.latitude;
+
+
+                const longitude =
+                    position.coords.longitude;
+
+
+                currentLatitude =
+                    latitude;
+
+
+                currentLongitude =
+                    longitude;
+
+
+                if (currentMarker) {
+
+                    currentMarker.position =
+                        Cesium.Cartesian3
+                            .fromDegrees(
+                                longitude,
+                                latitude
+                            );
+
+                }
+
+
+                updateLocationInfo(
+
+                    latitude,
+
+                    longitude,
+
+                    "📍 My Location"
+
+                );
+
+            },
+
+            function(error) {
+
+                console.warn(
+                    "Location watch error:",
+                    error
+                );
+
+            },
+
+            {
+
+                enableHighAccuracy:
+                    true,
+
+                maximumAge:
+                    5000,
+
+                timeout:
+                    20000
+
+            }
+
+        );
+
+}
+
+
+/* =========================================================
+   STOP LOCATION WATCH
+   ========================================================= */
+
+function stopLocationWatch() {
+
+    if (
+        locationWatchID !== null
+    ) {
+
+        navigator.geolocation
+            .clearWatch(
+                locationWatchID
+            );
+
+        locationWatchID =
+            null;
+
+    }
+
+}
+
+
+/* =========================================================
+   CAMERA AUTO-ROTATE
+   ========================================================= */
+
+let autoRotate =
+    false;
+
+let autoRotateFrame =
+    null;
+
+
+/* =========================================================
+   CREATE AUTO ROTATE BUTTON
+   ========================================================= */
+
+function createAutoRotateButton() {
+
+    const button =
+        document.createElement(
+            "button"
+        );
+
+
+    button.id =
+        "autoRotateButton";
+
+
+    button.className =
+        "cameraButton";
+
+
+    button.title =
+        "Auto rotate Earth";
+
+
+    button.innerHTML =
+        "🔄";
+
+
+    document
+        .getElementById(
+            "cameraControls"
+        )
+        .appendChild(
+            button
+        );
+
+
+    button.addEventListener(
+        "click",
+        function() {
+
+            autoRotate =
+                !autoRotate;
+
+
+            if (
+                autoRotate
+            ) {
+
+                button.classList.add(
+                    "active"
+                );
+
+
+                startAutoRotate();
+
+            }
+
+            else {
+
+                button.classList.remove(
+                    "active"
+                );
+
+
+                stopAutoRotate();
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   START AUTO ROTATE
+   ========================================================= */
+
+function startAutoRotate() {
+
+    if (!viewer) return;
+
+
+    stopAutoRotate();
+
+
+    function rotate() {
+
+        if (
+            !autoRotate ||
+            !viewer
+        ) {
+
+            return;
+
+        }
+
+
+        viewer.camera.rotateRight(
+            Cesium.Math.toRadians(
+                0.035
+            )
+        );
+
+
+        autoRotateFrame =
+            requestAnimationFrame(
+                rotate
+            );
+
+    }
+
+
+    rotate();
+
+}
+
+
+/* =========================================================
+   STOP AUTO ROTATE
+   ========================================================= */
+
+function stopAutoRotate() {
+
+    if (
+        autoRotateFrame
+    ) {
+
+        cancelAnimationFrame(
+            autoRotateFrame
+        );
+
+        autoRotateFrame =
+            null;
+
+    }
+
+}
+
+
+/* =========================================================
+   STOP ROTATION WHEN USER MOVES CAMERA
+   ========================================================= */
+
+function setupRotationProtection() {
+
+    if (!viewer) return;
+
+
+    viewer.camera.moveStart.addEventListener(
+        function() {
+
+            if (
+                autoRotate
+            ) {
+
+                autoRotate =
+                    false;
+
+
+                stopAutoRotate();
+
+
+                const button =
+                    document.getElementById(
+                        "autoRotateButton"
+                    );
+
+
+                if (button) {
+
+                    button.classList.remove(
+                        "active"
+                    );
+
+                }
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   WORLD COUNTRIES QUICK SEARCH
+   ========================================================= */
+
+const popularLocations = [
+
+    {
+        name: "London",
+        latitude: 51.5074,
+        longitude: -0.1278
+    },
+
+    {
+        name: "New York",
+        latitude: 40.7128,
+        longitude: -74.0060
+    },
+
+    {
+        name: "Tokyo",
+        latitude: 35.6762,
+        longitude: 139.6503
+    },
+
+    {
+        name: "Sydney",
+        latitude: -33.8688,
+        longitude: 151.2093
+    },
+
+    {
+        name: "Paris",
+        latitude: 48.8566,
+        longitude: 2.3522
+    },
+
+    {
+        name: "Dubai",
+        latitude: 25.2048,
+        longitude: 55.2708
+    },
+
+    {
+        name: "Singapore",
+        latitude: 1.3521,
+        longitude: 103.8198
+    },
+
+    {
+        name: "Los Angeles",
+        latitude: 34.0522,
+        longitude: -118.2437
+    },
+
+    {
+        name: "Rio de Janeiro",
+        latitude: -22.9068,
+        longitude: -43.1729
+    },
+
+    {
+        name: "Cape Town",
+        latitude: -33.9249,
+        longitude: 18.4241
+    }
+
+];
+
+
+/* =========================================================
+   SHOW POPULAR LOCATIONS
+   ========================================================= */
+
+function showPopularLocations() {
+
+    if (
+        searchInput.value.trim()
+    ) {
+
+        return;
+
+    }
+
+
+    searchResults.innerHTML =
+        "";
+
+
+    popularLocations.forEach(
+        function(place) {
+
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+
+            item.className =
+                "searchResult";
+
+
+            item.innerHTML = `
+
+                <div class="resultTitle">
+                    🌍 ${escapeHTML(
+                        place.name
+                    )}
+                </div>
+
+                <div class="resultSubtitle">
+                    Popular world location
+                </div>
+
+            `;
+
+
+            item.addEventListener(
+                "click",
+                function() {
+
+                    currentLatitude =
+                        place.latitude;
+
+
+                    currentLongitude =
+                        place.longitude;
+
+
+                    currentLocationName =
+                        place.name;
+
+
+                    searchInput.value =
+                        place.name;
+
+
+                    searchClear.style.display =
+                        "block";
+
+
+                    closeSearchResults();
+
+
+                    placeLocationMarker(
+
+                        place.latitude,
+
+                        place.longitude,
+
+                        place.name
+
+                    );
+
+
+                    updateLocationInfo(
+
+                        place.latitude,
+
+                        place.longitude,
+
+                        "📍 " +
+                        place.name
+
+                    );
+
+
+                    flyToLocation(
+
+                        place.latitude,
+
+                        place.longitude,
+
+                        8000
+
+                    );
+
+                }
+            );
+
+
+            searchResults.appendChild(
+                item
+            );
+
+        }
+    );
+
+
+    searchResults.style.display =
+        "block";
+
+}
+
+
+/* =========================================================
+   SEARCH FOCUS
+   ========================================================= */
+
+function setupSearchFocus() {
+
+    searchInput.addEventListener(
+        "focus",
+        function() {
+
+            if (
+                searchInput.value
+                    .trim()
+                    .length === 0
+            ) {
+
+                showPopularLocations();
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   EARTH RESET
+   ========================================================= */
+
+function resetWorld() {
+
+    currentLatitude =
+        20;
+
+
+    currentLongitude =
+        0;
+
+
+    currentLocationName =
+        "Earth";
+
+
+    searchInput.value =
+        "";
+
+
+    searchClear.style.display =
+        "none";
+
+
+    closeSearchResults();
+
+
+    if (currentMarker) {
+
+        viewer.entities.remove(
+            currentMarker
+        );
+
+        currentMarker =
+            null;
+
+    }
+
+
+    locationTitle.textContent =
+        "🌍 Earth";
+
+
+    updateLocationInfo(
+
+        20,
+
+        0,
+
+        "🌍 Earth"
+
+    );
+
+
+    goHome();
+
+}
+
+
+/* =========================================================
+   ADD RESET BUTTON
+   ========================================================= */
+
+function createResetButton() {
+
+    const button =
+        document.createElement(
+            "button"
+        );
+
+
+    button.id =
+        "resetWorldButton";
+
+
+    button.className =
+        "toolButton";
+
+
+    button.title =
+        "Reset Earth";
+
+
+    button.innerHTML =
+        "🌎";
+
+
+    document
+        .getElementById(
+            "leftTools"
+        )
+        .appendChild(
+            button
+        );
+
+
+    button.addEventListener(
+        "click",
+        resetWorld
+    );
+
+}
+
+
+/* =========================================================
+   LOCATION LABEL UPDATE
+   ========================================================= */
+
+function refreshMarkerLabel() {
+
+    if (
+        !currentMarker
+    ) {
+
+        return;
+
+    }
+
+
+    if (
+        !currentMarker.label
+    ) {
+
+        return;
+
+    }
+
+
+    currentMarker.label.text =
+        currentLocationName;
+
+}
+
+
+/* =========================================================
+   PREVENT UI FROM STEALING MAP CLICKS
+   ========================================================= */
+
+function setupUIProtection() {
+
+    const uiElements = [
+
+        "#topBar",
+
+        "#leftTools",
+
+        "#cameraControls",
+
+        "#modePanel",
+
+        "#bottomInfo",
+
+        "#searchResults",
+
+        "#loadingScreen"
+
+    ];
+
+
+    uiElements.forEach(
+        function(selector) {
+
+            const element =
+                document.querySelector(
+                    selector
+                );
+
+
+            if (element) {
+
+                element.addEventListener(
+                    "mousedown",
+                    function(event) {
+
+                        event.stopPropagation();
+
+                    }
+                );
+
+                element.addEventListener(
+                    "touchstart",
+                    function(event) {
+
+                        event.stopPropagation();
+
+                    },
+                    {
+                        passive: true
+                    }
+                );
+
+            }
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   FINAL WORLD SETUP
+   ========================================================= */
+
+function finalSetup() {
+
+    if (!viewer) {
+
+        return;
+
+    }
+
+
+    /*
+     * Extra controls.
+     */
+
+    createFollowButton();
+
+    createAutoRotateButton();
+
+    createResetButton();
+
+
+    /*
+     * Camera behaviour.
+     */
+
+    setupRotationProtection();
+
+
+    /*
+     * Search behaviour.
+     */
+
+    setupSearchKeyboard();
+
+    setupSearchFocus();
+
+
+    /*
+     * URL support.
+     */
+
+    setupURLTracking();
+
+
+    /*
+     * Location watching.
+     */
+
+    startLocationWatch();
+
+
+    /*
+     * UI protection.
+     */
+
+    setupUIProtection();
+
+
+    /*
+     * Final camera refresh.
+     */
+
+    viewer.resize();
+
+
+    updateDetailedLocationInfo();
+
+    updateOrientationHUD();
+
+    updateMapScale();
+
+}
+
+
+/* =========================================================
+   RUN FINAL SETUP
+   ========================================================= */
+
+setTimeout(
+    function() {
+
+        finalSetup();
+
+    },
+    4000
+);
+
+
+/* =========================================================
+   LOADING FAILSAFE
+   ========================================================= */
+
+setTimeout(
+    function() {
+
+        if (
+            loadingScreen &&
+            !loadingScreen.classList.contains(
+                "hidden"
+            )
+        ) {
+
+            loadingScreen.classList.add(
+                "hidden"
+            );
+
+        }
+
+    },
+    12000
+);
+
+
+/* =========================================================
+   BROWSER TAB TITLE
+   ========================================================= */
+
+function updateDocumentTitle() {
+
+    if (
+        currentLocationName &&
+        currentLocationName !==
+            "Earth"
+    ) {
+
+        document.title =
+            currentLocationName +
+            " — World Explorer";
+
+    }
+
+    else {
+
+        document.title =
+            "World Explorer";
+
+    }
+
+}
+
+
+/* =========================================================
+   LOCATION TITLE TRACKING
+   ========================================================= */
+
+const originalUpdateLocationInfo =
+    updateLocationInfo;
+
+
+updateLocationInfo =
+    function(
+        latitude,
+        longitude,
+        name
+    ) {
+
+        originalUpdateLocationInfo(
+
+            latitude,
+
+            longitude,
+
+            name
+
+        );
+
+
+        currentLatitude =
+            latitude;
+
+
+        currentLongitude =
+            longitude;
+
+
+        if (name) {
+
+            currentLocationName =
+                String(name)
+                    .replace(
+                        /^📍\s*/,
+                        ""
+                    );
+
+        }
+
+
+        updateDocumentTitle();
+
+        refreshMarkerLabel();
+
+    };
+
+
+/* =========================================================
+   CESIUM ERROR HANDLING
+   ========================================================= */
+
+if (typeof Cesium !== "undefined") {
+
+    Cesium.Ion.defaultAccessToken =
+        Cesium.Ion.defaultAccessToken;
+
+}
+
+
+/* =========================================================
+   WINDOW ERROR HANDLING
+   ========================================================= */
+
+window.addEventListener(
+    "error",
+    function(event) {
+
+        console.warn(
+            "World Explorer error:",
+            event.error || event.message
+        );
+
+    }
+);
+
+
+/* =========================================================
+   UNHANDLED PROMISE ERRORS
+   ========================================================= */
+
+window.addEventListener(
+    "unhandledrejection",
+    function(event) {
+
+        console.warn(
+            "World Explorer promise error:",
+            event.reason
+        );
+
+    }
+);
+
+
+/* =========================================================
+   FINAL READY MESSAGE
+   ========================================================= */
+
+window.addEventListener(
+    "load",
+    function() {
+
+        setTimeout(
+            function() {
+
+                if (viewer) {
+
+                    console.log(
+                        "🌍 World Explorer ready."
+                    );
+
+                    console.log(
+                        "Search anywhere on Earth."
+                    );
+
+                    console.log(
+                        "Click the globe to select a location."
+                    );
+
+                    console.log(
+                        "Use Street View to open the selected point in Google Maps."
+                    );
+
+                }
+
+            },
+            1000
+        );
+
+    }
+);
+
+</script>
+
+
+<!-- =====================================================
+     FINAL HTML
+     ===================================================== -->
+
+</body>
+</html>

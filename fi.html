@@ -1,0 +1,3728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Shooter FPS | Voxel Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        /* CSS STYLING FRAMEWORK */
+        :root {
+            --bg-dark: #05050a;
+            --panel-bg: rgba(11, 11, 22, 0.95);
+            --border-neon: #00ffcc;
+            --pink-neon: #ff007f;
+            --common: #b0bec5;
+            --rare: #2196f3;
+            --epic: #9c27b0;
+            --legendary: #ff9800;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            font-family: 'Orbitron', sans-serif;
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* LOBBY / INTERFACE LAYERS */
+        .overlay-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            background: radial-gradient(circle, rgba(20,10,35,0.85) 0%, rgba(5,5,10,0.95) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-sizing: border-box;
+            padding: 30px;
+        }
+
+        /* Logo Configuration */
+        .header-logo {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .header-logo h1 {
+            font-size: 4rem;
+            font-weight: 900;
+            letter-spacing: 6px;
+            color: var(--pink-neon);
+            text-shadow: 0 0 15px var(--pink-neon), 0 0 35px var(--pink-neon);
+            margin: 0;
+        }
+
+        /* Central Layout */
+        .lobby-main-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex: 1;
+            margin: 20px 0;
+        }
+
+        /* Sidebar Nav */
+        .sidebar-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 250px;
+        }
+
+        .menu-btn {
+            background: var(--panel-bg);
+            border: 2px solid #1a1a3a;
+            color: #fff;
+            padding: 15px 25px;
+            font-size: 1.1rem;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 6px;
+            text-align: left;
+            transition: all 0.25s ease;
+            letter-spacing: 1px;
+        }
+
+        .menu-btn:hover {
+            border-color: var(--border-neon);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+            transform: translateX(10px);
+            color: var(--border-neon);
+        }
+
+        .menu-btn.active {
+            border-color: var(--pink-neon);
+            color: var(--pink-neon);
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
+        }
+
+        /* Profile Top Right */
+        .top-right-profile {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: var(--panel-bg);
+            border: 2px solid var(--border-neon);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
+            padding: 15px 25px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 280px;
+        }
+
+        .profile-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .username {
+            font-weight: 900;
+            font-size: 1.2rem;
+            color: #fff;
+        }
+
+        .level-badge {
+            background: var(--pink-neon);
+            color: #fff;
+            padding: 3px 8px;
+            font-size: 0.8rem;
+            font-weight: 900;
+            border-radius: 4px;
+        }
+
+        .xp-bar-container {
+            width: 100%;
+            height: 10px;
+            background: #111122;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 1px solid #222244;
+        }
+
+        .xp-bar-fill {
+            height: 100%;
+            background: var(--border-neon);
+            width: 45%;
+            transition: width 0.4s ease;
+        }
+
+        .wallet-container {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+
+        .coins { color: #ffd700; font-weight: 700; }
+        .gems { color: #00e5ff; font-weight: 700; }
+
+        /* Play Panel Bottom Right */
+        .play-panel {
+            background: var(--panel-bg);
+            border: 2px solid var(--pink-neon);
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(255, 0, 127, 0.2);
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .play-big-btn {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 18px;
+            font-size: 1.8rem;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            letter-spacing: 2px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .play-big-btn:hover {
+            transform: scale(1.04);
+            box-shadow: 0 0 25px #4caf50;
+        }
+
+        .select-class-panel-btn {
+            background: var(--pink-neon);
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 1rem;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: all 0.2s ease;
+        }
+
+        .select-class-panel-btn:hover {
+            background: #ff3399;
+            box-shadow: 0 0 15px var(--pink-neon);
+        }
+
+        .class-preview {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #333;
+        }
+
+        .class-icon-placeholder {
+            width: 50px;
+            height: 50px;
+            background: #222;
+            border: 1px solid var(--border-neon);
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+        }
+
+        /* MODAL SCREEN SHEETS */
+        .modal-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 15;
+            background: rgba(5,5,10,0.92);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+            padding: 40px;
+        }
+
+        .modal-window {
+            background: var(--panel-bg);
+            border: 2px solid var(--border-neon);
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.2);
+            width: 90%;
+            max-width: 1100px;
+            height: 80%;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 2px solid #1a1a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 2rem;
+            color: var(--border-neon);
+            letter-spacing: 2px;
+        }
+
+        .close-modal-btn {
+            background: transparent;
+            border: 2px solid var(--pink-neon);
+            color: var(--pink-neon);
+            font-weight: 700;
+            font-size: 1rem;
+            font-family: 'Orbitron', sans-serif;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .close-modal-btn:hover {
+            background: var(--pink-neon);
+            color: #fff;
+            box-shadow: 0 0 15px var(--pink-neon);
+        }
+
+        .modal-body {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            gap: 30px;
+        }
+
+        /* Class Selection Grid */
+        .class-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            width: 100%;
+        }
+
+        .class-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px solid #222;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
+            transition: all 0.25s ease;
+        }
+
+        .class-card:hover {
+            border-color: var(--border-neon);
+            background: rgba(0, 255, 204, 0.03);
+            transform: translateY(-5px);
+        }
+
+        .class-card.selected {
+            border-color: var(--pink-neon);
+            background: rgba(255, 0, 127, 0.04);
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.2);
+        }
+
+        .class-card h3 {
+            margin: 10px 0;
+            font-size: 1.4rem;
+        }
+
+        .class-desc {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .class-stats-list {
+            width: 100%;
+            font-size: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+
+        .class-stat-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .class-select-trigger-btn {
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+
+        .class-card.selected .class-select-trigger-btn {
+            background: var(--pink-neon);
+            border-color: var(--pink-neon);
+        }
+
+        .class-card:not(.selected):hover .class-select-trigger-btn {
+            border-color: var(--border-neon);
+            color: var(--border-neon);
+        }
+
+        /* Inventory Panel Grid styling */
+        .inventory-left-grid {
+            flex: 2;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            max-height: 100%;
+            overflow-y: auto;
+        }
+
+        .inventory-item-tile {
+            background: rgba(255,255,255,0.03);
+            border: 2px solid #222;
+            border-radius: 6px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            aspect-ratio: 1;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .inventory-item-tile:hover {
+            transform: scale(1.02);
+            border-color: #555;
+        }
+
+        .inventory-item-tile.selected {
+            border-color: #4caf50 !important;
+            background: rgba(76, 175, 80, 0.05);
+            box-shadow: 0 0 12px rgba(76, 175, 80, 0.3);
+        }
+
+        .rarity-tag {
+            font-size: 0.7rem;
+            font-weight: 900;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-transform: uppercase;
+        }
+
+        .rarity-common { background: var(--common); color: #000; }
+        .rarity-rare { background: var(--rare); color: #fff; }
+        .rarity-epic { background: var(--epic); color: #fff; }
+        .rarity-legendary { background: var(--legendary); color: #fff; }
+
+        .inventory-right-inspect {
+            flex: 1;
+            background: rgba(255,255,255,0.01);
+            border: 1px solid #222;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .weapon-stat-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #111;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .weapon-stat-bar-fill {
+            height: 100%;
+            background: var(--border-neon);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Settings CSS */
+        .settings-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px dashed #222;
+        }
+
+        .settings-row label {
+            font-weight: 700;
+            color: #ccc;
+        }
+
+        .settings-row input[type="range"] {
+            width: 200px;
+            accent-color: var(--border-neon);
+        }
+
+        .settings-row select {
+            background: #111;
+            border: 1px solid var(--border-neon);
+            color: #fff;
+            padding: 8px;
+            font-family: 'Orbitron', sans-serif;
+            border-radius: 4px;
+        }
+
+        /* IN-GAME HUD OVERLAY SHEET */
+        #hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            pointer-events: none;
+            display: none;
+            box-sizing: border-box;
+            padding: 25px;
+        }
+
+        /* Neon Custom Crosshair */
+        #hud-crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border-neon);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 8px rgba(0, 255, 204, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #hud-crosshair::after {
+            content: '';
+            width: 4px;
+            height: 4px;
+            background: var(--border-neon);
+            border-radius: 50%;
+        }
+
+        /* Stats Panel (Bottom Left) */
+        .hud-stats-panel {
+            position: absolute;
+            bottom: 25px;
+            left: 25px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-neon);
+            padding: 15px 25px;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 220px;
+        }
+
+        .hud-stat-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .hud-bar {
+            width: 100%;
+            height: 12px;
+            background: #111;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        .hud-bar-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.15s ease;
+        }
+
+        #hud-hp-fill { background: #4caf50; }
+        #hud-ap-fill { background: #2196f3; }
+
+        /* Weapon Display Panel (Bottom Right) */
+        .hud-weapon-panel {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            background: var(--panel-bg);
+            border: 1px solid var(--pink-neon);
+            padding: 15px 25px;
+            border-radius: 6px;
+            text-align: right;
+            min-width: 180px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        #hud-weapon-name {
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: var(--pink-neon);
+        }
+
+        #hud-weapon-ammo {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #fff;
+        }
+
+        /* Top Center Score and Time Display */
+        .hud-top-match {
+            position: absolute;
+            top: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--panel-bg);
+            border: 1px solid #333;
+            padding: 10px 30px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        #hud-match-timer {
+            color: var(--border-neon);
+        }
+
+        /* Kill Feed Top Right */
+        .hud-killfeed {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 320px;
+            align-items: flex-end;
+        }
+
+        .killfeed-row {
+            background: rgba(0,0,0,0.6);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            border-right: 3px solid var(--pink-neon);
+            animation: feedIn 0.3s forwards;
+        }
+
+        @keyframes feedIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Red Vignette Damage overlay */
+        #damage-vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 60px rgba(255, 0, 0, 0);
+            pointer-events: none;
+            transition: box-shadow 0.1s ease;
+            z-index: 4;
+        }
+
+        #damage-vignette.active {
+            box-shadow: inset 0 0 100px rgba(255, 0, 0, 0.85);
+        }
+
+        /* Floating Damage Text Panel Container */
+        #damage-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 6;
+        }
+
+        .damage-number {
+            position: absolute;
+            font-weight: 900;
+            font-size: 1.5rem;
+            color: #ffd700;
+            text-shadow: 2px 2px 0px #000;
+            pointer-events: none;
+            animation: floatUpAndFade 0.6s ease-out forwards;
+        }
+
+        @keyframes floatUpAndFade {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -150%) scale(0.6); opacity: 0; }
+        }
+
+        /* Floating hitmarker container */
+        #hitmarker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 7;
+            opacity: 0;
+            transition: opacity 0.05s;
+        }
+
+        #hitmarker::before, #hitmarker::after {
+            content: '';
+            position: absolute;
+            background-color: #ff0000;
+        }
+
+        #hitmarker::before {
+            top: 50%; left: 0; width: 100%; height: 2px;
+            transform: rotate(45deg);
+        }
+        #hitmarker::after {
+            top: 0; left: 50%; width: 2px; height: 100%;
+            transform: rotate(45deg);
+        }
+
+        /* Game Mode Toggle (Lobby) */
+        .mode-toggle-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .mode-toggle-btn {
+            flex: 1;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid #333;
+            color: #999;
+            padding: 8px 6px;
+            font-size: 0.65rem;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+        }
+
+        .mode-toggle-btn.active {
+            border-color: var(--border-neon);
+            color: var(--border-neon);
+            background: rgba(0, 255, 204, 0.08);
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.25);
+        }
+
+        /* Power-up Buffs HUD */
+        .hud-buffs-panel {
+            position: absolute;
+            top: 90px;
+            left: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .buff-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--panel-bg);
+            border: 1px solid var(--buff-color, var(--border-neon));
+            box-shadow: 0 0 10px var(--buff-color, rgba(0,255,204,0.3));
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--buff-color, #fff);
+            animation: buffPop 0.25s ease;
+        }
+
+        @keyframes buffPop {
+            from { transform: scale(0.7); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* Weapon/Powerup Pickup Toast */
+        #pickup-toast {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 1px;
+            padding: 10px 24px;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.7);
+            border: 1px solid var(--border-neon);
+            color: var(--border-neon);
+            opacity: 0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+        }
+
+        #pickup-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-8px);
+        }
+
+        #hud-streak-count {
+            font-size: 1rem;
+        }
+
+        /* Scoreboard (hold TAB) */
+        #scoreboard-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(5,5,10,0.75);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .scoreboard-window {
+            background: var(--panel-bg);
+            border: 2px solid var(--border-neon);
+            box-shadow: 0 0 30px rgba(0,255,204,0.2);
+            border-radius: 10px;
+            padding: 30px 40px;
+            min-width: 420px;
+            text-align: center;
+        }
+
+        .scoreboard-window h2 {
+            margin: 0 0 15px 0;
+            color: var(--border-neon);
+            letter-spacing: 3px;
+        }
+
+        .scoreboard-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            padding: 8px 0;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #1a1a3a;
+        }
+
+        .scoreboard-header {
+            color: #888;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        /* End of Match Screen */
+        #endmatch-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 25;
+            background: radial-gradient(circle, rgba(20,10,35,0.92) 0%, rgba(5,5,10,0.97) 100%);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .endmatch-window {
+            text-align: center;
+        }
+
+        .endmatch-window h1 {
+            font-size: 3rem;
+            color: var(--pink-neon);
+            text-shadow: 0 0 15px var(--pink-neon), 0 0 35px var(--pink-neon);
+            letter-spacing: 4px;
+            margin-bottom: 30px;
+        }
+
+        .endmatch-stats {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .endmatch-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .endmatch-stat span {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--border-neon);
+        }
+
+        .endmatch-stat label {
+            font-size: 0.8rem;
+            color: #888;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+
+        /* Exit Match Button (top-left, small) */
+        #btn-exit-match {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255,0,85,0.15);
+            border: 1px solid var(--pink-neon);
+            color: var(--pink-neon);
+            font-weight: 900;
+            font-size: 1rem;
+            cursor: pointer;
+            pointer-events: auto;
+            display: none;
+            z-index: 1000;
+        }
+
+        /* ===================== MOBILE TOUCH CONTROLS ===================== */
+        #mobile-controls {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 8;
+            display: none; /* toggled on via JS when a touch device is detected */
+            pointer-events: none;
+        }
+
+        #look-zone {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 60%;
+            height: 100%;
+            pointer-events: auto;
+        }
+
+        /* Mobile D-PAD Cross */
+        #dpad-cross {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            display: grid;
+            grid-template-columns: 55px 55px 55px;
+            grid-template-rows: 55px 55px 55px;
+            gap: 0;
+            pointer-events: auto;
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+            z-index: 100;
+        }
+
+        .dpad-cell {
+            background: rgba(15, 15, 15, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+            user-select: none;
+            cursor: pointer;
+        }
+
+        .dpad-cell:active {
+            background: rgba(60, 60, 60, 0.95);
+        }
+
+        #btn-dpad-up { grid-column: 2; grid-row: 1; border-radius: 12px 12px 0 0; }
+        #btn-dpad-left { grid-column: 1; grid-row: 2; border-radius: 12px 0 0 12px; }
+        #dpad-center { grid-column: 2; grid-row: 2; background: rgba(15, 15, 15, 0.9); pointer-events: none; }
+        #btn-dpad-right { grid-column: 3; grid-row: 2; border-radius: 0 12px 12px 0; }
+        #btn-dpad-down { grid-column: 2; grid-row: 3; border-radius: 0 0 12px 12px; }
+
+        .dpad-center-circle {
+            width: 25px;
+            height: 25px;
+            background: #fff;
+            border-radius: 50%;
+        }
+
+        /* Triangles */
+        .tri-up { width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-bottom: 18px solid #fff; }
+        .tri-down { width: 0; height: 0; border-left: 12px solid transparent; border-right: 12px solid transparent; border-top: 18px solid #fff; }
+        .tri-left { width: 0; height: 0; border-top: 12px solid transparent; border-bottom: 12px solid transparent; border-right: 18px solid #fff; }
+        .tri-right { width: 0; height: 0; border-top: 12px solid transparent; border-bottom: 12px solid transparent; border-left: 18px solid #fff; }
+
+        /* Mobile Action Controls Right Side */
+        #mobile-action-row {
+            position: absolute;
+            bottom: 190px;
+            left: 40px;
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .mobile-btn {
+            padding: 10px 14px;
+            font-size: 0.65rem;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            border-radius: 6px;
+            background: rgba(11,11,22,0.8);
+            border: 1px solid var(--border-neon);
+            color: var(--border-neon);
+        }
+
+        #mobile-weapon-row {
+            position: absolute;
+            bottom: 40px;
+            right: 130px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .mobile-weapon-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: rgba(11,11,22,0.8);
+            border: 1px solid var(--pink-neon);
+            color: var(--pink-neon);
+            font-weight: 900;
+        }
+
+        /* Action Buttons Right Layout */
+        #btn-m-fire {
+            position: absolute;
+            bottom: 45px;
+            right: 40px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255,0,85,0.25);
+            border: 3px solid var(--pink-neon);
+            pointer-events: auto;
+        }
+
+        /* Mobile Green Dash Button (from screenshot) */
+        #btn-m-dash {
+            position: absolute;
+            bottom: 140px; /* Above the fire button */
+            right: 45px;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #4caf50 40%, #2e7d32 90%);
+            border: 3px solid #81c784;
+            color: white;
+            font-weight: 900;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.95rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            pointer-events: auto;
+            touch-action: none;
+            text-transform: capitalize;
+        }
+
+        #btn-m-dash:active {
+            background: radial-gradient(circle, #388e3c 40%, #1b5e20 90%);
+            transform: scale(0.95);
+        }
+
+        /* Responsive tweaks for phones/small tablets */
+        @media (max-width: 900px) {
+            .lobby-main-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 15px;
+            }
+            .sidebar-menu {
+                flex-direction: row;
+                flex-wrap: wrap;
+                width: 100%;
+            }
+            .sidebar-menu .menu-btn {
+                flex: 1;
+                min-width: 45%;
+                text-align: center;
+            }
+            .play-panel {
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .top-right-profile {
+                position: static;
+                width: 100%;
+                box-sizing: border-box;
+                margin-bottom: 15px;
+            }
+            .header-logo h1 { font-size: 2.2rem; }
+            .modal-window { width: 96%; height: 90%; padding: 0; }
+            .modal-body { flex-direction: column; padding: 15px; }
+            .class-grid { grid-template-columns: repeat(2, 1fr); }
+            .hud-stats-panel { min-width: 160px; padding: 10px 15px; font-size: 0.8rem; }
+            .hud-weapon-panel { min-width: 130px; padding: 10px 15px; }
+            .hud-killfeed { max-width: 180px; }
+            .hud-top-match { font-size: 1rem; padding: 6px 16px; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+    <div id="damage-vignette"></div>
+    <div id="damage-container"></div>
+
+    <div id="lobby-overlay" class="overlay-screen">
+        <div class="header-logo">
+            <h1>SHOOTER FPS</h1>
+        </div>
+
+        <div class="top-right-profile">
+            <div class="profile-row">
+                <span class="username" id="lobby-username">VoxelWarrior</span>
+                <span class="level-badge" id="lobby-level">LVL 1</span>
+            </div>
+            <div class="xp-bar-container">
+                <div class="xp-bar-fill" id="lobby-xp-fill"></div>
+            </div>
+            <div class="wallet-container">
+                <span class="coins">🪙 <span id="lobby-coins">500</span></span>
+                <span class="gems">💎 <span id="lobby-gems">50</span></span>
+            </div>
+        </div>
+
+        <div class="lobby-main-container">
+            <div class="sidebar-menu">
+                <button class="menu-btn active" onclick="showLobby()">LOBBY</button>
+                <button class="menu-btn" onclick="openModal('inventory-modal')">INVENTORY</button>
+                <button class="menu-btn" onclick="openModal('class-modal')">CLASSES</button>
+                <button class="menu-btn" onclick="openModal('map-modal')">MAPS</button>
+                <button class="menu-btn" onclick="openModal('settings-modal')">SETTINGS</button>
+            </div>
+
+            <div class="play-panel">
+                <div class="class-preview">
+                    <div class="class-icon-placeholder">🔫</div>
+                    <div>
+                        <div style="font-weight:700; font-size: 0.9rem;" id="lobby-active-class-name">ASSAULT</div>
+                        <div style="font-size:0.75rem; color:#888;" id="lobby-active-weapon-name">Vanguard Rifle</div>
+                    </div>
+                </div>
+                <button class="select-class-panel-btn" onclick="openModal('class-modal')">CHANGE CLASS</button>
+                <div class="class-preview">
+                    <div class="class-icon-placeholder" id="lobby-map-icon">🏙️</div>
+                    <div>
+                        <div style="font-weight:700; font-size: 0.9rem;" id="lobby-active-map-name">Neon Grid Arena</div>
+                        <div style="font-size:0.75rem; color:#888;">Current Map</div>
+                    </div>
+                </div>
+                <button class="select-class-panel-btn" onclick="openModal('map-modal')">CHANGE MAP</button>
+                <div class="mode-toggle-row">
+                    <button class="mode-toggle-btn active" id="mode-btn-ffa" onclick="setGameMode('ffa')">FREE-FOR-ALL</button>
+                    <button class="mode-toggle-btn" id="mode-btn-team" onclick="setGameMode('team')">TEAM DEATHMATCH</button>
+                </div>
+                <button class="play-big-btn" id="match-play-btn">PLAY MATCH</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="class-modal" class="modal-container">
+        <div class="modal-window">
+            <div class="modal-header">
+                <h2>SELECT YOUR CLASS</h2>
+                <button class="close-modal-btn" onclick="closeModal('class-modal')">CLOSE</button>
+            </div>
+            <div class="modal-body">
+                <div class="class-grid" id="class-cards-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="map-modal" class="modal-container">
+        <div class="modal-window">
+            <div class="modal-header">
+                <h2>SELECT YOUR MAP</h2>
+                <button class="close-modal-btn" onclick="closeModal('map-modal')">CLOSE</button>
+            </div>
+            <div class="modal-body">
+                <div class="class-grid" id="map-cards-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="inventory-modal" class="modal-container">
+        <div class="modal-window">
+            <div class="modal-header">
+                <h2>INVENTORY WEAPONS</h2>
+                <button class="close-modal-btn" onclick="closeModal('inventory-modal')">CLOSE</button>
+            </div>
+            <div class="modal-body">
+                <div class="inventory-left-grid" id="inventory-grid-container"></div>
+                <div class="inventory-right-inspect" id="inventory-inspect-panel">
+                    <h3 id="inspect-weapon-name" style="margin:0; font-size:1.5rem; color:var(--border-neon);">Vanguard Rifle</h3>
+                    <span id="inspect-weapon-rarity" class="rarity-tag rarity-common">COMMON</span>
+                    <hr style="border:1px solid #222; margin: 15px 0;">
+                    
+                    <div>
+                        <label style="font-size:0.8rem; color:#aaa;">DAMAGE</label>
+                        <div class="weapon-stat-bar-container">
+                            <div class="weapon-stat-bar-fill" id="stat-dmg-fill"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem; color:#aaa;">FIRE RATE</label>
+                        <div class="weapon-stat-bar-container">
+                            <div class="weapon-stat-bar-fill" id="stat-fire-fill"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem; color:#aaa;">MAGAZINE CAPACITY</label>
+                        <div class="weapon-stat-bar-container">
+                            <div class="weapon-stat-bar-fill" id="stat-mag-fill"></div>
+                        </div>
+                    </div>
+                    
+                    <button class="class-select-trigger-btn" style="margin-top:auto;" id="inspect-equip-btn">EQUIP WEAPON</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal-container">
+        <div class="modal-window">
+            <div class="modal-header">
+                <h2>SETTINGS MENU</h2>
+                <button class="close-modal-btn" onclick="closeModal('settings-modal')">CLOSE</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-list">
+                    <div class="settings-row">
+                        <label for="setting-sens">MOUSE SENSITIVITY</label>
+                        <input type="range" id="setting-sens" min="0.0005" max="0.008" step="0.0001" value="0.002">
+                    </div>
+                    <div class="settings-row">
+                        <label for="setting-shadows">SHADOW MAP QUALITY</label>
+                        <select id="setting-shadows">
+                            <option value="high">High Definition</option>
+                            <option value="medium">Medium Standard</option>
+                            <option value="off">Off (Fast Performance)</option>
+                        </select>
+                    </div>
+                    <div class="settings-row">
+                        <label for="setting-crosshair">CROSSHAIR SHIFT COLOR</label>
+                        <select id="setting-crosshair">
+                            <option value="#00ffcc">Cyan Green (Default)</option>
+                            <option value="#ff007f">Neon Pink</option>
+                            <option value="#ffff00">Retro Yellow</option>
+                            <option value="#ffffff">Classic White</option>
+                        </select>
+                    </div>
+                    <div class="settings-row" style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--pink-neon);">
+                        <label style="color: var(--pink-neon);">GODMODE OVERRIDE PASSCODE</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="password" id="godmode-passcode" placeholder="Enter password..." style="flex:1; background: #000; border: 1px solid var(--border-neon); color: #00ffcc; padding: 8px; font-family: 'Orbitron'; font-size: 0.85rem; border-radius: 4px;">
+                            <button id="btn-unlock-godmode" type="button" style="background: var(--pink-neon); color: #fff; border: none; padding: 8px 16px; font-family: 'Orbitron'; font-weight: bold; cursor: pointer; border-radius: 4px;">UNLOCK</button>
+                        </div>
+                        <div id="godmode-status-text" style="font-size: 0.75rem; margin-top: 5px; color: var(--border-neon);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="hud-overlay">
+        <div id="hud-crosshair"></div>
+        <div id="hitmarker"></div>
+
+        <div class="hud-stats-panel">
+            <div class="hud-stat-container">
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
+                    <span>HEALTH</span>
+                    <span id="hud-hp-val">100</span>
+                </div>
+                <div class="hud-bar">
+                    <div class="hud-bar-fill" id="hud-hp-fill"></div>
+                </div>
+            </div>
+            <div class="hud-stat-container">
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
+                    <span>ARMOR</span>
+                    <span id="hud-ap-val">50</span>
+                </div>
+                <div class="hud-bar">
+                    <div class="hud-bar-fill" id="hud-ap-fill"></div>
+                </div>
+            </div>
+            <div style="font-size:0.75rem; color:#888; margin-top:5px;" id="hud-active-class-lbl">CLASS: ASSAULT</div>
+        </div>
+
+        <div class="hud-weapon-panel">
+            <div id="hud-weapon-name">Vanguard Rifle</div>
+            <div id="hud-weapon-ammo">30 / 120</div>
+            <div style="font-size:0.65rem; color:#888; margin-top:2px;">[1] SIDEARM &nbsp; [2] PRIMARY</div>
+        </div>
+
+        <div class="hud-top-match">
+            <span style="color:#ff0055;" id="hud-kills-count">KILLS: 0</span>
+            <span id="hud-match-timer">05:00</span>
+            <span style="color:#ffd700;" id="hud-streak-count"></span>
+        </div>
+
+        <div class="hud-killfeed" id="hud-killfeed-area"></div>
+        <div class="hud-buffs-panel" id="hud-buffs-panel"></div>
+        <div id="pickup-toast"></div>
+
+        <div id="scoreboard-overlay">
+            <div class="scoreboard-window">
+                <h2 id="scoreboard-title">SCOREBOARD</h2>
+                <div class="scoreboard-row scoreboard-header">
+                    <span>PLAYER</span><span>KILLS</span><span>DEATHS</span><span>STREAK</span>
+                </div>
+                <div id="scoreboard-body"></div>
+                <div style="font-size:0.75rem; color:#888; margin-top:10px;" id="scoreboard-hint">Hold TAB to view</div>
+            </div>
+        </div>
+
+        <button id="btn-exit-match" title="Exit Match">✕</button>
+    </div>
+
+    <div id="mobile-controls">
+        <div id="look-zone"></div>
+
+        <div id="dpad-cross">
+            <div class="dpad-cell" id="btn-dpad-up"><div class="tri-up"></div></div>
+            <div class="dpad-cell" id="btn-dpad-left"><div class="tri-left"></div></div>
+            <div id="dpad-center"><div class="dpad-center-circle"></div></div>
+            <div class="dpad-cell" id="btn-dpad-right"><div class="tri-right"></div></div>
+            <div class="dpad-cell" id="btn-dpad-down"><div class="tri-down"></div></div>
+        </div>
+
+        <button id="btn-m-dash">Dash</button>
+
+        <div id="mobile-action-row">
+            <button class="mobile-btn" id="btn-m-slide">SLIDE</button>
+            <button class="mobile-btn" id="btn-m-sprint">SPRINT</button>
+            <button class="mobile-btn" id="btn-m-jump">JUMP</button>
+            <button class="mobile-btn" id="btn-m-score">SCORE</button>
+        </div>
+
+        <div id="mobile-weapon-row">
+            <button class="mobile-weapon-btn" id="btn-m-wep1">1</button>
+            <button class="mobile-weapon-btn" id="btn-m-wep2">2</button>
+            <button class="mobile-weapon-btn" id="btn-m-wep3">3</button>
+        </div>
+
+        <button id="btn-m-fire"></button>
+    </div>
+
+    <div id="endmatch-overlay">
+        <div class="endmatch-window">
+            <h1 id="endmatch-title">MATCH OVER</h1>
+            <div class="endmatch-stats">
+                <div class="endmatch-stat"><span id="endmatch-kills">0</span><label>KILLS</label></div>
+                <div class="endmatch-stat"><span id="endmatch-deaths">0</span><label>DEATHS</label></div>
+                <div class="endmatch-stat"><span id="endmatch-streak">0</span><label>BEST STREAK</label></div>
+            </div>
+            <button class="play-big-btn" style="width:280px;" onclick="returnToLobbyFromEndScreen()">RETURN TO LOBBY</button>
+        </div>
+    </div>
+
+    <script>
+// ==========================================
+// SHARD 1: LOBBY, PROGRESSION & UI ENGINE
+// ==========================================
+
+// Global Progression State (Saved local variable)
+let profileState = {
+    username: "ShooterSlayer_99",
+    level: 1,
+    xp: 250,
+    xpNeeded: 1000,
+    coins: 750,
+    gems: 120,
+    activeClass: "assault",
+    equippedWeapons: {
+        assault: "w_vanguard",
+        scout: "w_rapid_fire",
+        heavy: "w_demolition",
+        sniper: "w_phantom"
+    }
+};
+
+// Global Class definitions with precise statistical variables
+const classesConfig = {
+    assault: {
+        id: "assault",
+        name: "ASSAULT",
+        desc: "Tactical class carrying standard high-impact battle rifles. Highly versatile with balanced capabilities.",
+        icon: "🔫",
+        maxHp: 100,
+        maxAp: 50,
+        speedFactor: 1.0,
+        jumpPower: 14,
+        allowDoubleJump: false,
+        difficulty: "⭐"
+    },
+    scout: {
+        id: "scout",
+        name: "SCOUT",
+        desc: "Fragile but lightning fast field unit equipped with an SMG. Traverses high heights with Double Jump abilities.",
+        icon: "⚡",
+        maxHp: 75,
+        maxAp: 25,
+        speedFactor: 1.35,
+        jumpPower: 14,
+        allowDoubleJump: true,
+        difficulty: "⭐⭐⭐"
+    },
+    heavy: {
+        id: "heavy",
+        name: "HEAVY",
+        desc: "Slow moving armored titan holding thick defensive layers. Devastating explosive impact weapon loadouts.",
+        icon: "🛡️",
+        maxHp: 150,
+        maxAp: 100,
+        speedFactor: 0.75,
+        jumpPower: 11,
+        allowDoubleJump: false,
+        difficulty: "⭐⭐"
+    },
+    sniper: {
+        id: "sniper",
+        name: "SNIPER",
+        desc: "Surgical stealth operations from extensive ranges. Equipped with structural zoom scopes.",
+        icon: "🔭",
+        maxHp: 80,
+        maxAp: 0,
+        speedFactor: 0.95,
+        jumpPower: 13,
+        allowDoubleJump: false,
+        difficulty: "⭐⭐⭐⭐"
+    }
+};
+
+// Global Weapons inventory pool databases
+const weaponsInventory = {
+    w_vanguard: {
+        id: "w_vanguard",
+        name: "Vanguard Rifle",
+        classType: "assault",
+        rarity: "common",
+        damage: 24,
+        fireRate: 0.15, // Delay in seconds between shots
+        magCapacity: 30,
+        maxReserve: 120,
+        barrelLen: 0.7,
+        beamColor: 0xff00ff, // Neon Magenta laser
+        gunStyle: "rifle"
+    },
+    w_rapid_fire: {
+        id: "w_rapid_fire",
+        name: "Cyclone SMG",
+        classType: "scout",
+        rarity: "epic",
+        damage: 14,
+        fireRate: 0.07,
+        magCapacity: 45,
+        maxReserve: 180,
+        barrelLen: 0.5,
+        beamColor: 0x00ffff, // Neon Cyan
+        gunStyle: "smg"
+    },
+    w_demolition: {
+        id: "w_demolition",
+        name: "Breaker Shotgun",
+        classType: "heavy",
+        rarity: "legendary",
+        damage: 80, // High point blank dispersion
+        fireRate: 0.85,
+        magCapacity: 6,
+        maxReserve: 24,
+        barrelLen: 0.6,
+        beamColor: 0xffaa00,
+        gunStyle: "shotgun"
+    },
+    w_phantom: {
+        id: "w_phantom",
+        name: "Phantom Bolt Sniper",
+        classType: "sniper",
+        rarity: "rare",
+        damage: 100,
+        fireRate: 1.5,
+        magCapacity: 5,
+        maxReserve: 15,
+        barrelLen: 1.2,
+        beamColor: 0xff0000, // Crimson Red tracer
+        gunStyle: "sniper"
+    },
+    // Universal sidearm every class carries regardless of primary weapon
+    w_pistol: {
+        id: "w_pistol",
+        name: "Sidearm Pistol",
+        classType: "any",
+        rarity: "common",
+        damage: 18,
+        fireRate: 0.28,
+        magCapacity: 12,
+        maxReserve: 48,
+        barrelLen: 0.4,
+        beamColor: 0xffffff,
+        gunStyle: "pistol"
+    },
+    // Arena pickup-only heavy weapon, not equippable from the loadout screen
+    w_rocket: {
+        id: "w_rocket",
+        name: "Voxel Rocket Launcher",
+        classType: "pickup",
+        rarity: "legendary",
+        damage: 65,
+        fireRate: 1.1,
+        magCapacity: 4,
+        maxReserve: 0,
+        barrelLen: 0.9,
+        beamColor: 0xff6600,
+        explosive: true,
+        splashRadius: 7,
+        gunStyle: "rocket"
+    }
+};
+
+// Power-up definitions: id, display name, HUD color, effect duration (ms)
+const powerUpTypesConfig = {
+    speed: { name: "SPEED BOOST", color: "#00e5ff", duration: 10000 },
+    shield: { name: "SHIELD", color: "#4caf50", duration: 10000 },
+    damage: { name: "DOUBLE DAMAGE", color: "#ff007f", duration: 10000 },
+    explosive: { name: "EXPLOSIVE ROUNDS", color: "#ff6600", duration: 10000 }
+};
+
+// Selectable arena maps: each defines its own color theme, sky, and building layout
+const mapsConfig = {
+    neon_road: {
+        id: "neon_road",
+        name: "Neon Road",
+        icon: "🏙️",
+        desc: "The only neon map. A cyber-grid block with voxel building complexes.",
+        isNeon: true,
+        skyColor: 0x0b0b1a,
+        fogColor: 0x0b0b1a,
+        fogDensity: 0.008,
+        floorColor: 0x000000,
+        houses: [
+            { x: -35, z: -35, wall: 0x222233, trim: 0xff0055, twoStory: true },
+            { x: 35, z: -35, wall: 0x1f4068, trim: 0x00e5ff, twoStory: false },
+            { x: -35, z: 30, wall: 0x11111a, trim: 0x39ff14, twoStory: true },
+            { x: 35, z: 25, wall: 0x2c1930, trim: 0xfad02c, twoStory: false },
+            { x: 0, z: -60, wall: 0x18181a, trim: 0xff00ff, twoStory: true }
+        ]
+    },
+    dusty_outpost: {
+        id: "dusty_outpost",
+        name: "Dusty Outpost",
+        icon: "🏜️",
+        desc: "A bright sandy desert outpost.",
+        isNeon: false,
+        skyColor: 0x8fd3ff,
+        fogColor: 0xddccaa,
+        fogDensity: 0.004,
+        floorColor: 0xd2b48c,
+        houses: [
+            { x: -40, z: -20, wall: 0x8b5a2b, trim: 0x6b4226, twoStory: false },
+            { x: 40, z: -20, wall: 0xcd853f, trim: 0xa0522d, twoStory: true },
+            { x: 0, z: 40, wall: 0x8b4513, trim: 0x5c4033, twoStory: true },
+            { x: -45, z: 45, wall: 0xa0522d, trim: 0x8b4513, twoStory: false },
+            { x: 45, z: 45, wall: 0xcd853f, trim: 0xa0522d, twoStory: false }
+        ]
+    },
+    green_pastures: {
+        id: "green_pastures",
+        name: "Green Pastures",
+        icon: "🌲",
+        desc: "Classic blocky fields with grass and wooden structures.",
+        isNeon: false,
+        skyColor: 0x87ceeb,
+        fogColor: 0x87ceeb,
+        fogDensity: 0.002,
+        floorColor: 0x556b2f,
+        houses: [
+            { x: -30, z: -30, wall: 0x8b4513, trim: 0x5c4033, twoStory: true },
+            { x: 30, z: -30, wall: 0xa0522d, trim: 0x8b4513, twoStory: true },
+            { x: -30, z: 30, wall: 0x8b4513, trim: 0x5c4033, twoStory: true },
+            { x: 30, z: 30, wall: 0xa0522d, trim: 0x8b4513, twoStory: true },
+            { x: 0, z: 0, wall: 0xcd853f, trim: 0xa0522d, twoStory: true }
+        ]
+    },
+    winter_facility: {
+        id: "winter_facility",
+        name: "Winter Facility",
+        icon: "❄️",
+        desc: "A snowy, cold tactical environment.",
+        isNeon: false,
+        skyColor: 0xcfdce8,
+        fogColor: 0xe8f0f8,
+        fogDensity: 0.005,
+        floorColor: 0xffffff,
+        houses: [
+            { x: -35, z: -35, wall: 0x708090, trim: 0x4682b4, twoStory: true },
+            { x: 35, z: -35, wall: 0x778899, trim: 0x5f9ea0, twoStory: false },
+            { x: -35, z: 30, wall: 0x696969, trim: 0x4682b4, twoStory: true },
+            { x: 35, z: 25, wall: 0x808080, trim: 0x5f9ea0, twoStory: false },
+            { x: 0, z: -60, wall: 0xa9a9a9, trim: 0x4682b4, twoStory: true }
+        ]
+    }
+};
+
+let selectedMapId = "neon_road";
+function selectMap(mapId) {
+    selectedMapId = mapId;
+    renderMapCards();
+    updateLobbyStats();
+}
+
+function renderMapCards() {
+    const container = document.getElementById("map-cards-container");
+    if (!container) return;
+    container.innerHTML = "";
+
+    Object.keys(mapsConfig).forEach(key => {
+        const map = mapsConfig[key];
+        const isSelected = selectedMapId === key;
+
+        const card = document.createElement("div");
+        card.className = `class-card ${isSelected ? 'selected' : ''}`;
+        card.innerHTML = `
+            <div style="font-size:2.5rem; margin-top:10px;">${map.icon}</div>
+            <h3>${map.name}</h3>
+            <p class="class-desc">${map.desc}</p>
+            <button class="class-select-trigger-btn" onclick="selectMap('${key}')">
+                ${isSelected ? 'ACTIVE MAP' : 'SELECT MAP'}
+            </button>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// Currently selected lobby match mode: 'ffa' or 'team'
+let gameMode = "ffa";
+function setGameMode(mode) {
+    gameMode = mode;
+    document.getElementById("mode-btn-ffa").classList.toggle("active", mode === "ffa");
+    document.getElementById("mode-btn-team").classList.toggle("active", mode === "team");
+}
+
+// Active Gameplay session tracking
+let inMatch = false;
+let isGodMode = false;
+let matchTimeLeft = 300; // 5 minute countdown
+let lobbyStateSens = 0.002;
+let gameCrosshairColor = "#00ffcc";
+
+let lobbyPreviewModel = null;
+
+function setupLobbyPlayerShowcase() {
+    if (!scene) return;
+    if (lobbyPreviewModel) {
+        scene.remove(lobbyPreviewModel);
+        lobbyPreviewModel = null;
+    }
+    
+    lobbyPreviewModel = new THREE.Group();
+
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.7 });
+    const shirtMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.65 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.6 });
+    const pantsMat = new THREE.MeshStandardMaterial({ color: 0x111122, roughness: 0.7 });
+    const hairMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+    const gunMat = new THREE.MeshStandardMaterial({ color: 0x222233, roughness: 0.4 });
+
+    function addBox(w, h, d, mat, x, y, z, parent = lobbyPreviewModel) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        m.position.set(x, y, z);
+        m.castShadow = true;
+        parent.add(m);
+        return m;
+    }
+
+    addBox(1.2, 1.2, 0.75, shirtMat, 0, 1.35, 0); // Torso
+    addBox(1.24, 0.2, 0.78, trimMat, 0, 1.75, 0); // Neon chest band
+    addBox(0.8, 0.9, 0.35, shirtMat, 0, 1.35, -0.52); // Backpack
+    addBox(1.1, 0.4, 0.7, pantsMat, 0, 0.75, 0); // Pelvis
+    addBox(0.42, 0.9, 0.42, pantsMat, -0.3, 0.15, 0); // Left leg
+    addBox(0.42, 0.9, 0.42, pantsMat, 0.3, 0.15, 0); // Right leg
+    addBox(0.3, 0.9, 0.3, shirtMat, -0.72, 1.15, 0); // Left arm
+    
+    // Head & Helmet
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 2.35, 0);
+    addBox(0.8, 0.8, 0.8, skinMat, 0, 0, 0, headGroup);
+    addBox(0.85, 0.2, 0.85, hairMat, 0, 0.4, 0, headGroup);
+    addBox(0.85, 0.2, 0.1, trimMat, 0, 0.05, 0.42, headGroup); // Cyber Visor
+    lobbyPreviewModel.add(headGroup);
+
+    // Right Arm holding rifle
+    const armR = new THREE.Group();
+    armR.position.set(0.72, 1.5, 0);
+    addBox(0.3, 0.8, 0.3, shirtMat, 0, -0.3, 0, armR);
+    addBox(0.2, 0.8, 0.2, gunMat, 0, -0.5, 0.4, armR); // Gun body
+    addBox(0.1, 0.1, 0.8, trimMat, 0, -0.3, 0.8, armR); // Gun barrel
+    lobbyPreviewModel.add(armR);
+
+    lobbyPreviewModel.position.set(0, 0, 0);
+    scene.add(lobbyPreviewModel);
+}
+
+// --- STATE MANAGEMENT CONTROLLERS ---
+function initLobbyUI() {
+    updateLobbyStats();
+    renderClassCards();
+    renderMapCards();
+    renderInventoryGrid();
+    bindLobbyInteractions();
+    if (typeof setupLobbyPlayerShowcase === "function") setupLobbyPlayerShowcase();
+}
+
+function updateLobbyStats() {
+    document.getElementById("lobby-username").innerText = profileState.username;
+    document.getElementById("lobby-level").innerText = `LVL ${profileState.level}`;
+    document.getElementById("lobby-coins").innerText = profileState.coins;
+    document.getElementById("lobby-gems").innerText = profileState.gems;
+    
+    let xpPercent = (profileState.xp / profileState.xpNeeded) * 100;
+    document.getElementById("lobby-xp-fill").style.width = `${xpPercent}%`;
+
+    // Fetch details of configured active selections
+    const activeClass = classesConfig[profileState.activeClass];
+    const equipWepId = profileState.equippedWeapons[profileState.activeClass];
+    const activeWep = weaponsInventory[equipWepId];
+
+    document.getElementById("lobby-active-class-name").innerText = activeClass.name;
+    document.getElementById("lobby-active-weapon-name").innerText = activeWep.name;
+
+    const activeMap = mapsConfig[selectedMapId];
+    document.getElementById("lobby-active-map-name").innerText = activeMap.name;
+    document.getElementById("lobby-map-icon").innerText = activeMap.icon;
+}
+
+// Draw list cards into Selector modal dynamically
+function renderClassCards() {
+    const container = document.getElementById("class-cards-container");
+    container.innerHTML = ""; // Clear existing
+
+    Object.keys(classesConfig).forEach(key => {
+        const cls = classesConfig[key];
+        const isSelected = profileState.activeClass === key;
+
+        const card = document.createElement("div");
+        card.className = `class-card ${isSelected ? 'selected' : ''}`;
+        card.innerHTML = `
+            <div style="font-size:2.5rem; margin-top:10px;">${cls.icon}</div>
+            <h3>${cls.name}</h3>
+            <p class="class-desc">${cls.desc}</p>
+            <div class="class-stats-list">
+                <div class="class-stat-row">
+                    <span>HP Base</span>
+                    <span style="font-weight:700;">${cls.maxHp}</span>
+                </div>
+                <div class="class-stat-row">
+                    <span>Armor Base</span>
+                    <span style="font-weight:700;">${cls.maxAp}</span>
+                </div>
+                <div class="class-stat-row">
+                    <span>Mobility Factor</span>
+                    <span style="font-weight:700;">x${cls.speedFactor}</span>
+                </div>
+                <div class="class-stat-row">
+                    <span>Difficulty</span>
+                    <span style="color:#ffd700;">${cls.difficulty}</span>
+                </div>
+            </div>
+            <button class="class-select-trigger-btn" onclick="setActiveClass('${key}')">
+                ${isSelected ? 'ACTIVE CLASS' : 'SELECT CLASS'}
+            </button>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function setActiveClass(classKey) {
+    profileState.activeClass = classKey;
+    renderClassCards();
+    updateLobbyStats();
+}
+
+// Generate inventory weapon listing structures
+function renderInventoryGrid() {
+    const grid = document.getElementById("inventory-grid-container");
+    grid.innerHTML = "";
+
+    // Only class loadout weapons are shown here; the pistol is an automatic sidearm
+    // and the Rocket Launcher is an arena pickup, so neither is equippable from this screen.
+    const equippableWeaponIds = Object.keys(weaponsInventory).filter(id => {
+        const classType = weaponsInventory[id].classType;
+        return classType !== "any" && classType !== "pickup";
+    });
+
+    equippableWeaponIds.forEach(wepId => {
+        const wep = weaponsInventory[wepId];
+        const isEquipped = profileState.equippedWeapons[wep.classType] === wepId;
+
+        const tile = document.createElement("div");
+        tile.className = `inventory-item-tile ${isEquipped ? 'selected' : ''}`;
+        tile.onclick = () => inspectWeaponItem(wepId);
+        tile.innerHTML = `
+            <span class="rarity-tag rarity-${wep.rarity}">${wep.rarity}</span>
+            <div style="font-size:1.1rem; font-weight:700; text-align:center; margin:10px 0;">${wep.name}</div>
+            <div style="font-size:0.75rem; color:#aaa;">Class: <span style="text-transform:uppercase; font-weight:700; color:#fff;">${wep.classType}</span></div>
+        `;
+        grid.appendChild(tile);
+    });
+
+    // Run preview of first default weapon
+    inspectWeaponItem(equippableWeaponIds[0]);
+}
+
+function inspectWeaponItem(wepId) {
+    const wep = weaponsInventory[wepId];
+
+    // Only class loadout weapons appear in this grid (pistol/rocket are excluded)
+    const equippableWeaponIds = Object.keys(weaponsInventory).filter(id => {
+        const classType = weaponsInventory[id].classType;
+        return classType !== "any" && classType !== "pickup";
+    });
+
+    // Set active item select outline visually in grid lists
+    const tiles = document.querySelectorAll('.inventory-item-tile');
+    tiles.forEach((t, i) => {
+        const matchingId = equippableWeaponIds[i];
+        if(matchingId === wepId) t.classList.add('selected');
+        else t.classList.remove('selected');
+    });
+
+    document.getElementById("inspect-weapon-name").innerText = wep.name;
+    const rarityLabel = document.getElementById("inspect-weapon-rarity");
+    rarityLabel.className = `rarity-tag rarity-${wep.rarity}`;
+    rarityLabel.innerText = wep.rarity;
+
+    // Map weapon stats to graphical meters (percentage-based scales)
+    const dmgPct = (wep.damage / 100) * 100;
+    const firePct = ((2.0 - wep.fireRate) / 2.0) * 100;
+    const magPct = (wep.magCapacity / 60) * 100;
+
+    document.getElementById("stat-dmg-fill").style.width = `${dmgPct}%`;
+    document.getElementById("stat-fire-fill").style.width = `${firePct}%`;
+    document.getElementById("stat-mag-fill").style.width = `${magPct}%`;
+
+    const equipBtn = document.getElementById("inspect-equip-btn");
+    const isEquipped = profileState.equippedWeapons[wep.classType] === wepId;
+    if(isEquipped) {
+        equipBtn.innerText = "ALREADY EQUIPPED";
+        equipBtn.style.background = "#222";
+    } else {
+        equipBtn.innerText = "EQUIP FOR CLASS";
+        equipBtn.style.background = "var(--pink-neon)";
+        equipBtn.onclick = () => {
+            profileState.equippedWeapons[wep.classType] = wepId;
+            renderInventoryGrid();
+            updateLobbyStats();
+            inspectWeaponItem(wepId);
+        };
+    }
+}
+
+// Settings changes event observers
+function bindLobbyInteractions() {
+    const godmodeBtn = document.getElementById("btn-unlock-godmode");
+    if (godmodeBtn) {
+        godmodeBtn.addEventListener("click", () => {
+            const passInput = document.getElementById("godmode-passcode");
+            const statusDiv = document.getElementById("godmode-status-text");
+            if (passInput && passInput.value.trim().toLowerCase() === "poxel") {
+                isGodMode = true;
+                if (statusDiv) {
+                    statusDiv.innerText = "★ GODMODE ACTIVE: Immortality + Infinite Ammo + No Cooldown ★";
+                    statusDiv.style.color = "#00ffcc";
+                }
+                passInput.disabled = true;
+                godmodeBtn.disabled = true;
+                godmodeBtn.innerText = "ACTIVE";
+                showPickupToast("GODMODE ACTIVATED!");
+            } else if (statusDiv) {
+                statusDiv.innerText = "ACCESS DENIED: Incorrect Passcode";
+                statusDiv.style.color = "#ff0055";
+            }
+        });
+    }
+    document.getElementById("setting-sens").addEventListener("input", (e) => {
+        lobbyStateSens = parseFloat(e.target.value);
+    });
+
+    document.getElementById("setting-shadows").addEventListener("change", (e) => {
+        if(typeof adjustShadowQuality === "function") {
+            adjustShadowQuality(e.target.value);
+        }
+    });
+
+    document.getElementById("setting-crosshair").addEventListener("change", (e) => {
+        gameCrosshairColor = e.target.value;
+        document.getElementById("hud-crosshair").style.borderColor = gameCrosshairColor;
+        document.getElementById("hud-crosshair").style.boxShadow = `0 0 8px ${gameCrosshairColor}`;
+    });
+}
+
+// Modal Toggle Hooks
+function openModal(modalId) {
+    document.getElementById(modalId).style.display = "flex";
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = "none";
+}
+
+function showLobby() {
+    // Closes all modals and resets visual active states
+    const modals = document.querySelectorAll('.modal-container');
+    modals.forEach(m => m.style.display = 'none');
+    
+    const btns = document.querySelectorAll('.sidebar-menu .menu-btn');
+    btns.forEach(b => b.classList.remove('active'));
+    btns[0].classList.add('active');
+}
+
+// DOM Setup Bootstrapping
+window.addEventListener("DOMContentLoaded", () => {
+    initLobbyUI();
+});
+
+// ==========================================================
+// SHARD 2: THREE.JS 3D WORLD, COMBAT PHYSICS ENGINE & BOTS
+// ==========================================================
+
+// Global Game Variables
+let scene, camera, renderer;
+let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+let playerVelocity = new THREE.Vector3();
+let playerDirection = new THREE.Vector3();
+let prevFrameTime = performance.now();
+let canJump = false, yVelocity = 0, jumpSequenceCount = 0;
+let pitch = 0, yaw = 0;
+
+// Sprint / Slide movement state
+let isSprinting = false;
+let isSliding = false;
+let slideEndTime = 0;
+let slideCooldownUntil = 0;
+let lastPlayerDashTime = 0;
+const baseCameraHeight = 2.0;
+
+// Weapon slot system: sidearm (pistol, always carried), primary (class loadout), special (arena pickup e.g. rocket launcher)
+let weaponSlots = { sidearm: null, primary: null, special: null };
+let activeWeaponSlot = "primary";
+let currentWeaponState = {
+    wepId: null,
+    name: "Unarmed",
+    damage: 10,
+    fireRate: 0.1,
+    magCapacity: 30,
+    maxReserve: 120,
+    magAmmo: 30,
+    reserveAmmo: 120,
+    beamColor: 0xff00ff,
+    isReloading: false,
+    lastFireTime: 0
+};
+
+function buildWeaponState(spec) {
+    return {
+        wepId: spec.id,
+        name: spec.name,
+        damage: spec.damage,
+        fireRate: spec.fireRate,
+        magCapacity: spec.magCapacity,
+        maxReserve: spec.maxReserve,
+        magAmmo: spec.magCapacity,
+        reserveAmmo: spec.maxReserve,
+        beamColor: spec.beamColor,
+        explosive: !!spec.explosive,
+        splashRadius: spec.splashRadius || 0,
+        isReloading: false,
+        lastFireTime: 0
+    };
+}
+
+// --- VOXEL GUN MODELS (distinct blocky silhouette per weapon type) ---
+function buildGunModel(spec, scale = 1) {
+    const group = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5, metalness: 0.4 });
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x5a5a5a, roughness: 0.35, metalness: 0.65 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.8, metalness: 0.05 });
+    const warheadMat = new THREE.MeshStandardMaterial({ color: 0x6b8e4e, roughness: 0.6 });
+    const rpgTubeMat = new THREE.MeshStandardMaterial({ color: 0x8a7a5a, roughness: 0.6, metalness: 0.3 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: spec.beamColor, emissive: spec.beamColor, emissiveIntensity: 0.5, roughness: 0.4 });
+    const style = spec.gunStyle || "rifle";
+
+    function block(w, h, d, mat, x, y, z, rotX = 0, rotZ = 0) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        m.position.set(x, y, z);
+        m.rotation.x = rotX;
+        m.rotation.z = rotZ;
+        m.castShadow = true;
+        group.add(m);
+        return m;
+    }
+
+    // Cylinder aligned along Z (barrel-like) by default
+    function cyl(r, h, mat, x, y, z, rotX = Math.PI / 2) {
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 10), mat);
+        m.position.set(x, y, z);
+        m.rotation.x = rotX;
+        m.castShadow = true;
+        group.add(m);
+        return m;
+    }
+
+    // Cone aligned along Z (apex direction set via rotX) - used for RPG warhead/nozzle
+    function cone(r, h, mat, x, y, z, rotX) {
+        const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, 10), mat);
+        m.position.set(x, y, z);
+        m.rotation.x = rotX;
+        m.castShadow = true;
+        group.add(m);
+        return m;
+    }
+
+    if (style === "pistol") {
+        // Glock-style compact sidearm
+        block(0.11, 0.15, 0.32, metalMat, 0, 0.03, -0.02);           // slide
+        block(0.1, 0.22, 0.12, bodyMat, 0, -0.14, 0.08, -0.15);      // grip (raked back)
+        block(0.02, 0.06, 0.12, bodyMat, 0, -0.02, -0.03);           // trigger guard
+        cyl(0.025, 0.09, metalMat, 0, 0.03, -0.22);                  // barrel tip
+        block(0.02, 0.02, 0.02, accentMat, 0, 0.11, -0.35);          // front sight
+        block(0.03, 0.02, 0.03, accentMat, 0, 0.11, 0.12);           // rear sight
+    } else if (style === "smg") {
+        // MAC-10 style compact SMG with suppressor + folding stock
+        block(0.13, 0.15, 0.38, bodyMat, 0, 0, 0.02);                // receiver
+        cyl(0.045, 0.34, metalMat, 0, 0.02, -0.33);                  // suppressor/barrel
+        block(0.07, 0.26, 0.09, bodyMat, 0, -0.21, -0.04, -0.12);    // vertical magazine
+        block(0.03, 0.03, 0.34, metalMat, 0, -0.01, 0.36);           // folding stock strut
+        block(0.06, 0.06, 0.06, metalMat, 0, -0.03, 0.5);            // stock shoulder pad
+        block(0.08, 0.16, 0.1, bodyMat, 0, -0.15, 0.18, 0.32);       // pistol grip
+        block(0.1, 0.02, 0.14, accentMat, 0, 0.08, -0.05);           // accent light strip
+    } else if (style === "rifle") {
+        // AK-47 style assault rifle with wood furniture and curved banana magazine
+        block(0.13, 0.15, 0.55, bodyMat, 0, 0, -0.05);               // receiver
+        block(0.12, 0.09, 0.24, woodMat, 0, -0.02, -0.38);           // wooden handguard
+        cyl(0.025, 0.34, metalMat, 0, 0.02, -0.58);                  // barrel
+        block(0.02, 0.06, 0.02, metalMat, 0, 0.09, -0.72);           // front sight post
+        block(0.09, 0.13, 0.32, woodMat, 0, -0.02, 0.36);            // wooden stock
+        block(0.08, 0.17, 0.09, woodMat, 0, -0.17, 0.16, 0.35);      // pistol grip
+        // Curved "banana" magazine, approximated with three angled segments
+        block(0.07, 0.14, 0.09, bodyMat, 0, -0.17, -0.08, -0.18);
+        block(0.07, 0.14, 0.09, bodyMat, 0, -0.28, -0.01, -0.42);
+        block(0.06, 0.1, 0.08, bodyMat, 0, -0.37, 0.08, -0.68);
+        block(0.02, 0.05, 0.1, accentMat, 0.075, 0.02, -0.06);       // ejection port accent glow
+    } else if (style === "shotgun") {
+        // Double-barrel shotgun
+        cyl(0.035, 0.5, metalMat, -0.045, 0.03, -0.33);              // left barrel
+        cyl(0.035, 0.5, metalMat, 0.045, 0.03, -0.33);               // right barrel
+        block(0.14, 0.04, 0.04, accentMat, 0, 0.03, -0.14);          // barrel band accent
+        block(0.11, 0.08, 0.3, woodMat, 0, -0.06, -0.28);            // forend
+        block(0.1, 0.14, 0.34, woodMat, 0, -0.02, 0.32, 0.1);        // stock
+        block(0.09, 0.13, 0.12, bodyMat, 0, -0.08, 0.05);            // receiver/trigger housing
+    } else if (style === "sniper") {
+        // Bolt-action sniper with scope and bipod
+        cyl(0.025, 0.68, metalMat, 0, 0, -0.52);                     // long barrel
+        block(0.11, 0.13, 0.34, bodyMat, 0, 0, 0.12);                // receiver
+        block(0.09, 0.12, 0.42, woodMat, 0, -0.01, 0.42, 0.05);      // stock
+        cyl(0.035, 0.3, bodyMat, 0, 0.13, 0.06, Math.PI / 2);        // scope tube
+        block(0.09, 0.09, 0.03, accentMat, 0, 0.13, -0.1);           // scope front lens glow
+        block(0.08, 0.08, 0.03, bodyMat, 0, 0.13, 0.2);              // scope rear ring
+        block(0.02, 0.26, 0.02, metalMat, -0.09, -0.16, -0.62, 0, 0.35);  // bipod leg left
+        block(0.02, 0.26, 0.02, metalMat, 0.09, -0.16, -0.62, 0, -0.35);  // bipod leg right
+        block(0.03, 0.03, 0.07, metalMat, 0.08, 0.02, 0.16);         // bolt handle
+    } else if (style === "rocket") {
+        // RPG-style rocket launcher: tube + conical warhead + rear nozzle
+        cyl(0.09, 0.7, rpgTubeMat, 0, 0, -0.05);                     // main tube
+        cone(0.09, 0.28, warheadMat, 0, 0, -0.53, -Math.PI / 2);     // forward-pointing warhead
+        cone(0.1, 0.16, metalMat, 0, 0, 0.4, Math.PI / 2);           // rear nozzle flare
+        block(0.08, 0.2, 0.1, bodyMat, 0, -0.2, 0.12, 0.3);          // front handgrip
+        block(0.1, 0.12, 0.16, bodyMat, 0, -0.05, 0.5);              // rear grip/shoulder rest
+        block(0.06, 0.06, 0.14, bodyMat, 0, 0.12, -0.05);            // sight housing
+        block(0.05, 0.03, 0.03, accentMat, 0, 0.12, -0.13);          // optic glow accent
+    } else {
+        block(0.14, 0.16, 0.7, bodyMat, 0, 0, 0);
+    }
+
+    group.scale.set(scale, scale, scale);
+    return group;
+}
+
+// First-person weapon viewmodel, reattached to the camera whenever the active weapon changes
+let currentGunViewModel = null;
+function updateGunViewModel() {
+    if (!camera) return;
+    if (currentGunViewModel) {
+        camera.remove(currentGunViewModel);
+        currentGunViewModel = null;
+    }
+    const spec = weaponsInventory[currentWeaponState.wepId];
+    if (!spec) return;
+
+    currentGunViewModel = buildGunModel(spec, 1);
+    currentGunViewModel.position.set(0.35, -0.32, -0.6);
+    currentGunViewModel.rotation.y = Math.PI * 0.06;
+    camera.add(currentGunViewModel);
+}
+
+function switchWeaponSlot(slot) {
+    if (!weaponSlots[slot] || currentWeaponState.isReloading) return;
+    activeWeaponSlot = slot;
+    currentWeaponState = weaponSlots[slot];
+    updateHUD();
+    updateGunViewModel();
+}
+
+// Active timed power-up buffs: { speed: expiryTimestamp, shield: ..., damage: ..., explosive: ... }
+let activeBuffs = {};
+
+// Session scoring
+let activeMatchDeaths = 0;
+let currentKillStreak = 0;
+let bestKillStreak = 0;
+
+let activeMatchKills = 0;
+let matchTimerInterval = null;
+
+// Three.js storage arrays
+const botNamesList = ["Apex", "Blitz", "Cipher", "Drift", "Echo", "Flux", "Grit", "Hex", "Iron", "Jinx", "Kael", "Nova", "Pulse", "Raze", "Sage", "Spike", "Tank", "Viper", "Wraith", "Zephyr"];
+let bullets = [], targets = [], particles = [], levelGeometryHouses = [], bots = [], powerUpPickups = [], weaponPickups = [];
+let currentBuiltMapId = null;
+let tickStarted = false;
+
+// Touch/mobile device detection
+const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+// Initialize Play Trigger: desktop uses Pointer Lock, mobile skips straight into the match
+document.getElementById("match-play-btn").addEventListener("click", () => {
+    if (isTouchDevice) {
+        enterMatchMode();
+    } else {
+        document.body.requestPointerLock();
+    }
+});
+
+document.getElementById("btn-exit-match").addEventListener("click", () => {
+    if (document.pointerLockElement === document.body) {
+        document.exitPointerLock();
+    } else {
+        exitMatchMode();
+    }
+});
+
+document.addEventListener("pointerlockchange", () => {
+    if (document.pointerLockElement === document.body) {
+        enterMatchMode();
+    } else if (inMatch) {
+        exitMatchMode();
+    }
+});
+
+function enterMatchMode() {
+    document.getElementById("lobby-overlay").style.display = "none";
+    document.getElementById("hud-overlay").style.display = "block";
+    inMatch = true;
+    startGameplayEngine();
+}
+
+function exitMatchMode() {
+    document.getElementById("lobby-overlay").style.display = "flex";
+    document.getElementById("hud-overlay").style.display = "none";
+    inMatch = false;
+    stopGameplayEngine();
+}
+
+// Setup active user parameters
+let activePlayerCombatStats = {
+    hp: 100,
+    maxHp: 100,
+    ap: 50,
+    maxAp: 50,
+    speedFactor: 1.0,
+    jumpPower: 14,
+    allowDoubleJump: false
+};
+
+function startGameplayEngine() {
+    // Compile class variables to active player
+    const chosenClass = classesConfig[profileState.activeClass];
+    activePlayerCombatStats.hp = chosenClass.maxHp;
+    activePlayerCombatStats.maxHp = chosenClass.maxHp;
+    activePlayerCombatStats.ap = chosenClass.maxAp;
+    activePlayerCombatStats.maxAp = chosenClass.maxAp;
+    activePlayerCombatStats.speedFactor = chosenClass.speedFactor;
+    activePlayerCombatStats.jumpPower = chosenClass.jumpPower;
+    activePlayerCombatStats.allowDoubleJump = chosenClass.allowDoubleJump;
+
+    // Equip primary class weapon and universal pistol sidearm
+    const weaponId = profileState.equippedWeapons[profileState.activeClass];
+    const wepSpec = weaponsInventory[weaponId];
+
+    weaponSlots.primary = buildWeaponState(wepSpec);
+    weaponSlots.sidearm = buildWeaponState(weaponsInventory.w_pistol);
+    weaponSlots.special = null;
+
+    // Reset movement state
+    isSprinting = false;
+    isSliding = false;
+
+    // Reset power-up buffs
+    activeBuffs = {};
+    renderBuffChips();
+
+    // Build the selected map if this is the first match or the map choice changed
+    if (!scene || currentBuiltMapId !== selectedMapId) {
+        buildArenaEnvironment(mapsConfig[selectedMapId]);
+        currentBuiltMapId = selectedMapId;
+    }
+
+    activeWeaponSlot = "primary";
+    currentWeaponState = weaponSlots.primary;
+    updateHUD();
+    updateGunViewModel();
+
+    // Reset combat trackers
+    activeMatchKills = 0;
+    activeMatchDeaths = 0;
+    currentKillStreak = 0;
+    bestKillStreak = 0;
+    document.getElementById("hud-kills-count").innerText = `KILLS: ${activeMatchKills}`;
+    document.getElementById("hud-streak-count").innerText = "";
+    
+    camera.position.set(0, 2, 60);
+    pitch = 0;
+    yaw = 0;
+    camera.rotation.set(0, 0, 0);
+
+    // Initialize/Reset Match Timers
+    matchTimeLeft = 300;
+    if (matchTimerInterval) clearInterval(matchTimerInterval);
+    matchTimerInterval = setInterval(() => {
+        if (!inMatch) return;
+        matchTimeLeft--;
+        let min = Math.floor(matchTimeLeft / 60);
+        let sec = matchTimeLeft % 60;
+        document.getElementById("hud-match-timer").innerText = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+        
+        if(matchTimeLeft <= 0) {
+            showEndMatchScreen();
+            exitMatchMode();
+        }
+    }, 1000);
+
+    // Set up standard input listeners for active playing states
+    document.addEventListener('keydown', handleKeyInputDown);
+    document.addEventListener('keyup', handleKeyInputUp);
+
+    if (isTouchDevice) {
+        document.getElementById("mobile-controls").style.display = "block";
+        document.getElementById("btn-exit-match").style.display = "block";
+        document.getElementById("scoreboard-hint").innerText = "Tap the scoreboard icon to view";
+        bindMobileControls();
+    } else {
+        document.addEventListener('mousemove', handleCameraRotation);
+        document.addEventListener('mousedown', handleWeaponDischarge);
+    }
+}
+
+function showEndMatchScreen() {
+    document.getElementById("endmatch-kills").innerText = activeMatchKills;
+    document.getElementById("endmatch-deaths").innerText = activeMatchDeaths;
+    document.getElementById("endmatch-streak").innerText = bestKillStreak;
+    document.getElementById("endmatch-overlay").style.display = "flex";
+    document.getElementById("hud-overlay").style.display = "none";
+}
+
+function returnToLobbyFromEndScreen() {
+    document.getElementById("endmatch-overlay").style.display = "none";
+    document.getElementById("lobby-overlay").style.display = "flex";
+}
+
+function stopGameplayEngine() {
+    if (matchTimerInterval) clearInterval(matchTimerInterval);
+    document.removeEventListener('keydown', handleKeyInputDown);
+    document.removeEventListener('keyup', handleKeyInputUp);
+    document.removeEventListener('mousemove', handleCameraRotation);
+    document.removeEventListener('mousedown', handleWeaponDischarge);
+    document.getElementById("mobile-controls").style.display = "none";
+    document.getElementById("btn-exit-match").style.display = "none";
+    unbindMobileControls();
+}
+
+// --- DYNAMIC ENGINE BUILD MECHANISMS ---
+// Day/Night sky presets - independent of map choice so any map can look bright or moody
+// Sky modes removed. Lighting now bound to map config.
+
+function buildArenaEnvironment(mapConfig) {
+    // Clear any previous map's tracked objects
+    bots = [];
+    particles = [];
+    levelGeometryHouses = [];
+    powerUpPickups = [];
+    weaponPickups = [];
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(mapConfig.skyColor);
+    scene.fog = new THREE.FogExp2(mapConfig.fogColor, mapConfig.fogDensity);
+
+    // Core Camera Configurations
+    const aspect = window.innerWidth / window.innerHeight;
+    camera = new THREE.PerspectiveCamera(70, aspect, 0.1, 1000);
+    scene.add(camera);
+
+    // Renderer construction
+    if (!renderer) {
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById("canvas-container").appendChild(renderer.domElement);
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    }
+
+    adjustShadowQuality(document.getElementById("setting-shadows").value);
+
+    // Lights based on map
+    if (mapConfig.isNeon) {
+        const ambientLight = new THREE.AmbientLight(0x505a70, 0.9);
+        scene.add(ambientLight);
+        const pinkKeyLight = new THREE.DirectionalLight(0xff007f, 1.0);
+        pinkKeyLight.position.set(40, 60, 40);
+        pinkKeyLight.castShadow = true;
+        pinkKeyLight.shadow.mapSize.width = 2048;
+        pinkKeyLight.shadow.mapSize.height = 2048;
+        scene.add(pinkKeyLight);
+        const cyanFillLight = new THREE.DirectionalLight(0x00e5ff, 0.55);
+        cyanFillLight.position.set(-40, 30, -40);
+        scene.add(cyanFillLight);
+    } else {
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const sunLight = new THREE.DirectionalLight(0xffffff, 0.85);
+        sunLight.position.set(50, 80, 40);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 180;
+        sunLight.shadow.camera.left = -90;
+        sunLight.shadow.camera.right = 90;
+        sunLight.shadow.camera.top = 90;
+        sunLight.shadow.camera.bottom = -90;
+        scene.add(sunLight);
+    }
+
+    // Floor
+    let floorMat;
+    if (mapConfig.isNeon) {
+        const gridTexture = generateRetroGridTexture();
+        floorMat = new THREE.MeshStandardMaterial({
+            map: gridTexture,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+    } else {
+        floorMat = new THREE.MeshStandardMaterial({
+            color: mapConfig.floorColor,
+            roughness: 0.9,
+            metalness: 0.0
+        });
+    }
+    
+    const floorGeo = new THREE.PlaneGeometry(200, 200);
+    const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+    floorMesh.rotation.x = -Math.PI / 2;
+    floorMesh.receiveShadow = true;
+    scene.add(floorMesh);
+
+    // BOUNDARIES
+    const wallBorderMat = new THREE.MeshStandardMaterial({ color: mapConfig.isNeon ? 0x070710 : 0x222222, roughness: 0.9 });
+    const wallNorth = new THREE.Mesh(new THREE.BoxGeometry(200, 30, 2), wallBorderMat);
+    wallNorth.position.set(0, 15, -100);
+    scene.add(wallNorth);
+
+    const wallSouth = new THREE.Mesh(new THREE.BoxGeometry(200, 30, 2), wallBorderMat);
+    wallSouth.position.set(0, 15, 100);
+    scene.add(wallSouth);
+
+    const wallEast = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 200), wallBorderMat);
+    wallEast.position.set(100, 15, 0);
+    scene.add(wallEast);
+
+    const wallWest = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 200), wallBorderMat);
+    wallWest.position.set(-100, 15, 0);
+    scene.add(wallWest);
+
+    // Procedural Modular Houses
+    mapConfig.houses.forEach(h => {
+        generateVoxelHouse(h.x, h.z, h.wall, h.trim, h.twoStory);
+    });
+
+    // Spawn fully interactive AI enemy bots
+    spawnEnemyBot(-25, -20);
+    spawnEnemyBot(25, -20);
+    spawnEnemyBot(-20, 20);
+    spawnEnemyBot(20, 10);
+
+    if (gameMode === "team") {
+        spawnEnemyBot(10, 55, true);
+        spawnEnemyBot(-10, 55, true);
+    }
+
+    spawnPowerUpPickup(0, 0, "speed");
+    spawnPowerUpPickup(60, 60, "shield");
+    spawnPowerUpPickup(-60, 60, "damage");
+    spawnPowerUpPickup(60, -60, "explosive");
+    spawnPowerUpPickup(-60, -60, "speed");
+
+    spawnWeaponPickup(0, 45);
+    spawnWeaponPickup(0, -25);
+
+    if (!tickStarted) {
+        tickStarted = true;
+        tick();
+    }
+}
+
+// Adjust quality details dynamic toggle
+function adjustShadowQuality(quality) {
+    if(!renderer) return;
+    if (quality === "high") {
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    } else if (quality === "medium") {
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.BasicShadowMap;
+    } else {
+        renderer.shadowMap.enabled = false;
+    }
+}
+
+// Canvas drawn grid texture helper
+function generateRetroGridTexture() {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    // Fill deep dark space background
+    ctx.fillStyle = "#030307";
+    ctx.fillRect(0, 0, size, size);
+
+    // Draw cyber grid wires
+    ctx.strokeStyle = "#00e5ff";
+    ctx.lineWidth = 4;
+    ctx.shadowColor = "#00e5ff";
+    ctx.shadowBlur = 10;
+    ctx.strokeRect(0, 0, size, size);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(40, 40);
+    return texture;
+}
+
+// --- BUILDING PROCEDURAL MODULAR HOUSES ---
+function generateVoxelHouse(x, z, wallHexColor, trimHexColor, hasSecondFloor = false) {
+    const group = new THREE.Group();
+
+    const wallW = 14, wallH = 8, wallD = 14;
+    const wallGeo = new THREE.BoxGeometry(wallW, wallH, wallD);
+    const wallMat = new THREE.MeshStandardMaterial({ color: wallHexColor, roughness: 0.65 });
+    const baseWalls = new THREE.Mesh(wallGeo, wallMat);
+    baseWalls.position.y = wallH / 2;
+    baseWalls.castShadow = true;
+    baseWalls.receiveShadow = true;
+    group.add(baseWalls);
+
+    // Flat roof trim layout
+    const trimGeo = new THREE.BoxGeometry(wallW + 0.8, 1.0, wallD + 0.8);
+    const trimMat = new THREE.MeshStandardMaterial({ color: trimHexColor, roughness: 0.5 });
+    const roofTrim = new THREE.Mesh(trimGeo, trimMat);
+    roofTrim.position.y = wallH + 0.5;
+    roofTrim.castShadow = true;
+    roofTrim.receiveShadow = true;
+    group.add(roofTrim);
+
+    let finalHeight = wallH + 1.0;
+
+    // Optional second story step back module
+    if (hasSecondFloor) {
+        const floor2W = 10, floor2H = 6, floor2D = 10;
+        const floor2Geo = new THREE.BoxGeometry(floor2W, floor2H, floor2D);
+        const secondFloor = new THREE.Mesh(floor2Geo, wallMat);
+        secondFloor.position.set(0, wallH + 1.0 + (floor2H / 2), -1);
+        secondFloor.castShadow = true;
+        secondFloor.receiveShadow = true;
+        group.add(secondFloor);
+
+        // Second story flat trim roof
+        const trim2Geo = new THREE.BoxGeometry(floor2W + 0.6, 0.8, floor2D + 0.6);
+        const roofTrim2 = new THREE.Mesh(trim2Geo, trimMat);
+        roofTrim2.position.set(0, wallH + 1.0 + floor2H + 0.4, -1);
+        roofTrim2.castShadow = true;
+        group.add(roofTrim2);
+
+        finalHeight += floor2H + 0.8;
+    }
+
+    // Doorway blocks
+    const doorGeo = new THREE.BoxGeometry(2.4, 4.5, 0.5);
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+    const door = new THREE.Mesh(doorGeo, doorMat);
+    door.position.set(0, 2.25, (wallD / 2) + 0.05);
+    door.castShadow = true;
+    group.add(door);
+
+    // Detailed roof antennas & roof structures
+    if (Math.random() > 0.4) {
+        const antennaGeo = new THREE.CylinderGeometry(0.06, 0.06, 3.5);
+        const antennaMat = new THREE.MeshStandardMaterial({ color: 0x333344, metalness: 0.8, roughness: 0.2 });
+        const antenna = new THREE.Mesh(antennaGeo, antennaMat);
+        antenna.position.set(-wallW / 3, finalHeight + 1.75, -wallD / 3);
+        group.add(antenna);
+
+        const beaconGeo = new THREE.SphereGeometry(0.25, 8, 8);
+        const beaconMat = new THREE.MeshBasicMaterial({ color: trimHexColor });
+        const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+        beacon.position.set(-wallW / 3, finalHeight + 3.5, -wallD / 3);
+        group.add(beacon);
+    }
+
+    // Side ventilation ducts / structural ribbing
+    const ventGeo = new THREE.BoxGeometry(0.25, 1.2, 2.2);
+    const ventMat = new THREE.MeshStandardMaterial({ color: 0x151520, roughness: 0.8 });
+    const ventL = new THREE.Mesh(ventGeo, ventMat);
+    ventL.position.set(-wallW / 2 - 0.1, wallH * 0.6, 0);
+    group.add(ventL);
+    const ventR = new THREE.Mesh(ventGeo, ventMat);
+    ventR.position.set(wallW / 2 + 0.1, wallH * 0.6, 0);
+    group.add(ventR);
+
+    // Neon glass windows
+    const windowFrameGeo = new THREE.BoxGeometry(1.8, 1.8, 0.3);
+    const windowFrameMat = new THREE.MeshStandardMaterial({ color: 0x000 });
+    const windowGlassGeo = new THREE.BoxGeometry(1.4, 1.4, 0.4);
+    const isNeonMap = mapsConfig[selectedMapId].isNeon;
+    const windowGlassMat = new THREE.MeshBasicMaterial({ color: isNeonMap ? 0x00ffff : 0x334455 });
+
+    // Front Window Left
+    const frameL = new THREE.Mesh(windowFrameGeo, windowFrameMat);
+    frameL.position.set(-4, 4, (wallD / 2) + 0.05);
+    const glassL = new THREE.Mesh(windowGlassGeo, windowGlassMat);
+    glassL.position.set(-4, 4, (wallD / 2) + 0.1);
+    group.add(frameL, glassL);
+
+    // Front Window Right
+    const frameR = new THREE.Mesh(windowFrameGeo, windowFrameMat);
+    frameR.position.set(4, 4, (wallD / 2) + 0.05);
+    const glassR = new THREE.Mesh(windowGlassGeo, windowGlassMat);
+    glassR.position.set(4, 4, (wallD / 2) + 0.1);
+    group.add(frameR, glassR);
+
+    // Stacked parkour boxes
+    createBoxCrate(group, -7.5, 1.25, 5, 2.5);
+    createBoxCrate(group, -7.5, 3.25, 5, 1.5);
+    createBoxCrate(group, -7.5, 0.75, 2, 1.5);
+
+    group.position.set(x, 0, z);
+    scene.add(group);
+
+    // Store dimensions for collision bounds mapping
+    levelGeometryHouses.push({
+        x: x,
+        z: z,
+        halfW: (wallW + 1.5) / 2,
+        halfD: (wallD + 1.5) / 2,
+        height: finalHeight
+    });
+}
+
+// Side boxes for parkour climb support helper
+function createBoxCrate(parent, x, y, z, size) {
+    const geo = new THREE.BoxGeometry(size, size, size);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.95 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    parent.add(mesh);
+}
+
+// --- POWER-UP PICKUPS (speed boost, shield, double damage, explosive rounds) ---
+function spawnPowerUpPickup(x, z, type) {
+    const cfg = powerUpTypesConfig[type];
+    const geo = new THREE.IcosahedronGeometry(1.1, 0);
+    const mat = new THREE.MeshStandardMaterial({
+        color: cfg.color,
+        emissive: cfg.color,
+        emissiveIntensity: 0.6,
+        roughness: 0.3,
+        metalness: 0.2
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, 1.6, z);
+    mesh.castShadow = true;
+    scene.add(mesh);
+
+    powerUpPickups.push({
+        mesh: mesh,
+        type: type,
+        x: x, z: z,
+        active: true,
+        respawnAt: 0
+    });
+}
+
+// --- WEAPON PICKUPS (Rocket Launcher arena crate) ---
+function spawnWeaponPickup(x, z) {
+    const group = new THREE.Group();
+
+    const crateGeo = new THREE.BoxGeometry(1.4, 1.4, 1.4);
+    const crateMat = new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 0.35, roughness: 0.5 });
+    const crate = new THREE.Mesh(crateGeo, crateMat);
+    crate.position.y = 1.2;
+    crate.castShadow = true;
+    group.add(crate);
+
+    group.position.set(x, 0, z);
+    scene.add(group);
+
+    weaponPickups.push({
+        mesh: group,
+        x: x, z: z,
+        active: true,
+        respawnAt: 0
+    });
+}
+function spawnEnemyBot(x, z, friendly = false) {
+    const botGroup = new THREE.Group();
+    const bName = botNamesList[Math.floor(Math.random() * botNamesList.length)] + "-" + Math.floor(Math.random()*99);
+
+        // Extended Skin Styles and Accessories
+    const skins = [
+        { name: "soldier", skin: 0xc98b5e, shirt: friendly ? 0x2f4d63 : 0x5c4a33, pants: 0x3a3f4a, strap: 0x222222, hair: 0x111111, accessory: "helmet" },
+        { name: "agent", skin: 0xffdbac, shirt: 0x1a1a1a, pants: 0x111111, strap: 0xff0000, hair: 0x4a3b2c, accessory: "glasses" },
+        { name: "rebel", skin: 0x8d5524, shirt: 0x8b0000, pants: 0x223344, strap: 0x442211, hair: 0x000000, accessory: "cap" },
+        { name: "medic", skin: 0xf1c27d, shirt: 0xeeeeee, pants: 0x334455, strap: 0xffffff, hair: 0xbbaa99, accessory: "headphones" },
+        { name: "zombie", skin: 0x5a8f5a, shirt: 0x4a4a4a, pants: 0x2a2a2a, strap: 0x111111, hair: 0x333333, accessory: "none" },
+        { name: "cyber", skin: 0xd4a373, shirt: friendly ? 0x00e5ff : 0xff007f, pants: 0x111122, strap: 0x00ffcc, hair: 0xff00ff, accessory: "visor" },
+        { name: "heavy", skin: 0x8d5524, shirt: 0x334422, pants: 0x444444, strap: 0x222222, hair: 0x111111, accessory: "helmet" }
+    ];
+    const skinCfg = skins[Math.floor(Math.random() * skins.length)];
+
+    const skinMat = new THREE.MeshStandardMaterial({ color: skinCfg.skin, roughness: 0.7 });
+    const shirtMat = new THREE.MeshStandardMaterial({ color: skinCfg.shirt, roughness: 0.65 });
+    const trimColor = friendly ? 0x00e5ff : 0xff3d00;
+    const trimMat = new THREE.MeshStandardMaterial({ color: trimColor, emissive: trimColor, emissiveIntensity: 0.4, roughness: 0.4 });
+    const pantsMat = new THREE.MeshStandardMaterial({ color: skinCfg.pants, roughness: 0.7 });
+    const strapMat = new THREE.MeshStandardMaterial({ color: skinCfg.strap, roughness: 0.8 });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x241a12, roughness: 0.6 });
+    const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const pupilMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
+    const hairMat = new THREE.MeshStandardMaterial({ color: skinCfg.hair, roughness: 0.9 });
+    const accessoryMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
+    const glowMat = new THREE.MeshStandardMaterial({ color: trimColor, emissive: trimColor, emissiveIntensity: 0.6 });
+
+    function block(w, h, d, mat, x, y, z, parent = botGroup, rotX = 0) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        m.position.set(x, y, z);
+        m.rotation.x = rotX;
+        m.castShadow = true;
+        parent.add(m);
+        return m;
+    }
+
+    // Torso (tactical vest / shirt)
+    block(1.2, 1.2, 0.75, shirtMat, 0, 1.35, 0);
+    block(1.24, 0.2, 0.78, trimMat, 0, 1.75, 0); // chest trim/team stripe
+
+    // Backpack
+    block(0.8, 0.9, 0.35, strapMat, 0, 1.35, -0.52);
+    block(0.6, 0.6, 0.2, shirtMat, 0, 1.35, -0.7); // small pouch on backpack
+
+    // Pelvis + legs
+    block(1.1, 0.4, 0.7, pantsMat, 0, 0.75, 0);
+    block(0.42, 0.9, 0.42, pantsMat, -0.3, 0.15, 0);
+    block(0.42, 0.9, 0.42, pantsMat, 0.3, 0.15, 0);
+    block(0.45, 0.2, 0.45, darkMat, -0.3, -0.3, 0); // left shoe
+    block(0.45, 0.2, 0.45, darkMat, 0.3, -0.3, 0); // right shoe
+
+    // Head group
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 2.35, 0);
+    block(0.8, 0.8, 0.8, skinMat, 0, 0, 0, headGroup);
+    
+    // Eyes
+    if (skinCfg.accessory !== "visor" && skinCfg.accessory !== "glasses") {
+        block(0.14, 0.1, 0.03, eyeWhiteMat, -0.18, 0.02, 0.42, headGroup);
+        block(0.14, 0.1, 0.03, eyeWhiteMat, 0.18, 0.02, 0.42, headGroup);
+        block(0.06, 0.06, 0.02, pupilMat, -0.18, 0.0, 0.44, headGroup);
+        block(0.06, 0.06, 0.02, pupilMat, 0.18, 0.0, 0.44, headGroup);
+        block(0.7, 0.16, 0.05, darkMat, 0, 0.08, 0.41, headGroup); // brow shadow
+    }
+
+    // Mouth
+    block(0.3, 0.1, 0.06, darkMat, 0, -0.24, 0.41, headGroup);
+
+    // Hair / Accessories
+    if (skinCfg.accessory === "helmet") {
+        block(0.9, 0.4, 0.9, accessoryMat, 0, 0.4, 0, headGroup); // top
+        block(0.9, 0.2, 0.9, accessoryMat, 0, 0.2, -0.1, headGroup); // brim
+    } else if (skinCfg.accessory === "cap") {
+        block(0.85, 0.25, 0.85, shirtMat, 0, 0.4, 0, headGroup); // hat body
+        block(0.85, 0.1, 0.4, darkMat, 0, 0.3, 0.5, headGroup); // brim
+    } else if (skinCfg.accessory === "headphones") {
+        block(0.85, 0.3, 0.85, hairMat, 0, 0.4, 0, headGroup); // hair
+        block(1.0, 0.1, 0.2, accessoryMat, 0, 0.4, 0, headGroup); // band
+        block(0.2, 0.4, 0.4, accessoryMat, -0.45, 0.1, 0, headGroup); // ear left
+        block(0.2, 0.4, 0.4, accessoryMat, 0.45, 0.1, 0, headGroup); // ear right
+    } else {
+        block(0.85, 0.2, 0.85, hairMat, 0, 0.4, 0, headGroup); // basic hair
+    }
+
+    if (skinCfg.accessory === "glasses") {
+        block(0.8, 0.15, 0.1, darkMat, 0, 0.05, 0.42, headGroup);
+    } else if (skinCfg.accessory === "visor") {
+        block(0.85, 0.2, 0.1, glowMat, 0, 0.05, 0.42, headGroup);
+    }
+
+    botGroup.add(headGroup);
+
+    // Non-gripping arm (rests at side)
+    block(0.3, 0.9, 0.3, shirtMat, -0.72, 1.15, 0);
+
+    // Gripping arm + held gun
+    const gripArm = new THREE.Group();
+    block(0.3, 0.9, 0.3, shirtMat, 0, -0.45, 0, gripArm); 
+    
+    gripArm.position.set(0.7, 1.8, 0);
+    gripArm.rotation.x = -Math.PI / 2.2;
+    botGroup.add(gripArm);
+
+    // Weapon selection
+    const availableBotWeapons = ["w_vanguard", "w_rapid_fire", "w_demolition", "w_phantom", "w_rocket"];
+    const botWepId = availableBotWeapons[Math.floor(Math.random() * availableBotWeapons.length)];
+    const botWeaponSpec = weaponsInventory[botWepId];
+    const heldGun = buildGunModel(botWeaponSpec, 0.95);
+    
+    heldGun.position.set(0, -0.8, 0.1); 
+    heldGun.rotation.set(Math.PI / 2, 0, 0);
+    gripArm.add(heldGun);
+
+    botGroup.position.set(x, 0, z);
+    scene.add(botGroup);
+
+    bots.push({
+        mesh: botGroup,
+        hp: 100,
+        maxHp: 100,
+        direction: new THREE.Vector3(1, 0, 0),
+        lastPathChange: 0,
+        lastShotTime: 0,
+        lastBotDash: 0,
+        dashEndTime: 0,
+        dashVector: new THREE.Vector3(),
+        spawnPos: {x: x, z: z},
+        friendly: friendly,
+        name: bName
+    });
+}
+// --- INPUT LISTENERS ---
+function handleKeyInputDown(e) {
+    switch (e.code) {
+        case 'KeyW': case 'ArrowUp': moveForward = true; break;
+        case 'KeyA': case 'ArrowLeft': moveLeft = true; break;
+        case 'KeyS': case 'ArrowDown': moveBackward = true; break;
+        case 'KeyD': case 'ArrowRight': moveRight = true; break;
+        case 'Space':
+            performJump();
+            break;
+        case 'ShiftLeft': case 'ShiftRight':
+            isSprinting = true;
+            break;
+        case 'ControlLeft': case 'ControlRight': case 'KeyC':
+            attemptSlide();
+            break;
+        case 'KeyQ':
+            attemptDash();
+            break;
+        case 'Digit1':
+            switchWeaponSlot('sidearm');
+            break;
+        case 'Digit2':
+            switchWeaponSlot('primary');
+            break;
+        case 'Digit3':
+            switchWeaponSlot('special');
+            break;
+        case 'Tab':
+            e.preventDefault();
+            renderScoreboard();
+            document.getElementById('scoreboard-overlay').style.display = 'flex';
+            break;
+    }
+}
+
+function performJump() {
+    if (canJump) {
+        yVelocity = activePlayerCombatStats.jumpPower;
+        canJump = false;
+        jumpSequenceCount = 1;
+    } else if (activePlayerCombatStats.allowDoubleJump && jumpSequenceCount === 1) {
+        yVelocity = activePlayerCombatStats.jumpPower * 0.9;
+        jumpSequenceCount = 2; // Locks second jump
+    }
+}
+
+function attemptSlide() {
+    const now = performance.now();
+    if (isSliding || now < slideCooldownUntil) return;
+    if (!canJump) return; // must be grounded
+    if (!(moveForward || moveBackward || moveLeft || moveRight)) return;
+
+    isSliding = true;
+    slideEndTime = now + 450;
+    slideCooldownUntil = now + 1200;
+
+    // Burst of forward momentum in the current facing/movement direction
+    playerVelocity.x -= playerDirection.x * 260 * 0.02;
+    playerVelocity.z -= playerDirection.z * 260 * 0.02;
+}
+
+function attemptDash() {
+    const now = performance.now();
+    if (now - lastPlayerDashTime < 2000) return; // 2 seconds cooldown
+    if (!canJump) return; // Must be grounded
+
+    lastPlayerDashTime = now;
+
+    // Calculate input direction relative to view
+    let inputZ = Number(moveBackward) - Number(moveForward); // Forward is -Z in Three.js
+    let inputX = Number(moveRight) - Number(moveLeft);
+
+    let dir = new THREE.Vector3(inputX, 0, inputZ);
+
+    // If no direction key is held, default to forward (-Z)
+    if (dir.lengthSq() === 0) {
+        dir.set(0, 0, -1);
+    }
+    dir.normalize();
+
+    // Apply strong velocity impulse directly forward relative to player camera view
+    const dashStrength = 18.0; 
+    playerVelocity.x += dir.x * dashStrength;
+    playerVelocity.z += dir.z * dashStrength;
+
+    showPickupToast("DASH!");
+}
+
+function handleKeyInputUp(e) {
+    switch (e.code) {
+        case 'KeyW': case 'ArrowUp': moveForward = false; break;
+        case 'KeyA': case 'ArrowLeft': moveLeft = false; break;
+        case 'KeyS': case 'ArrowDown': moveBackward = false; break;
+        case 'KeyD': case 'ArrowRight': moveRight = false; break;
+        case 'ShiftLeft': case 'ShiftRight':
+            isSprinting = false;
+            break;
+        case 'Tab':
+            document.getElementById('scoreboard-overlay').style.display = 'none';
+            break;
+    }
+}
+
+function handleCameraRotation(e) {
+    yaw -= e.movementX * lobbyStateSens;
+    pitch -= e.movementY * lobbyStateSens;
+    pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, pitch));
+    camera.rotation.set(pitch, yaw, 0, 'YXZ');
+}
+
+// --- MOBILE TOUCH CONTROLS ---
+function bindMobileControls() {
+    // Robust D-Pad tracking
+    const dpadCross = document.getElementById('dpad-cross');
+    
+    function handleDPadTouch(e) {
+        e.preventDefault();
+        let up = false, down = false, left = false, right = false;
+        
+        for (let i = 0; i < e.touches.length; i++) {
+            const touch = e.touches[i];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            if (target) {
+                const id = target.id || (target.parentElement && target.parentElement.id);
+                if (id === 'btn-dpad-up') up = true;
+                if (id === 'btn-dpad-down') down = true;
+                if (id === 'btn-dpad-left') left = true;
+                if (id === 'btn-dpad-right') right = true;
+            }
+        }
+        
+        moveForward = up;
+        moveBackward = down;
+        moveLeft = left;
+        moveRight = right;
+    }
+
+    dpadCross.addEventListener('touchstart', handleDPadTouch, { passive: false });
+    dpadCross.addEventListener('touchmove', handleDPadTouch, { passive: false });
+    dpadCross.addEventListener('touchend', handleDPadTouch, { passive: false });
+    dpadCross.addEventListener('touchcancel', handleDPadTouch, { passive: false });
+
+
+    // Action Buttons
+    document.getElementById('btn-m-dash').addEventListener('touchstart', (e) => { e.preventDefault(); attemptDash(); });
+    document.getElementById('btn-m-jump').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (!inMatch) return;
+        performJump();
+    });
+
+    // Handle automatic firing when hold on touch device
+    let mobileFiringInterval = null;
+    document.getElementById('btn-m-fire').addEventListener('touchstart', (e) => { 
+        e.preventDefault(); 
+        if (!inMatch) return;
+        fireWeapon(); // Initial shot
+        if(currentWeaponState && currentWeaponState.style !== 'sniper' && currentWeaponState.style !== 'shotgun') {
+             // Start auto-fire for automatic weapons
+             mobileFiringInterval = setInterval(() => {
+                 if (inMatch) fireWeapon();
+             }, currentWeaponState.fireRate ? (currentWeaponState.fireRate * 1000) : 150);
+        }
+    });
+    document.getElementById('btn-m-fire').addEventListener('touchend', (e) => {
+        e.preventDefault();
+        if(mobileFiringInterval) clearInterval(mobileFiringInterval);
+    });
+    
+    const btnSprint = document.getElementById('btn-m-sprint');
+    if (btnSprint) {
+        btnSprint.addEventListener('touchstart', (e) => { e.preventDefault(); isSprinting = !isSprinting; });
+    }
+
+    const btnSlide = document.getElementById('btn-m-slide');
+    if (btnSlide) {
+        btnSlide.addEventListener('touchstart', (e) => { e.preventDefault(); attemptSlide(); });
+    }
+
+    // Right Screen Look Zone Touch Vector Drag
+    let lastTouchX = null, lastTouchY = null;
+    const lookZone = document.getElementById('look-zone');
+
+    lookZone.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 0) {
+            lastTouchX = e.touches[0].clientX;
+            lastTouchY = e.touches[0].clientY;
+        }
+    });
+
+    lookZone.addEventListener('touchmove', (e) => {
+        if (!inMatch || e.touches.length === 0) return;
+        const touch = e.touches[0];
+        if (lastTouchX !== null && lastTouchY !== null) {
+            const deltaX = touch.clientX - lastTouchX;
+            const deltaY = touch.clientY - lastTouchY;
+            const sens = 0.005;
+            yaw -= deltaX * sens;
+            pitch -= deltaY * sens;
+            pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
+        }
+        lastTouchX = touch.clientX;
+        lastTouchY = touch.clientY;
+    });
+
+    lookZone.addEventListener('touchend', () => { lastTouchX = null; lastTouchY = null; });
+}
+
+function unbindMobileControls() {
+    moveForward = moveBackward = moveLeft = moveRight = false;
+}
+
+// --- ACTIVE WEAPON FIRE LOGIC ---
+function handleWeaponDischarge(e) {
+    if (!inMatch || e.button !== 0) return;
+    fireWeapon();
+}
+
+function fireWeapon() {
+    if (!inMatch) return;
+
+    const now = performance.now();
+    if (now - currentWeaponState.lastFireTime < (currentWeaponState.fireRate * 1000)) return;
+    if (currentWeaponState.isReloading && !isGodMode) return;
+
+    if (currentWeaponState.magAmmo <= 0 && !isGodMode) {
+        triggerReload();
+        return;
+    }
+
+    if (!isGodMode) {
+        currentWeaponState.magAmmo--;
+        currentWeaponState.lastFireTime = now;
+    } else {
+        currentWeaponState.magAmmo = currentWeaponState.magCapacity;
+        currentWeaponState.lastFireTime = 0; // zero delay / rapid fire
+    }
+    updateHUD();
+
+    // Trigger visual camera kick recoil
+    camera.rotation.x += 0.012;
+
+    // Direct Shooting Calculation via forward raycasting
+    const raycaster = new THREE.Raycaster();
+    const centerVec = new THREE.Vector2(0, 0); // Directly down the crosshair
+    raycaster.setFromCamera(centerVec, camera);
+
+    if (isTouchDevice) {
+        let bestTarget = null;
+        let maxDot = 0.92; // Cone angle for aim assist
+
+        const camPos = camera.position;
+        const camDir = raycaster.ray.direction;
+
+        bots.forEach(b => {
+            if (b.friendly) return;
+            const targetPos = b.mesh.position.clone();
+            targetPos.y += 1.0; 
+            
+            const toBot = new THREE.Vector3().subVectors(targetPos, camPos);
+            const dist = toBot.length();
+            if (dist > 80) return;
+            
+            toBot.normalize();
+            const dot = camDir.dot(toBot);
+            if (dot > maxDot) {
+                maxDot = dot;
+                bestTarget = targetPos;
+            }
+        });
+
+        if (bestTarget) {
+            raycaster.ray.direction.subVectors(bestTarget, camPos).normalize();
+        }
+    }
+
+    // Target bot meshes to hit trace calculations (teammates in Team Deathmatch can't be shot)
+    const targetableBots = bots.filter(b => !b.friendly);
+    const hitableMeshes = targetableBots.map(b => b.mesh.children[0]); // Targets main body meshes
+    const intersections = raycaster.intersectObjects(hitableMeshes);
+
+    // Create cosmetic weapon tracer path
+    const startPoint = new THREE.Vector3(0.3, -0.4, -0.5).applyMatrix4(camera.matrixWorld);
+    let endPoint = new THREE.Vector3().copy(raycaster.ray.direction).multiplyScalar(100).add(camera.position);
+
+    spawnMuzzleFlash(startPoint, currentWeaponState.beamColor);
+
+    if (intersections.length > 0) {
+        const hit = intersections[0];
+        endPoint.copy(hit.point);
+
+        // Find parent bot instance
+        const matchedBot = targetableBots.find(b => b.mesh.children[0] === hit.object);
+        if (matchedBot) {
+            triggerDamageImpact(matchedBot, hit.point);
+        }
+    } else if (currentWeaponState.explosive || activeBuffs.explosive > now) {
+        // Explosive shots still detonate at max range/wall impact even on a miss
+        triggerExplosionSplash(endPoint, null);
+    }
+
+    renderLaserTracer(startPoint, endPoint, currentWeaponState.beamColor);
+
+    // Auto-revert from an emptied special weapon (e.g. Rocket Launcher) back to the primary loadout
+    if (activeWeaponSlot === "special" && currentWeaponState.magAmmo <= 0) {
+        setTimeout(() => {
+            weaponSlots.special = null;
+            switchWeaponSlot("primary");
+            showPickupToast("Rocket Launcher empty - back to primary");
+        }, 250);
+    }
+}
+
+function spawnMuzzleFlash(position, colorHex) {
+    const geo = new THREE.SphereGeometry(0.12, 6, 6);
+    const mat = new THREE.MeshBasicMaterial({ color: colorHex, transparent: true, opacity: 0.9 });
+    const flash = new THREE.Mesh(geo, mat);
+    flash.position.copy(position);
+    scene.add(flash);
+    setTimeout(() => scene.remove(flash), 45);
+}
+
+function triggerReload() {
+    if (currentWeaponState.isReloading || currentWeaponState.reserveAmmo <= 0) return;
+    currentWeaponState.isReloading = true;
+    document.getElementById("hud-weapon-name").innerText = "RELOADING...";
+
+    setTimeout(() => {
+        const toLoad = Math.min(currentWeaponState.magCapacity - currentWeaponState.magAmmo, currentWeaponState.reserveAmmo);
+        currentWeaponState.magAmmo += toLoad;
+        currentWeaponState.reserveAmmo -= toLoad;
+        currentWeaponState.isReloading = false;
+        updateHUD();
+    }, 1500);
+}
+
+// Splash damage to nearby targetable bots for rocket hits, explosive-round buff shots, or explosive misses
+function triggerExplosionSplash(centerPoint, excludeBot) {
+    const radius = currentWeaponState.splashRadius || 6;
+    generateBloodMistVoxel(centerPoint, 0xff6600);
+
+    bots.filter(b => !b.friendly && b !== excludeBot).forEach(b => {
+        const dist = b.mesh.position.distanceTo(centerPoint);
+        if (dist < radius) {
+            const falloff = 1 - (dist / radius);
+            const splashDamage = Math.round((currentWeaponState.damage || 40) * 0.6 * falloff);
+            if (splashDamage > 0) applyDamageToBot(b, splashDamage, centerPoint, false);
+        }
+    });
+}
+
+function triggerDamageImpact(bot, hitPoint, killer = null) {
+    // Generate randomized hit count
+    const now = performance.now();
+    let baseDamage = currentWeaponState.damage;
+    if (activeBuffs.damage && activeBuffs.damage > now) baseDamage *= 2;
+    const isCritical = Math.random() > 0.85;
+    const finalDamage = isCritical ? Math.round(baseDamage * 1.5) : Math.round(baseDamage);
+
+    applyDamageToBot(bot, finalDamage, hitPoint, isCritical, killer);
+
+    // Explosive weapons (or the explosive-rounds power-up) also damage nearby bots
+    if (currentWeaponState.explosive || (activeBuffs.explosive && activeBuffs.explosive > now)) {
+        triggerExplosionSplash(hitPoint, bot);
+    }
+}
+
+function applyDamageToBot(bot, finalDamage, hitPoint, isCritical, killer = null) {
+    bot.hp -= finalDamage;
+
+    // Flash visual hitmarker red overlay on screen
+    const hitmarkerEl = document.getElementById("hitmarker");
+    hitmarkerEl.style.opacity = 1;
+    setTimeout(() => hitmarkerEl.style.opacity = 0, 100);
+
+    // Render floating damage number text in viewport space
+    spawnFloatingDamageText(hitPoint, finalDamage, isCritical);
+
+    // Trigger particle spray effect
+    generateBloodMistVoxel(hitPoint, bot.mesh.children[0].material.color.getHex());
+
+    if (bot.hp <= 0) {
+        // Log player kill + streak tracking
+        if (killer === null) {
+            activeMatchKills++;
+            currentKillStreak++;
+            bestKillStreak = Math.max(bestKillStreak, currentKillStreak);
+            document.getElementById("hud-kills-count").innerText = `KILLS: ${activeMatchKills}`;
+            document.getElementById("hud-streak-count").innerText = currentKillStreak >= 3 ? `STREAK: ${currentKillStreak}` : "";
+
+            const teamTag = gameMode === "team" ? "[TEAM RED] " : "";
+            appendKillFeedLog("You", teamTag + bot.name, currentWeaponState.name);
+        } else {
+            const teamTagK = killer.friendly ? "[TEAM BLUE] " : "[TEAM RED] ";
+            const teamTagV = bot.friendly ? "[TEAM BLUE] " : "[TEAM RED] ";
+            appendKillFeedLog(teamTagK + killer.name, teamTagV + bot.name, "Rifle");
+        }
+
+        // Disperse and respawn bot
+        scene.remove(bot.mesh);
+        bots = bots.filter(b => b !== bot);
+
+        setTimeout(() => {
+            spawnEnemyBot(bot.spawnPos.x, bot.spawnPos.z, bot.friendly);
+        }, 3000);
+    }
+}
+
+// Dynamic projection of 3D point locations to 2D HTML panels
+function spawnFloatingDamageText(point3d, amt, isCrit) {
+    const proj = new THREE.Vector3().copy(point3d).project(camera);
+    const x = (proj.x * .5 + .5) * window.innerWidth;
+    const y = (proj.y * -.5 + .5) * window.innerHeight;
+
+    const el = document.createElement("div");
+    el.className = "damage-number";
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    el.innerText = amt;
+    if(isCrit) {
+        el.style.color = "#ff007f";
+        el.style.fontSize = "2.1rem";
+    }
+
+    document.getElementById("damage-container").appendChild(el);
+    setTimeout(() => el.remove(), 600);
+}
+
+function generateBloodMistVoxel(point, hexColor) {
+    const geo = new THREE.BoxGeometry(0.18, 0.18, 0.18);
+    const mat = new THREE.MeshBasicMaterial({ color: hexColor });
+
+    for(let i=0; i<8; i++) {
+        const m = new THREE.Mesh(geo, mat);
+        m.position.copy(point);
+        m.userData = {
+            velocity: new THREE.Vector3(
+                (Math.random() - 0.5) * 6,
+                (Math.random() - 0.2) * 8,
+                (Math.random() - 0.5) * 6
+            ),
+            life: 30 + Math.random() * 10
+        };
+        scene.add(m);
+        particles.push(m);
+    }
+}
+
+function renderLaserTracer(start, end, colorHex) {
+    const geom = new THREE.BufferGeometry().setFromPoints([start, end]);
+    const mat = new THREE.LineBasicMaterial({ color: colorHex, linewidth: 2 });
+    const line = new THREE.Line(geom, mat);
+    scene.add(line);
+
+    // Fade tracer line from viewport shortly after drawing
+    setTimeout(() => scene.remove(line), 75);
+}
+
+function appendKillFeedLog(killer, victim, weaponName) {
+    const container = document.getElementById("hud-killfeed-area");
+    const row = document.createElement("div");
+    row.className = "killfeed-row";
+    row.innerHTML = `<span style="color:#00ffcc; font-weight:700;">${killer}</span> [${weaponName}] <span style="color:#ff0055;">${victim}</span>`;
+    container.appendChild(row);
+
+    setTimeout(() => row.remove(), 4000);
+}
+
+function updateHUD() {
+    document.getElementById("hud-hp-val").innerText = activePlayerCombatStats.hp;
+    document.getElementById("hud-ap-val").innerText = activePlayerCombatStats.ap;
+
+    const hpPct = (activePlayerCombatStats.hp / activePlayerCombatStats.maxHp) * 100;
+    const apPct = (activePlayerCombatStats.ap / activePlayerCombatStats.maxAp) * 100;
+
+    document.getElementById("hud-hp-fill").style.width = `${hpPct}%`;
+    document.getElementById("hud-ap-fill").style.width = `${apPct}%`;
+    document.getElementById("hud-active-class-lbl").innerText = `CLASS: ${profileState.activeClass.toUpperCase()}`;
+
+    document.getElementById("hud-weapon-name").innerText = currentWeaponState.name;
+    document.getElementById("hud-weapon-ammo").innerText = `${currentWeaponState.magAmmo} / ${currentWeaponState.reserveAmmo}`;
+}
+
+// --- POWER-UP BUFF SYSTEM ---
+function applyPowerUp(type) {
+    const cfg = powerUpTypesConfig[type];
+    activeBuffs[type] = performance.now() + cfg.duration;
+
+    if (type === "shield") {
+        // Immediate top-up so the shield feels impactful even at low armor
+        activePlayerCombatStats.ap = activePlayerCombatStats.maxAp;
+        updateHUD();
+    }
+
+    showPickupToast(`${cfg.name} ACTIVATED!`);
+    renderBuffChips();
+}
+
+function renderBuffChips() {
+    const panel = document.getElementById("hud-buffs-panel");
+    if (!panel) return;
+    panel.innerHTML = "";
+    const now = performance.now();
+
+    Object.keys(activeBuffs).forEach(type => {
+        if (activeBuffs[type] <= now) return;
+        const cfg = powerUpTypesConfig[type];
+        const secondsLeft = Math.ceil((activeBuffs[type] - now) / 1000);
+        const chip = document.createElement("div");
+        chip.className = "buff-chip";
+        chip.style.setProperty("--buff-color", cfg.color);
+        chip.innerText = `${cfg.name} ${secondsLeft}s`;
+        panel.appendChild(chip);
+    });
+}
+
+function showPickupToast(message) {
+    const toast = document.getElementById("pickup-toast");
+    if (!toast) return;
+    toast.innerText = message;
+    toast.classList.add("show");
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => toast.classList.remove("show"), 1800);
+}
+
+// --- SCOREBOARD (hold TAB) ---
+function renderScoreboard() {
+    document.getElementById("scoreboard-title").innerText = gameMode === "team" ? "SCOREBOARD - TEAM DEATHMATCH" : "SCOREBOARD - FREE FOR ALL";
+    const body = document.getElementById("scoreboard-body");
+    body.innerHTML = `
+        <div class="scoreboard-row">
+            <span>You${gameMode === "team" ? " (TEAM BLUE)" : ""}</span>
+            <span>${activeMatchKills}</span>
+            <span>${activeMatchDeaths}</span>
+            <span>${currentKillStreak}</span>
+        </div>
+    `;
+}
+
+// --- ACTIVE TICK GAME RENDERING LOOP ---
+function tick() {
+    requestAnimationFrame(tick);
+
+    if (inMatch && scene) {
+        const now = performance.now();
+        const delta = (now - prevFrameTime) / 1000;
+        prevFrameTime = now;
+
+        // Friction dampening
+        playerVelocity.x -= playerVelocity.x * 10.0 * delta;
+        playerVelocity.z -= playerVelocity.z * 10.0 * delta;
+        yVelocity -= 36.0 * delta; // Gravity pull
+
+        playerDirection.z = Number(moveForward) - Number(moveBackward);
+        playerDirection.x = Number(moveRight) - Number(moveLeft);
+        playerDirection.normalize();
+
+        // End the slide once its duration has elapsed
+        if (isSliding && now > slideEndTime) {
+            isSliding = false;
+        }
+
+        let speedMultiplier = activePlayerCombatStats.speedFactor;
+        if (activeBuffs.speed && activeBuffs.speed > now) speedMultiplier *= 1.5; // Speed boost power-up
+        if (isSliding) speedMultiplier *= 1.8;
+        else if (isSprinting && (moveForward || moveBackward || moveLeft || moveRight) && canJump) speedMultiplier *= 1.6;
+
+        const activeSpeed = 160.0 * speedMultiplier;
+
+        if (moveForward || moveBackward) playerVelocity.z -= playerDirection.z * activeSpeed * delta;
+        if (moveLeft || moveRight) playerVelocity.x -= playerDirection.x * activeSpeed * delta;
+
+        // Translate movement vectors relative to direct facing look direction angles
+        const prevX = camera.position.x;
+        const prevZ = camera.position.z;
+
+        camera.position.addScaledVector(
+            new THREE.Vector3(playerVelocity.x, 0, playerVelocity.z).applyMatrix4(
+                new THREE.Matrix4().makeRotationY(yaw)
+            ),
+            delta
+        );
+        camera.position.y += yVelocity * delta;
+
+        // --- HOUSE PLATFORM COLLISION RESOLUTION ---
+        let surfaceLanded = false;
+
+        levelGeometryHouses.forEach(house => {
+            const margin = 1.0;
+            const insideX = camera.position.x > (house.x - house.halfW - margin) && camera.position.x < (house.x + house.halfW + margin);
+            const insideZ = camera.position.z > (house.z - house.halfD - margin) && camera.position.z < (house.z + house.halfD + margin);
+
+            if (insideX && insideZ) {
+                // Determine if player jumped above the rooftop structure boundary
+                if (camera.position.y >= (house.height + 0.5)) {
+                    if (yVelocity <= 0 && camera.position.y < (house.height + 2.2)) {
+                        camera.position.y = house.height + 2.0;
+                        yVelocity = 0;
+                        canJump = true;
+                        jumpSequenceCount = 0;
+                        surfaceLanded = true;
+                    }
+                } else {
+                    // Push player out of walls securely (Slide along axis)
+                    const prevInsideX = prevX > (house.x - house.halfW - margin) && prevX < (house.x + house.halfW + margin);
+                    const prevInsideZ = prevZ > (house.z - house.halfD - margin) && prevZ < (house.z + house.halfD + margin);
+                    
+                    if (!prevInsideX && prevInsideZ) {
+                        camera.position.x = prevX;
+                        playerVelocity.x = 0;
+                    } else if (prevInsideX && !prevInsideZ) {
+                        camera.position.z = prevZ;
+                        playerVelocity.z = 0;
+                    } else {
+                        camera.position.x = prevX;
+                        camera.position.z = prevZ;
+                        playerVelocity.x = 0;
+                        playerVelocity.z = 0;
+                    }
+                }
+            }
+        });
+
+        // Arena Floor bounds checks
+        if (!surfaceLanded && camera.position.y < 2.0) {
+            camera.position.y = 2.0;
+            yVelocity = 0;
+            canJump = true;
+            jumpSequenceCount = 0;
+        }
+
+        // Keep player locked inside outer map boundary borders
+        camera.position.x = Math.max(-96, Math.min(96, camera.position.x));
+        camera.position.z = Math.max(-96, Math.min(96, camera.position.z));
+
+        // --- PARTICLE SIMULATOR ---
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.position.addScaledVector(p.userData.velocity, delta);
+            p.userData.velocity.y -= 18 * delta; // Gravity pull on particles
+            p.userData.life--;
+
+            if (p.userData.life <= 0) {
+                scene.remove(p);
+                particles.splice(i, 1);
+            }
+        }
+
+        // --- POWER-UP PICKUP LOGIC (speed, shield, double damage, explosive rounds) ---
+        powerUpPickups.forEach(pu => {
+            pu.mesh.rotation.y += delta * 1.4;
+            pu.mesh.position.y = 1.6 + Math.sin(now * 0.003) * 0.2;
+
+            if (pu.active) {
+                const flatDist = Math.hypot(camera.position.x - pu.x, camera.position.z - pu.z);
+                if (flatDist < 2.5) {
+                    applyPowerUp(pu.type);
+                    pu.active = false;
+                    pu.mesh.visible = false;
+                    pu.respawnAt = now + 20000;
+                }
+            } else if (now >= pu.respawnAt) {
+                pu.active = true;
+                pu.mesh.visible = true;
+            }
+        });
+
+        // --- WEAPON PICKUP LOGIC (Rocket Launcher) ---
+        weaponPickups.forEach(wp => {
+            wp.mesh.rotation.y += delta * 1.0;
+
+            if (wp.active) {
+                const flatDist = Math.hypot(camera.position.x - wp.x, camera.position.z - wp.z);
+                if (flatDist < 2.5) {
+                    weaponSlots.special = buildWeaponState(weaponsInventory.w_rocket);
+                    switchWeaponSlot("special");
+                    showPickupToast("ROCKET LAUNCHER ACQUIRED! [3] to switch back anytime");
+                    wp.active = false;
+                    wp.mesh.visible = false;
+                    wp.respawnAt = now + 25000;
+                }
+            } else if (now >= wp.respawnAt) {
+                wp.active = true;
+                wp.mesh.visible = true;
+            }
+        });
+
+        // --- BUFF EXPIRY ---
+        let anyBuffChanged = false;
+        Object.keys(activeBuffs).forEach(type => {
+            if (activeBuffs[type] <= now) {
+                delete activeBuffs[type];
+                anyBuffChanged = true;
+            }
+        });
+        if (anyBuffChanged || Object.keys(activeBuffs).length > 0) renderBuffChips();
+
+        // --- BOT PATHFINDING AI LOGIC LOOP ---
+        bots.forEach(bot => {
+            // State machine variables on bot: state (roam, engage, flee), targetPos, lastStateChange
+            if (!bot.state) bot.state = "roam";
+
+            // --- COMBAT & TARGETING LOGIC ---
+            let targetPos = null;
+            let targetDist = 9999;
+            let targetBot = null;
+            let targetIsPlayer = false;
+
+            // Look for nearest enemy bot
+            bots.forEach(otherBot => {
+                if (otherBot !== bot && otherBot.friendly !== bot.friendly) {
+                    const dist = bot.mesh.position.distanceTo(otherBot.mesh.position);
+                    if (dist < targetDist) {
+                        targetDist = dist;
+                        targetPos = otherBot.mesh.position;
+                        targetBot = otherBot;
+                    }
+                }
+            });
+
+            // Enemy bots also consider the player as a target
+            if (!bot.friendly) {
+                const distToPlayer = bot.mesh.position.distanceTo(camera.position);
+                if (distToPlayer < targetDist) {
+                    targetDist = distToPlayer;
+                    targetPos = camera.position;
+                    targetBot = null;
+                    targetIsPlayer = true;
+                }
+            }
+
+            // Decide State
+            if (targetPos && targetDist < 50) {
+                if (bot.hp < 30) bot.state = "flee";
+                else bot.state = "engage";
+            } else {
+                bot.state = "roam";
+            }
+
+            // Path roaming & advanced movement logic
+            if (now - bot.lastPathChange > 2500) {
+                if (bot.state === "roam") {
+                    // Pick a random waypoint
+                    bot.targetWaypoint = new THREE.Vector3(
+                        bot.mesh.position.x + (Math.random() - 0.5) * 40,
+                        bot.mesh.position.y,
+                        bot.mesh.position.z + (Math.random() - 0.5) * 40
+                    );
+                } else if (bot.state === "flee" && targetPos) {
+                    // Run away from target
+                    const fleeDir = new THREE.Vector3().subVectors(bot.mesh.position, targetPos).normalize();
+                    bot.targetWaypoint = new THREE.Vector3().copy(bot.mesh.position).addScaledVector(fleeDir, 30);
+                } else if (bot.state === "engage" && targetPos) {
+                    // Strafe around target or close in
+                    const toTarget = new THREE.Vector3().subVectors(targetPos, bot.mesh.position).normalize();
+                    
+                    if (targetDist > 30) {
+                        // Move closer
+                        bot.targetWaypoint = new THREE.Vector3().copy(bot.mesh.position).addScaledVector(toTarget, 10);
+                    } else {
+                        // Strafe sideways
+                        const strafeDir = new THREE.Vector3(-toTarget.z, 0, toTarget.x);
+                        if (Math.random() > 0.5) strafeDir.multiplyScalar(-1);
+                        bot.targetWaypoint = new THREE.Vector3().copy(bot.mesh.position).addScaledVector(strafeDir, 15);
+                    }
+                }
+                
+                // Update direction vector towards waypoint
+                if (bot.targetWaypoint) {
+                    bot.direction.subVectors(bot.targetWaypoint, bot.mesh.position).normalize();
+                    bot.direction.y = 0; // Keep movement horizontal
+                }
+
+                bot.lastPathChange = now + (Math.random() * 1500); // Randomize change interval slightly
+                
+                // Bots occasionally jump
+                if (Math.random() < 0.25) {
+                    bot.yVelocity = 12; // Initial jump impulse
+                }
+            }
+
+            // Apply gravity and jumping to bot
+            if (bot.yVelocity !== undefined) {
+                bot.yVelocity -= 36 * delta; // Gravity
+                bot.mesh.position.y += bot.yVelocity * delta;
+                
+                if (bot.mesh.position.y <= 0) {
+                    bot.mesh.position.y = 0;
+                    bot.yVelocity = 0;
+                }
+            }
+
+            // Dashing logic in combat
+            if (bot.state === "engage" && targetPos && targetDist < 45 && (now - bot.lastBotDash > 4000) && Math.random() < 0.05) {
+                bot.lastBotDash = now;
+                bot.dashEndTime = now + 250;
+                const toTarget = new THREE.Vector3().subVectors(targetPos, bot.mesh.position).normalize();
+                const dashDir = new THREE.Vector3(-toTarget.z, 0, toTarget.x); 
+                if (Math.random() > 0.5) dashDir.multiplyScalar(-1);
+                bot.dashVector = new THREE.Vector3().copy(dashDir).multiplyScalar(25); 
+            }
+
+            const botWalkSpeed = bot.state === "flee" ? 8 : 5.5;
+
+            // Move Bot mesh
+            if (now < bot.dashEndTime) {
+                bot.mesh.position.addScaledVector(bot.dashVector, delta);
+            } else {
+                bot.mesh.position.addScaledVector(bot.direction, botWalkSpeed * delta);
+            }
+
+            // House/Border Collision mapping on AI bots
+            levelGeometryHouses.forEach(house => {
+                const margin = 1.0;
+                const botInsideX = bot.mesh.position.x > (house.x - house.halfW - margin) && bot.mesh.position.x < (house.x + house.halfW + margin);
+                const botInsideZ = bot.mesh.position.z > (house.z - house.halfD - margin) && bot.mesh.position.z < (house.z + house.halfD + margin);
+
+                if (botInsideX && botInsideZ) {
+                    // Simple collision resolution: push back out and reverse direction
+                    bot.mesh.position.sub(bot.direction.clone().multiplyScalar(botWalkSpeed * delta * 2));
+                    
+                    if (bot.mesh.position.y < house.height + 0.5) {
+                         // Try jumping over if blocked
+                         if ((bot.yVelocity === undefined || bot.yVelocity === 0) && Math.random() < 0.5) {
+                             bot.yVelocity = 14; 
+                         } else {
+                             // Pick a new random direction immediately to slide off
+                             const rot = Math.random() * Math.PI * 2;
+                             bot.direction.set(Math.sin(rot), 0, Math.cos(rot)).normalize();
+                             bot.lastPathChange = now;
+                         }
+                    }
+                }
+            });
+
+            bot.mesh.position.x = Math.max(-95, Math.min(95, bot.mesh.position.x));
+            bot.mesh.position.z = Math.max(-95, Math.min(95, bot.mesh.position.z));
+
+            // Aim Head and Shoot
+            if (bot.state === "engage" && targetPos) {
+                // Aim Head rotation directly at target
+                bot.mesh.lookAt(targetPos.x, bot.mesh.position.y, targetPos.z);
+
+                // AI combat fire mechanisms
+                if (now - bot.lastShotTime > (bot.heldWeaponRate || 1500)) {
+                    bot.lastShotTime = now;
+                    // assign a random fire rate for variety next time if not set
+                    bot.heldWeaponRate = bot.friendly ? (300 + Math.random() * 300) : (800 + Math.random() * 1200); 
+
+                    const laserColor = bot.friendly ? 0x00e5ff : 0xff0000;
+
+                    // Compute firing accuracy spread
+                    const botAccuracy = bot.friendly ? 0.95 : 0.65;
+                    if (Math.random() < botAccuracy) {
+                        if (targetIsPlayer) {
+                            triggerPlayerHitDamage(12);
+                        } else if (targetBot) {
+                            applyDamageToBot(targetBot, 25, targetPos, false, bot);
+                        }
+                        renderLaserTracer(bot.mesh.position, targetPos, laserColor);
+                    } else {
+                        // Draw offset shot missed tracer
+                        const missOffsetVec = new THREE.Vector3(
+                            (Math.random() - 0.5) * 8,
+                            (Math.random() - 0.5) * 8,
+                            (Math.random() - 0.5) * 8
+                        ).add(targetPos);
+                        renderLaserTracer(bot.mesh.position, missOffsetVec, laserColor);
+                    }
+                }
+            } else if (bot.direction.lengthSq() > 0.1) {
+                // If not engaging, look in the direction they are walking
+                const lookPos = new THREE.Vector3().copy(bot.mesh.position).add(bot.direction);
+                bot.mesh.lookAt(lookPos.x, bot.mesh.position.y, lookPos.z);
+            }
+        });
+
+        renderer.render(scene, camera);
+    } else if (scene && renderer && !inMatch) {
+        // Render lobby scene animations gently in background
+        if (typeof lobbyPreviewModel !== 'undefined' && lobbyPreviewModel) {
+            lobbyPreviewModel.rotation.y += 0.015;
+        }
+        const t = performance.now() * 0.0005;
+        camera.position.set(Math.sin(t) * 12 + 0, 6, Math.cos(t) * 12 + 0);
+        camera.lookAt(0, 1.8, 0);
+        renderer.render(scene, camera);
+    }
+}
+
+function triggerPlayerHitDamage(amt) {
+    if (!inMatch || isGodMode) return;
+
+    // Shield power-up absorbs half of all incoming damage while active
+    const now = performance.now();
+    const finalAmt = (activeBuffs.shield && activeBuffs.shield > now) ? Math.round(amt * 0.5) : amt;
+
+    activePlayerCombatStats.hp -= finalAmt;
+    updateHUD();
+
+    // Trigger visual red vignette damage flash
+    const overlayVignette = document.getElementById("damage-vignette");
+    overlayVignette.classList.add("active");
+    setTimeout(() => overlayVignette.classList.remove("active"), 150);
+
+    if (activePlayerCombatStats.hp <= 0) {
+        activeMatchDeaths++;
+        currentKillStreak = 0;
+        document.getElementById("hud-streak-count").innerText = "";
+
+        showPickupToast("ELIMINATED! Respawning...");
+        activePlayerCombatStats.hp = activePlayerCombatStats.maxHp;
+        camera.position.set((Math.random() - 0.5) * 100, 2, (Math.random() - 0.5) * 100);
+        updateHUD();
+    }
+}
+</script>
+</body>
+</html>

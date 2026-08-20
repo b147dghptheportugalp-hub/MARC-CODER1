@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pro Web Compass</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background-color: #000000;
+      color: #ffffff;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    /* The main compass container */
+    .compass-wrapper {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      margin-bottom: 40px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* The red triangle at the top showing your exact heading */
+    .heading-marker {
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
+      border-top: 20px solid #ff3b30;
+      z-index: 10;
+    }
+
+    /* The rotating dial that holds the letters and tick marks */
+    .dial {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: #111;
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+      transition: transform 0.1s linear;
+      border: 2px solid #222;
+    }
+
+    /* Simulated tick marks around the edge */
+    .dial::before {
+      content: '';
+      position: absolute;
+      top: 5px; bottom: 5px; left: 5px; right: 5px;
+      border-radius: 50%;
+      background: repeating-conic-gradient(
+        from 0deg,
+        #333 0deg 1deg,
+        transparent 1deg 3deg
+      );
+      -webkit-mask-image: radial-gradient(transparent 64%, black 65%);
+      mask-image: radial-gradient(transparent 64%, black 65%);
+    }
+
+    /* Cardinal direction labels on the dial */
+    .direction {
+      position: absolute;
+      font-size: 28px;
+      font-weight: bold;
+      color: #fff;
+    }
+    
+    .north { top: 20px; left: 50%; transform: translateX(-50%); color: #ff3b30; }
+    .east { right: 20px; top: 50%; transform: translateY(-50%); }
+    .south { bottom: 20px; left: 50%; transform: translateX(-50%); }
+    .west { left: 20px; top: 50%; transform: translateY(-50%); }
+
+    /* The center readout (Degrees and N/S/E/W) */
+    .center-readout {
+      position: absolute;
+      z-index: 5;
+      text-align: center;
+      background: #000;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.1);
+    }
+
+    #degree-text {
+      font-size: 42px;
+      font-weight: 300;
+      line-height: 1;
+      margin-bottom: 5px;
+    }
+
+    #cardinal-text {
+      font-size: 20px;
+      font-weight: bold;
+      color: #888;
+      letter-spacing: 2px;
+    }
+
+    /* Location data at the bottom */
+    .coords-box {
+      text-align: center;
+      font-size: 14px;
+      color: #888;
+      background: #111;
+      padding: 15px 25px;
+      border-radius: 12px;
+      border: 1px solid #333;
+    }
+
+    /* Start button overlay for permissions */
+    #start-btn {
+      position: absolute;
+      z-index: 100;
+      padding: 15px 30px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      background-color: #ff3b30;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      box-shadow: 0 4px 15px rgba(255, 59, 48, 0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <button id="start-btn">Tap to Calibrate</button>
+  
+  <div class="compass-wrapper">
+    <div class="heading-marker"></div>
+    
+    <div class="dial" id="dial">
+      <span class="direction north">N</span>
+      <span class="direction east">E</span>
+      <span class="direction south">S</span>
+      <span class="direction west">W</span>
+    </div>
+
+    <div class="center-readout">
+      <div id="degree-text">0&deg;</div>
+      <div id="cardinal-text">--</div>
+    </div>
+  </div>
+
+  <div class="coords-box" id="coords">
+    Waiting for GPS...
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('start-btn');
+    const dial = document.getElementById('dial');
+    const degreeText = document.getElementById('degree-text');
+    const cardinalText = document.getElementById('cardinal-text');
+    const coordsText = document.getElementById('coords');
+
+    startBtn.addEventListener('click', async () => {
+      startBtn.style.display = 'none';
+
+      // 1. Get Geolocation
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+          (position) => {
+            const lat = position.coords.latitude.toFixed(5);
+            const lon = position.coords.longitude.toFixed(5);
+            // Format coordinates to look cleaner
+            const latDir = lat >= 0 ? 'N' : 'S';
+            const lonDir = lon >= 0 ? 'E' : 'W';
+            coordsText.innerHTML = `${Math.abs(lat)}&deg; ${latDir}<br>${Math.abs(lon)}&deg; ${lonDir}`;
+          },
+          (err) => {
+            coordsText.innerHTML = "Location access denied.";
+          },
+          { enableHighAccuracy: true }
+        );
+      } else {
+        coordsText.innerHTML = "GPS not supported.";
+      }
+
+      // 2. Get Compass Data
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation);
+          } else {
+            cardinalText.innerHTML = "DENIED";
+          }
+        } catch (error) {
+          console.error(error);
+          cardinalText.innerHTML = "ERROR";
+        }
+      } else {
+        window.addEventListener('deviceorientationabsolute', handleOrientation);
+        window.addEventListener('deviceorientation', handleOrientation);
+      }
+    });
+
+    function handleOrientation(event) {
+      let heading = null;
+      
+      if (event.webkitCompassHeading) {
+        heading = event.webkitCompassHeading;
+      } else if (event.alpha !== null) {
+        if (event.absolute) {
+          heading = 360 - event.alpha;
+        }
+      }
+
+      if (heading !== null) {
+        // Rotate the DIAL backwards so the correct degree hits the top marker
+        dial.style.transform = `rotate(${-heading}deg)`;
+        
+        // Update the center text
+        degreeText.innerHTML = `${Math.round(heading)}&deg;`;
+        cardinalText.innerHTML = getCardinal(heading);
+      }
+    }
+
+    function getCardinal(angle) {
+      const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      const index = Math.round(((angle %= 360) < 0 ? angle + 360 : angle) / 45) % 8;
+      return directions[index];
+    }
+  </script>
+</body>
+</html>

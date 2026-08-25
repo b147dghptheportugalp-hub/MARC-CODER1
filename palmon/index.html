@@ -486,6 +486,49 @@ function getTameRange(){ return 120 * (1 + getStat('tameRange') * 0.20); }
 function getDashCooldownMax(){ return 1.8 * (1 - getStat('dashCd') * 0.15); }
 function getTurretDmgMult(){ return 1 + (getStat('turretDmg') * 0.25); }
 
+const SAVE_KEY = 'armyio2_persistent_upgrades_v1';
+
+function saveUpgradeProgress(){
+  try{
+    const saved = {};
+    for(const k in upgrades) saved[k] = upgrades[k].lvl;
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      version: 1,
+      upgrades: saved,
+      savedAt: Date.now()
+    }));
+  }catch(err){
+    console.warn('Could not save upgrade progress:', err);
+  }
+}
+
+function loadUpgradeProgress(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(!data || typeof data !== 'object' || !data.upgrades) return false;
+
+    for(const k in upgrades){
+      const value = Number(data.upgrades[k]);
+      upgrades[k].lvl = Number.isFinite(value)
+        ? clamp(Math.floor(value), 0, upgrades[k].max)
+        : 0;
+    }
+    return true;
+  }catch(err){
+    console.warn('Could not load upgrade progress:', err);
+    return false;
+  }
+}
+
+function applyPersistentUpgradeStats(){
+  player.maxHp = 130 + getStat('health') * 30;
+  player.hp = player.maxHp;
+  player.speed = 245 * (1 + getStat('speed') * 0.10);
+}
+
+
 /* ============================= INIT ============================= */
 /* ============================= RESPONSIVE CAMERA ============================= */
 let mobileZoom = 1;
@@ -524,10 +567,13 @@ function initWorld(){
   player.weapon = GUNS[0];
   player.kills = 0; player.wood = 50; player.stone = 50;
   
+  // Load permanent HQ upgrades saved in this browser.
+  for(const k in upgrades) upgrades[k].lvl = 0;
+  loadUpgradeProgress();
+  applyPersistentUpgradeStats();
+
   // Spawn the player with a starter recruit
   soldiers = [makeSoldier(RECRUIT, player.x-60, player.y-40, 'tamed', 'player')];
-  
-  for(const k in upgrades) upgrades[k].lvl = 0;
   for(let i=0;i<MAX_TREES;i++) spawnResource('tree');
   for(let i=0;i<MAX_ROCKS;i++) spawnResource('rock');
   for(let i=0;i<15;i++) spawnSoldier();
@@ -774,6 +820,9 @@ canvas.addEventListener('contextmenu', e=>e.preventDefault());
 window.addEventListener('mouseup', e=>{ if(e.button===0) mouse.down = false; });
 
 document.getElementById('cmdToggleBtn').addEventListener('click', cycleArmyCommand);
+window.addEventListener('pagehide', saveUpgradeProgress);
+window.addEventListener('beforeunload', saveUpgradeProgress);
+
 
 /* ============================= UI RENDERING ============================= */
 function cycleArmyCommand(){
@@ -854,8 +903,9 @@ window.buyUpgrade = function(key){
   if(cost.stone) player.stone -= cost.stone;
   if(cost.kills) player.kills -= cost.kills;
   u.lvl++;
-  if(key==='health'){ player.maxHp = 130 + u.lvl * 30; player.hp += 30; }
+  if(key==='health'){ player.maxHp = 130 + u.lvl * 30; player.hp = Math.min(player.maxHp, player.hp + 30); }
   else if(key==='speed'){ player.speed = 245 * (1 + u.lvl * 0.10); }
+  saveUpgradeProgress();
   renderUpgradeList(); syncHUD();
 };
 
@@ -1954,7 +2004,9 @@ function loop(now){
 
 document.getElementById('startBtn').addEventListener('click', ()=>{
   document.getElementById('startOverlay').style.display='none';
-  initWorld(); started = true; last = performance.now();
+  initWorld();
+  if(Object.values(upgrades).some(u => u.lvl > 0)) showPrompt('UPGRADES LOADED', 1200);
+  started = true; last = performance.now();
 });
 
 requestAnimationFrame(loop);

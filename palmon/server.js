@@ -9,11 +9,12 @@ const WORLD_W = 4000;
 const WORLD_H = 4000;
 const MAP_ROTATE_MS = 150000;
 const MAX_PLAYERS = 50;
+const MAX_BUILDS_PER_PLAYER = 120;
 const players = new Map();
 const builds = new Map();
 let nextId = 1;
 let nextBuildId = 1;
-let mapSeed = Date.now();
+let mapSeed = Math.floor(Math.random() * 2147483647);
 let lastMapResetAt = Date.now();
 
 function send(ws, message) {
@@ -43,6 +44,18 @@ function snapshot() {
 
 function publicBuild(build) {
   return {
+    id: build.id, ownerId: build.ownerId, kind: build.kind,
+    x: build.x, y: build.y, hp: build.hp,
+    maxHp: build.maxHp, radius: build.radius
+  };
+}
+
+function buildSnapshot() {
+  return [...builds.values()].map(publicBuild);
+}
+
+function publicBuild(build) {
+  return {
     id: build.id,
     ownerId: build.ownerId,
     x: build.x,
@@ -64,8 +77,8 @@ function json(res, code, data) {
 }
 
 const server = http.createServer((req, res) => {
-  if (req.url === '/health') return json(res, 200, { ok: true, players: players.size });
-  if (req.url === '/api/status') return json(res, 200, { ok: true, players: players.size });
+  if (req.url === '/health') return json(res, 200, { ok: true, players: players.size, builds: builds.size, mapSeed, mapRotateMs: MAP_ROTATE_MS });
+  if (req.url === '/api/status') return json(res, 200, { ok: true, players: players.size, builds: builds.size, mapSeed, mapRotateMs: MAP_ROTATE_MS });
 
   const pathname = decodeURIComponent((req.url || '/').split('?')[0]);
   const requested = pathname === '/' ? '/index.html' : pathname;
@@ -92,10 +105,11 @@ wss.on('connection', ws => {
     x: WORLD_W / 2,
     y: WORLD_H / 2,
     angle: 0,
-    color: `hsl(${Math.floor(Math.random() * 360)} 75% 55%)`
+    color: `hsl(${Math.floor(Math.random() * 360)} 75% 55%)`,
+    builds: new Set()
   };
   players.set(player.id, player);
-  send(ws, { type: 'welcome', id: player.id, players: snapshot(), builds: buildSnapshot(), mapSeed });
+  send(ws, { type: 'welcome', id: player.id, players: snapshot(), builds: buildSnapshot(), mapSeed, mapRotateMs: MAP_ROTATE_MS });
   broadcast({ type: 'playerJoined', player: publicPlayer(player) }, player.id);
 
   ws.on('message', raw => {
@@ -104,7 +118,7 @@ wss.on('connection', ws => {
       if (!message || typeof message.type !== 'string') return;
       if (message.type === 'join') {
         player.name = String(message.name || 'Palmon Player').trim().slice(0, 20) || 'Palmon Player';
-        send(ws, { type: 'snapshot', players: snapshot(), builds: buildSnapshot(), mapSeed });
+        send(ws, { type: 'snapshot', players: snapshot(), builds: buildSnapshot(), mapSeed, mapRotateMs: MAP_ROTATE_MS });
         broadcast({ type: 'playerUpdated', player: publicPlayer(player) });
       }
       if (message.type === 'state') {
@@ -114,36 +128,60 @@ wss.on('connection', ws => {
         if (Number.isFinite(x)) player.x = Math.max(0, Math.min(WORLD_W, x));
         if (Number.isFinite(y)) player.y = Math.max(0, Math.min(WORLD_H, y));
         if (Number.isFinite(angle)) player.angle = angle;
+        broadcast({ type: 'playerUpdated', player: publicPlayer(player) }, player.id);
       }
-      if (message.type === 'build' && message.build && typeof message.build.kind === 'string') {
-        const b = message.build;
-        const x = Number(b.x), y = Number(b.y), hp = Number(b.hp), maxHp = Number(b.maxHp), radius = Number(b.radius);
-        if (![x, y, hp, maxHp, radius].every(Number.isFinite)) return;
-        if (x < 0 || x > WORLD_W || y < 0 || y > WORLD_H) return;
-        const kind = String(b.kind).slice(0, 32);
-        const id = `b${nextBuildId++}`;
-        const build = { id, ownerId: player.id, x, y, hp: Math.max(1, hp), maxHp: Math.max(1, maxHp), kind, radius: Math.max(1, Math.min(100, radius)) };
-        builds.set(id, build);
+
+      if (message.type === 'worldRequest') {
+        send(ws, { type: 'worldSnapshot', players: snapshot(), builds: buildSnapshot(), mapSeed, mapRotateMs: MAP_ROTATE_MS });
+      }
+
+      if (message.type === 'build' || message.type === 'buildPlaced') {
+        if (player.builds && player.builds.size >= MAX_BUILDS_PER_PLAYER) return;
+        const allowed = new Set(['wood','stone','turret','spike','heal_beacon','weapon_smith']);
+        const kind = String(message.kind || '');
+        const x = Number(message.x), y = Number(message.y);
+        if (!allowed.has(kind) || !Number.isFinite(x) || !Number.isFinite(y)) return;
+        const radius = kind === 'weapon_smith' ? 25 : (kind === 'turret' ? 25 : 22);
+        const hp = kind === 'stone' ? 180 : kind === 'wood' ? 100 : kind === 'turret' ? 120 : kind === 'spike' ? 80 : kind === 'heal_beacon' ? 100 : 140;
+        const build = { id: `b${nextBuildId++}`, ownerId: player.id, kind, x: Math.max(0, Math.min(WORLD_W, x)), y: Math.max(0, Math.min(WORLD_H, y)), hp, maxHp: hp, radius };
+        builds.set(build.id, build);
+        player.builds.add(build.id);
         broadcast({ type: 'buildAdded', build: publicBuild(build) });
       }
 
-      if (message.type === 'interact') {
+      if (message.type === 'buildRemove' || message.type === 'buildRemoved' || message.type === 'destroyBuild') {
+        const buildId = String(message.id || message.buildId || '');
+        const build = builds.get(buildId);
+        if (!build || build.ownerId !== player.id) return;
+        builds.delete(build.id);
+        player.builds.delete(build.id);
+        broadcast({ type: 'buildRemoved', id: build.id });
+      }
+
+      if (message.type === 'buildDamage') {
+        const buildId = String(message.id || message.buildId || '');
+        const build = builds.get(buildId);
+        const damage = Number(message.damage);
+        if (!build || !Number.isFinite(damage) || damage <= 0 || damage > 500) return;
+        build.hp = Math.max(0, build.hp - damage);
+        if (build.hp <= 0) {
+          builds.delete(build.id);
+          const owner = players.get(build.ownerId);
+          if (owner) owner.builds.delete(build.id);
+          broadcast({ type: 'buildRemoved', id: build.id });
+        } else {
+          broadcast({ type: 'buildUpdated', build: publicBuild(build) });
+        }
+      }
+
+      if (message.type === 'interactPlayer' || message.type === 'playerInteract' || message.type === 'interact') {
         const targetId = String(message.targetId || '');
         const target = players.get(targetId);
         if (!target || target.id === player.id) return;
-        const dx = target.x - player.x;
-        const dy = target.y - player.y;
-        if ((dx * dx) + (dy * dy) > 180 * 180) return;
-        send(target.ws, { type: 'interact', fromId: player.id, fromName: player.name });
-      }
-
-      if (message.type === 'mapRequest') {
-        const now = Date.now();
-        if (now - lastMapResetAt < MAP_ROTATE_MS - 2000) return;
-        mapSeed = Number.isFinite(Number(message.seed)) ? Math.floor(Number(message.seed)) : now;
-        lastMapResetAt = now;
-        builds.clear();
-        broadcast({ type: 'mapReset', seed: mapSeed });
+        if (Math.hypot(target.x - player.x, target.y - player.y) > 140) return;
+        const action = String(message.action || 'interact').slice(0, 32);
+        send(target.ws, { type: 'playerInteraction', from: publicPlayer(player), action });
+        send(ws, { type: 'interactionConfirmed', target: publicPlayer(target), action });
       }
     } catch (_) {}
   });
@@ -161,9 +199,16 @@ wss.on('connection', ws => {
 });
 
 setInterval(() => {
-  if (players.size) broadcast({ type: 'snapshot', players: snapshot(), builds: buildSnapshot(), mapSeed });
+  if (players.size) broadcast({ type: 'snapshot', players: snapshot(), builds: buildSnapshot(), mapSeed, mapRotateMs: MAP_ROTATE_MS });
 }, 100);
 
+setInterval(() => {
+  mapSeed = Math.floor(Math.random() * 2147483647);
+  lastMapResetAt = Date.now();
+  builds.clear();
+  broadcast({ type: 'mapReset', mapSeed, seed: mapSeed, mapRotateMs: MAP_ROTATE_MS });
+}, MAP_ROTATE_MS);
+
 server.listen(PORT, HOST, () => {
-  console.log(`Palmon server running at http://localhost:${PORT}`);
+  console.log(`Palmon server running on ${HOST}:${PORT}`);
 });

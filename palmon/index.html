@@ -301,7 +301,7 @@
   <div style="color:var(--ink-dim);letter-spacing:4px;font-size:14px;margin-bottom:30px;">THE COMMANDER UPDATE</div>
   <div style="max-width:600px;color:var(--ink);font-size:13px;line-height:1.8;border-top:1px solid var(--panel-line);border-bottom:1px solid var(--panel-line);padding:20px;margin-bottom:30px;">
     Survive, Build, and Conquer! Craft <b>12 new Weapons</b> at the Weapon Smith.<br>
-    Upgrade <b>12 HQ Stats</b>. Watch out for up to <b>10 AI Bot Players</b> roaming the map with their own armies—killing them drops <b>Legendary Potions</b> and releases their soldiers.<br>
+    Upgrade <b>12 HQ Stats</b>. Watch out for up to <b>3 AI Bot Players</b> roaming the map with their own armies—killing them drops <b>Legendary Potions</b> and releases their soldiers.<br>
     Press <b>B</b> to Build. Press <b>C</b> near a Weapon Smith to Craft.<br>
     <i>Legendary soldiers feature unique halos and neon graphics!</i>
   </div>
@@ -319,7 +319,8 @@
 
 const WORLD_W = 4000, WORLD_H = 4000;
 const WALL_CELL = 46;
-const MAX_WILD = 30, MAX_TREES = 100, MAX_ROCKS = 60, MAX_BOTS = 10;
+const MAX_WILD = 30, MAX_TREES = 100, MAX_ROCKS = 60, MAX_BOTS = 3;
+const MAP_REGEN_INTERVAL = 150000; // 2.5 minutes
 
 /* ============================= WEAPONS / CRAFTING ============================= */
 const GUNS = [
@@ -454,7 +455,7 @@ let shockwaves = [];
 let particles = [];
 let supplyCrates = [];
 const palmonNetwork = {
-  ws: null, id: null, connected: false, remotePlayers: new Map(), stateTimer: null
+  ws: null, id: null, connected: false, remotePlayers: new Map(), remoteBuilds: new Map(), stateTimer: null
 };
 
 let buildMode = false;
@@ -469,6 +470,10 @@ let craftingModalOpen = false;
 
 /* spawn timers */
 let soldierSpawnT = 0, treeSpawnT = 0, rockSpawnT = 0, botSpawnT = 5000, crateSpawnT = 15000;
+let mapSeed = 1;
+let mapChangeTimer = MAP_REGEN_INTERVAL;
+let mapChangePulse = 0;
+let mapRequestPending = false;
 
 /* ============================= HELPERS ============================= */
 function rand(a,b){ return Math.random()*(b-a)+a; }
@@ -581,6 +586,7 @@ function initWorld(){
   renderUpgradeList();
   renderCraftingList();
   bindBuildBarButtons();
+  mapChangeTimer = MAP_REGEN_INTERVAL;
 }
 
 /* ============================= SPAWNING ============================= */
@@ -954,6 +960,23 @@ window.craftWeapon = function(id){
 /* ============================= UPDATE LOOPS ============================= */
 function tryInteract(){
   if(buildMode) return;
+
+  // Interact with another connected player first.
+  let nearestRemote = null, nearestRemoteD = 110;
+  for(const remote of palmonNetwork.remotePlayers.values()){
+    const d = dist(player.x, player.y, remote.x, remote.y);
+    if(d < nearestRemoteD){ nearestRemote = remote; nearestRemoteD = d; }
+  }
+  if(nearestRemote){
+    if(palmonNetwork.ws && palmonNetwork.ws.readyState === WebSocket.OPEN){
+      palmonNetwork.ws.send(JSON.stringify({type:'interact', targetId:nearestRemote.id}));
+      showPrompt('INTERACTION SENT TO ' + (nearestRemote.name || 'PLAYER'), 1200);
+    } else {
+      showPrompt('MULTIPLAYER DISCONNECTED', 1200);
+    }
+    return;
+  }
+
   let nearSmith = false;
   for(const w of walls){
     if(w.kind === 'weapon_smith' && dist(player.x, player.y, w.x, w.y) < 100){
@@ -961,7 +984,7 @@ function tryInteract(){
     }
   }
   if(nearSmith) toggleCraftingModal();
-  else showPrompt('No Weapon Smith nearby to craft.', 1500);
+  else showPrompt('Nothing nearby to interact with.', 1200);
 }
 
 function tryPlaceWall(){
@@ -983,7 +1006,14 @@ function tryPlaceWall(){
 
   if(player.wood < c_w || player.stone < c_s){ showPrompt('Not enough resources.', 1000); return; }
   player.wood -= c_w; player.stone -= c_s;
-  walls.push({id:idCounter++, x:gx, y:gy, hp, maxHp:hp, kind:buildKind, radius, attackCd:0});
+  const localBuild = {id:idCounter++, x:gx, y:gy, hp, maxHp:hp, kind:buildKind, radius, attackCd:0, ownerId:'local'};
+  walls.push(localBuild);
+  if(palmonNetwork.ws && palmonNetwork.ws.readyState === WebSocket.OPEN){
+    palmonNetwork.ws.send(JSON.stringify({
+      type:'build',
+      build:{id:localBuild.id, x:localBuild.x, y:localBuild.y, hp:localBuild.hp, maxHp:localBuild.maxHp, kind:localBuild.kind, radius:localBuild.radius}
+    }));
+  }
   spawnParticles(gx, gy, 12, '#c9a227', 100, 300, 3);
   syncHUD();
 }
@@ -1419,6 +1449,34 @@ function updateProjectiles(dt){
   projectiles = projectiles.filter(p=>!p.dead);
 }
 
+function respawnMapEntities(){
+  resources = [];
+  walls = [];
+  projectiles = [];
+  floaters = [];
+  potionDrops = [];
+  shockwaves = [];
+  particles = [];
+  supplyCrates = [];
+  bots = [];
+  soldiers = [makeSoldier(RECRUIT, player.x-60, player.y-40, 'tamed', 'player')];
+  for(let i=0;i<MAX_TREES;i++) spawnResource('tree');
+  for(let i=0;i<MAX_ROCKS;i++) spawnResource('rock');
+  for(let i=0;i<15;i++) spawnSoldier();
+  spawnSupplyCrate();
+}
+
+function applyMapSeed(seed, announce=true){
+  const numericSeed = Number(seed);
+  mapSeed = Number.isFinite(numericSeed) ? Math.floor(numericSeed) : Date.now();
+  mapChangeTimer = MAP_REGEN_INTERVAL;
+  mapChangePulse = 1.0;
+  mapRequestPending = false;
+  palmonNetwork.remoteBuilds.clear();
+  if(started) respawnMapEntities();
+  if(announce) showPrompt('NEW MAP DEPLOYED', 1400);
+}
+
 function updateGameLogic(dt){
   updateSupplyCrates(dt);
   
@@ -1441,6 +1499,18 @@ function updateGameLogic(dt){
   
   if(armyPingTimer > 0) armyPingTimer -= dt;
   if(screenshake > 0) screenshake = Math.max(0, screenshake - dt*40);
+  if(mapChangePulse > 0) mapChangePulse = Math.max(0, mapChangePulse - dt);
+
+  mapChangeTimer -= dt*1000;
+  if(mapChangeTimer <= 0 && !mapRequestPending){
+    const nextSeed = Date.now();
+    if(palmonNetwork.ws && palmonNetwork.ws.readyState === WebSocket.OPEN){
+      mapRequestPending = true;
+      palmonNetwork.ws.send(JSON.stringify({type:'mapRequest', seed:nextSeed}));
+    } else {
+      applyMapSeed(nextSeed, true);
+    }
+  }
 
   soldierSpawnT-=dt*1000; if(soldierSpawnT<=0){ spawnSoldier(); soldierSpawnT=rand(2000,4000); }
   treeSpawnT-=dt*1000; if(treeSpawnT<=0){ spawnResource('tree'); treeSpawnT=rand(3000,5000); }
@@ -1478,7 +1548,7 @@ function updateCamera(){
 
 /* ============================= RENDER ============================= */
 function terrainHash(x,y){
-  let n = Math.sin(x*12.9898 + y*78.233) * 43758.5453;
+  let n = Math.sin((x + mapSeed * 0.0137)*12.9898 + (y - mapSeed * 0.0079)*78.233) * 43758.5453;
   return n - Math.floor(n);
 }
 
@@ -1759,6 +1829,46 @@ function drawRemotePlayer(remote){
   ctx.restore();
 }
 
+function drawRemoteBuild(build){
+  const sx = build.x-camera.x, sy = build.y-camera.y;
+  if(sx < -80 || sx > canvas.width+80 || sy < -80 || sy > canvas.height+80) return;
+  const alpha = 0.92;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  // Reuse the same building art as local walls, but tint the base slightly so ownership is clear.
+  if(build.kind==='turret'){
+    ctx.fillStyle='#c9a227'; ctx.strokeStyle='#7a5f13'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(sx,sy,build.radius||20,0,7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#1a1408'; ctx.beginPath(); ctx.arc(sx,sy,8,0,7); ctx.fill();
+  } else if(build.kind==='spike'){
+    ctx.fillStyle='#4a3f34'; ctx.strokeStyle='#8a641f'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(sx,sy,build.radius||22,0,7); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle='#e8a33d'; ctx.lineWidth=3;
+    for(let a=0;a<Math.PI*2;a+=Math.PI/3){ ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+Math.cos(a)*20,sy+Math.sin(a)*20); ctx.stroke(); }
+  } else if(build.kind==='heal_beacon'){
+    ctx.fillStyle='#1e4d2b'; ctx.strokeStyle='#5fbf6c'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(sx,sy,build.radius||22,0,7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#5fbf6c'; ctx.fillRect(sx-4,sy-10,8,20); ctx.fillRect(sx-10,sy-4,20,8);
+  } else if(build.kind==='weapon_smith'){
+    ctx.fillStyle='#2c2c2c'; ctx.strokeStyle='#f59e0b'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(sx,sy,build.radius||25,0,7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#888'; ctx.fillRect(sx-12,sy-6,24,12); ctx.fillRect(sx-6,sy-12,12,24);
+    ctx.fillStyle='#f59e0b'; ctx.beginPath(); ctx.arc(sx,sy,4,0,7); ctx.fill();
+  } else {
+    ctx.fillStyle = build.kind==='wood' ? '#8a5a2f' : '#787f86';
+    ctx.strokeStyle = build.kind==='wood' ? '#4d3013' : '#4a4f54'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(sx,sy,build.radius||22,0,7); ctx.fill(); ctx.stroke();
+  }
+  if(typeof build.hp==='number' && typeof build.maxHp==='number') drawHealthBar(sx, sy-(build.radius||22)-12, build.hp, build.maxHp, 30);
+  ctx.fillStyle='rgba(255,255,255,.75)'; ctx.font='9px monospace'; ctx.textAlign='center';
+  ctx.fillText('PLAYER BUILD', sx, sy+(build.radius||22)+28);
+  ctx.restore();
+}
+
+function drawRemoteBuilds(){
+  for(const build of palmonNetwork.remoteBuilds.values()) drawRemoteBuild(build);
+}
+
 function drawRemotePlayers(){
   for(const remote of palmonNetwork.remotePlayers.values()) drawRemotePlayer(remote);
 }
@@ -1810,22 +1920,42 @@ function connectPalmonNetwork(){
     if(message.type === 'welcome'){
       palmonNetwork.id = message.id;
       renderPalmonLeaderboard(message.players || []);
+      for(const build of message.builds || []) palmonNetwork.remoteBuilds.set(build.id, build);
+      if(message.mapSeed) mapSeed = Number(message.mapSeed) || mapSeed;
     }
     if(message.type === 'snapshot'){
       renderPalmonLeaderboard(message.players || []);
       for(const remote of message.players || []){
         if(remote.id !== palmonNetwork.id) palmonNetwork.remotePlayers.set(remote.id, remote);
       }
+      for(const build of message.builds || []) palmonNetwork.remoteBuilds.set(build.id, build);
+      if(message.mapSeed) mapSeed = Number(message.mapSeed) || mapSeed;
     }
     if(message.type === 'playerJoined' || message.type === 'playerUpdated'){
       if(message.player && message.player.id !== palmonNetwork.id) palmonNetwork.remotePlayers.set(message.player.id, message.player);
     }
-    if(message.type === 'playerLeft') palmonNetwork.remotePlayers.delete(message.id);
+    if(message.type === 'playerLeft'){
+      palmonNetwork.remotePlayers.delete(message.id);
+      for(const [bid, build] of palmonNetwork.remoteBuilds){ if(build.ownerId === message.id) palmonNetwork.remoteBuilds.delete(bid); }
+    }
+    if(message.type === 'buildAdded' && message.build){
+      if(message.build.ownerId !== palmonNetwork.id) palmonNetwork.remoteBuilds.set(message.build.id, message.build);
+    }
+    if(message.type === 'buildRemoved' && message.id){
+      palmonNetwork.remoteBuilds.delete(message.id);
+    }
+    if(message.type === 'mapReset' && message.seed){
+      applyMapSeed(message.seed, true);
+    }
+    if(message.type === 'interact'){
+      showPrompt((message.fromName || 'A player') + ' interacted with you!', 1500);
+    }
   });
   palmonNetwork.ws.addEventListener('close', () => {
     palmonNetwork.connected = false;
     clearInterval(palmonNetwork.stateTimer);
     palmonNetwork.remotePlayers.clear();
+    palmonNetwork.remoteBuilds.clear();
   });
 }
 
@@ -1914,6 +2044,7 @@ function render(){
   ctx.globalAlpha = 1;
 
   drawPlayer();
+  drawRemoteBuilds();
   drawRemotePlayers();
 
   ctx.textAlign='center'; ctx.font='bold 14px monospace';
@@ -1931,6 +2062,16 @@ function render(){
     ctx.globalAlpha = 0.5; ctx.beginPath();
     ctx.fillStyle = buildKind==='wood'?'#8a5a2f':buildKind==='stone'?'#787f86':buildKind==='turret'?'#c9a227':buildKind==='spike'?'#4a3f34':buildKind==='heal_beacon'?'#5fbf6c':'#f59e0b';
     ctx.arc(gx-camera.x, gy-camera.y, buildKind==='weapon_smith'?25:22, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+  }
+
+  if(mapChangePulse > 0){
+    ctx.save();
+    ctx.globalAlpha = mapChangePulse * 0.45;
+    ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 4;
+    ctx.strokeRect(8,8,canvas.width-16,canvas.height-16);
+    ctx.fillStyle = '#fff'; ctx.font='bold 18px monospace'; ctx.textAlign='center';
+    ctx.fillText('NEW MAP', canvas.width/2, 42);
+    ctx.restore();
   }
 
   renderMinimap();

@@ -176,6 +176,7 @@
     #controls{display:none;}
     #minimapWrap{width:118px;height:118px;right:8px;bottom:8px;}
     #prompt{bottom:175px;max-width:88vw;padding:8px 12px;font-size:12px;}
+    #mapInfo{top:8px!important;font-size:9px!important;padding:5px 9px!important;max-width:55vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     #action-buttons{bottom:16px;right:10px;gap:7px;}
     .mobile-btn{width:58px;height:58px;font-size:13px;}
     #joystick-zone{bottom:12px;left:10px;width:135px;height:135px;}
@@ -244,7 +245,7 @@
   <h3>Your Army (<span id="armyCount">1</span>/<span id="armyMax">6</span>)</h3>
   <div id="armyCmdBar" style="margin-bottom:8px;font-size:10px;color:var(--amber);display:flex;justify-content:space-between;">
     <span>CMD: <b id="cmdText" style="color:#5fbf6c">FOLLOW</b></span>
-    <span style="color:var(--ink-dim);cursor:pointer;" id="cmdToggleBtn">[F: Cycle]</span>
+    <span style="color:var(--ink-dim);cursor:pointer;" id="cmdToggleBtn">[F: Cycle: Follow → Attack → Farm → Hold]</span>
   </div>
   <div id="armyList"></div>
 </div>
@@ -256,10 +257,11 @@
 
 <div class="hud panel" id="effectsBar" style="display:none;"></div>
 <div class="hud panel" id="prompt"></div>
+<div class="hud panel" id="mapInfo" style="top:14px;left:50%;transform:translateX(-50%);padding:6px 12px;font-size:11px;color:var(--amber);letter-spacing:1.5px;display:block;z-index:6;">MAP: <b id="mapNameText">GREENFIELD PLAINS</b></div>
 
 <div class="hud panel" id="controls">
   <b>WASD</b> Move &nbsp; <b>Space</b> Dash &nbsp; <b>L-Click</b> Attack/Gather &nbsp; <b>R-Click / F</b> Command<br>
-  <b>E</b> Tame &nbsp; <b>C</b> Interact (Crafting) &nbsp; <b>U</b> Upgrades &nbsp; <b>B</b> Build Mode &nbsp; <b>1-6</b> Structures
+  <b>E</b> Tame &nbsp; <b>C</b> Interact (Crafting) &nbsp; <b>U</b> Upgrades &nbsp; <b>B</b> Build Mode &nbsp; <b>F</b> Follow/Attack/Farm/Hold &nbsp; <b>1-6</b> Structures
 </div>
 
 <div class="hud panel" id="buildBar">
@@ -302,7 +304,7 @@
   <div style="max-width:600px;color:var(--ink);font-size:13px;line-height:1.8;border-top:1px solid var(--panel-line);border-bottom:1px solid var(--panel-line);padding:20px;margin-bottom:30px;">
     Survive, Build, and Conquer! Craft <b>12 new Weapons</b> at the Weapon Smith.<br>
     Upgrade <b>12 HQ Stats</b>. Watch out for up to <b>3 AI Bot Players</b> roaming the map with their own armies—killing them drops <b>Legendary Potions</b> and releases their soldiers.<br>
-    Press <b>B</b> to Build. Press <b>C</b> near a Weapon Smith to Craft.<br>
+    Press <b>B</b> to Build. Press <b>C</b> near a Weapon Smith to Craft. Press <b>F</b> to cycle Follow, Attack, Farm, and Hold.<br>
     <i>Legendary soldiers feature unique halos and neon graphics!</i>
   </div>
   <button id="startBtn">DROP IN</button>
@@ -361,7 +363,7 @@ const SOLDIER_TYPES = [
   {name:"Flame Trooper",     weapon:"Flamethrower",         color:"#b22222", accent:"#6b1414", ranged:true,  dmg:9,  hp:160, tame:22, range:150, rate:150, proj:500, rarity:"Epic", isFlame:true},
   {name:"Frost Specialist",  weapon:"Cryo Rifle",           color:"#4fd1ff", accent:"#1f7a94", ranged:true,  dmg:20, hp:130, tame:28, range:320, rate:650, proj:640, rarity:"Rare", slow:true},
   {name:"Medic Support",     weapon:"Healing Beam",         color:"#f5f5f5", accent:"#aeb3ae", ranged:true,  dmg:8,  hp:110, tame:60, range:260, rate:900, proj:600, rarity:"Common", heals:true},
-  {name:"Engineer Builder",  weapon:"Turret Tool",          color:"#c9a227", accent:"#7a5f13", ranged:true,  dmg:20, hp:120, tame:40, range:300, rate:650, proj:600, rarity:"Uncommon"},
+  {name:"Engineer Builder",  weapon:"Turret Tool",          color:"#c9a227", accent:"#7a5f13", ranged:true,  dmg:20, hp:120, tame:40, range:300, rate:650, proj:600, rarity:"Uncommon", engineer:true},
   {name:"Stealth Operative", weapon:"Silent Pistol",        color:"#2d2d3a", accent:"#14141c", ranged:true,  dmg:30, hp:100, tame:25, range:250, rate:520, proj:720, rarity:"Rare"},
   {name:"Shock Trooper",     weapon:"Electro Baton",        color:"#e6d600", accent:"#8a8000", ranged:false, dmg:28, hp:150, tame:20, range:74,  rate:520, rarity:"Epic"},
   {name:"Rocket Infantry",   weapon:"Rocket Launcher",      color:"#7c6a58", accent:"#4a3f34", ranged:true,  dmg:80, hp:130, tame:18, range:380, rate:1900,proj:520, rarity:"Epic", explosive:true},
@@ -380,7 +382,22 @@ const SOLDIER_TYPES = [
   {name:"Juggernaut",        weapon:"Power Hammer",         color:"#8b0000", accent:"#4d0000", ranged:false, dmg:65, hp:350, tame:10, range:82,  rate:900, rarity:"Legendary"},
   {name:"Warp Striker",      weapon:"Teleport Blade",       color:"#9932cc", accent:"#5c1d7a", ranged:false, dmg:45, hp:160, tame:12, range:74,  rate:460, rarity:"Legendary"},
   {name:"Storm Archer",      weapon:"Lightning Bow",        color:"#ffd700", accent:"#a68b00", ranged:true,  dmg:40, hp:150, tame:15, range:380, rate:760, proj:850, rarity:"Legendary"},
-  {name:"Phoenix Vanguard",  weapon:"Sunburst Rifle",       color:"#ff4500", accent:"#8b0000", ranged:true,  dmg:50, hp:200, tame:8,  range:450, rate:600, proj:1000,rarity:"Legendary"}
+  {name:"Phoenix Vanguard",  weapon:"Sunburst Rifle",       color:"#ff4500", accent:"#8b0000", ranged:true,  dmg:50, hp:200, tame:8,  range:450, rate:600, proj:1000,rarity:"Legendary"},
+  {name:"Shield Breaker", weapon:"Arc Cannon", color:"#7f8c8d", accent:"#4b5658", ranged:true, dmg:42, hp:210, tame:16, range:360, rate:720, proj:760, rarity:"Epic"},
+  {name:"Battle Medic", weapon:"Pulse Medigun", color:"#ecf0f1", accent:"#9aa7ad", ranged:true, dmg:10, hp:180, tame:26, range:280, rate:650, proj:620, rarity:"Rare", heals:true},
+  {name:"Marksman Scout", weapon:"Burst Carbine", color:"#7aa05c", accent:"#405a2f", ranged:true, dmg:34, hp:105, tame:38, range:520, rate:650, proj:920, rarity:"Rare"},
+  {name:"Heavy Rocketeer", weapon:"Siege Rockets", color:"#8d6e63", accent:"#4e342e", ranged:true, dmg:95, hp:220, tame:9, range:430, rate:2100, proj:500, rarity:"Legendary", explosive:true},
+  {name:"Volt Soldier", weapon:"Tesla Rifle", color:"#ffe082", accent:"#9e7c18", ranged:true, dmg:27, hp:135, tame:24, range:360, rate:420, proj:760, rarity:"Epic"},
+  {name:"Blademaster", weapon:"Energy Blade", color:"#cfd8dc", accent:"#607d8b", ranged:false, dmg:52, hp:190, tame:18, range:82, rate:600, rarity:"Epic"},
+  {name:"Flak Gunner", weapon:"Flak Cannon", color:"#607d8b", accent:"#37474f", ranged:true, dmg:24, hp:230, tame:14, range:300, rate:380, proj:700, rarity:"Epic"},
+  {name:"Arctic Ranger", weapon:"Ice Rifle", color:"#80deea", accent:"#26a69a", ranged:true, dmg:31, hp:125, tame:22, range:400, rate:600, proj:820, rarity:"Epic", slow:true},
+  {name:"Plague Trooper", weapon:"Bio Launcher", color:"#7cb342", accent:"#33691e", ranged:true, dmg:18, hp:165, tame:19, range:330, rate:500, proj:650, rarity:"Epic"},
+  {name:"Rail Gunner", weapon:"Heavy Rail", color:"#b0bec5", accent:"#546e7a", ranged:true, dmg:105, hp:115, tame:11, range:800, rate:1800, proj:1450, rarity:"Legendary"},
+  {name:"Shadow Ranger", weapon:"Void Bow", color:"#37474f", accent:"#1b2630", ranged:true, dmg:38, hp:120, tame:17, range:470, rate:700, proj:900, rarity:"Epic"},
+  {name:"Siege Engineer", weapon:"Repair Tool", color:"#fbc02d", accent:"#8d6e00", ranged:true, dmg:16, hp:170, tame:13, range:260, rate:700, proj:600, rarity:"Epic", engineer:true},
+  {name:"Guardian Captain", weapon:"Command Rifle", color:"#1565c0", accent:"#0d47a1", ranged:true, dmg:35, hp:280, tame:7, range:420, rate:700, proj:780, rarity:"Legendary"},
+  {name:"Storm Trooper", weapon:"Storm Blaster", color:"#90caf9", accent:"#1565c0", ranged:true, dmg:48, hp:175, tame:12, range:420, rate:800, proj:850, rarity:"Legendary"},
+  {name:"Titan Miner", weapon:"Mining Cannon", color:"#795548", accent:"#3e2723", ranged:true, dmg:20, hp:260, tame:20, range:220, rate:500, proj:560, rarity:"Epic", miner:true}
 ];
 
 /* ============================= POTIONS ============================= */
@@ -474,6 +491,83 @@ let mapSeed = 1;
 let mapChangeTimer = MAP_REGEN_INTERVAL;
 let mapChangePulse = 0;
 let mapRequestPending = false;
+let mapRngState = 1;
+let farmTargets = new Map();
+
+function seededRandom(){
+  mapRngState |= 0;
+  mapRngState = (mapRngState + 0x6D2B79F5) | 0;
+  let t = Math.imul(mapRngState ^ (mapRngState >>> 15), 1 | mapRngState);
+  t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+function mapRand(a,b){ return a + seededRandom() * (b-a); }
+function mapRandInt(a,b){ return Math.floor(mapRand(a,b+1)); }
+
+const MAP_TYPES = [
+  {id:'grassland', name:'Greenfield Plains', tag:'GRASSLAND'},
+  {id:'desert', name:'Sunscorch Desert', tag:'DESERT'},
+  {id:'snow', name:'Frostpeak Tundra', tag:'SNOW'},
+  {id:'volcano', name:'Ashfire Basin', tag:'VOLCANO'},
+  {id:'forest', name:'Deepwood Forest', tag:'FOREST'},
+  {id:'island', name:'Frontier Island', tag:'ISLAND'}
+];
+let currentMap = MAP_TYPES[0];
+function setMapTypeFromSeed(seed){
+  const n = Math.abs(Number(seed) || 0);
+  currentMap = MAP_TYPES[n % MAP_TYPES.length];
+  const label = document.getElementById('mapNameText');
+  if(label) label.textContent = currentMap.name.toUpperCase();
+}
+function drawMapDecor(){
+  const id = currentMap.id;
+  if(id==='desert'){
+    // Dunes and dry patches
+    const cell=220, x0=Math.floor(camera.x/cell)-1, y0=Math.floor(camera.y/cell)-1;
+    for(let gy=y0; gy<y0+Math.ceil(canvas.height/cell)+3; gy++) for(let gx=x0; gx<x0+Math.ceil(canvas.width/cell)+3; gx++){
+      const sx=gx*cell+cell/2-camera.x, sy=gy*cell+cell/2-camera.y;
+      const r=terrainHash(gx+21,gy+41);
+      ctx.strokeStyle='rgba(133,93,35,0.16)'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.ellipse(sx,sy,100+r*30,30+r*25,0,0,Math.PI*2); ctx.stroke();
+    }
+  } else if(id==='snow'){
+    ctx.fillStyle='rgba(255,255,255,0.28)';
+    const cell=170, x0=Math.floor(camera.x/cell)-1, y0=Math.floor(camera.y/cell)-1;
+    for(let gy=y0; gy<y0+Math.ceil(canvas.height/cell)+3; gy++) for(let gx=x0; gx<x0+Math.ceil(canvas.width/cell)+3; gx++){
+      const r=terrainHash(gx+7,gy+19);
+      const sx=gx*cell+cell/2-camera.x, sy=gy*cell+cell/2-camera.y;
+      ctx.beginPath(); ctx.arc(sx+(r-.5)*90, sy+(terrainHash(gy,gx)-.5)*70, 2+r*3, 0, Math.PI*2); ctx.fill();
+    }
+  } else if(id==='volcano'){
+    // Ash cracks / glowing-looking volcanic fissures
+    ctx.strokeStyle='rgba(95,36,24,0.30)'; ctx.lineWidth=3;
+    const cell=260, x0=Math.floor(camera.x/cell)-1, y0=Math.floor(camera.y/cell)-1;
+    for(let gy=y0; gy<y0+Math.ceil(canvas.height/cell)+3; gy++) for(let gx=x0; gx<x0+Math.ceil(canvas.width/cell)+3; gx++){
+      const sx=gx*cell+50-camera.x, sy=gy*cell+70-camera.y;
+      ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+70,sy+25); ctx.lineTo(sx+110,sy-15); ctx.stroke();
+    }
+  } else if(id==='forest'){
+    // Forest floor moss rings
+    ctx.strokeStyle='rgba(25,67,32,0.20)'; ctx.lineWidth=2;
+    const cell=190, x0=Math.floor(camera.x/cell)-1, y0=Math.floor(camera.y/cell)-1;
+    for(let gy=y0; gy<y0+Math.ceil(canvas.height/cell)+3; gy++) for(let gx=x0; gx<x0+Math.ceil(canvas.width/cell)+3; gx++){
+      const r=terrainHash(gx+60,gy+9);
+      if(r<.55){ const sx=gx*cell+cell/2-camera.x, sy=gy*cell+cell/2-camera.y; ctx.beginPath(); ctx.arc(sx,sy,45+r*35,0,Math.PI*2); ctx.stroke(); }
+    }
+  } else if(id==='island'){
+    // Water around the world edges creates an island feel; the playable center stays land.
+    const edge=180;
+    ctx.fillStyle='rgba(38,111,145,0.55)';
+    ctx.fillRect(0,0,canvas.width,edge);
+    ctx.fillRect(0,canvas.height-edge,canvas.width,edge);
+    ctx.fillRect(0,edge,edge,Math.max(0,canvas.height-edge*2));
+    ctx.fillRect(Math.max(0,canvas.width-edge),edge,edge,Math.max(0,canvas.height-edge*2));
+    ctx.strokeStyle='rgba(181,234,250,0.32)'; ctx.lineWidth=2;
+    for(let y=40;y<canvas.height;y+=55){
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.quadraticCurveTo(canvas.width*.25,y-10,canvas.width*.5,y); ctx.quadraticCurveTo(canvas.width*.75,y+10,canvas.width,y); ctx.stroke();
+    }
+  }
+}
 
 /* ============================= HELPERS ============================= */
 function rand(a,b){ return Math.random()*(b-a)+a; }
@@ -579,9 +673,11 @@ function initWorld(){
 
   // Spawn the player with a starter recruit
   soldiers = [makeSoldier(RECRUIT, player.x-60, player.y-40, 'tamed', 'player')];
-  for(let i=0;i<MAX_TREES;i++) spawnResource('tree');
-  for(let i=0;i<MAX_ROCKS;i++) spawnResource('rock');
-  for(let i=0;i<15;i++) spawnSoldier();
+  setMapTypeFromSeed(mapSeed);
+  mapRngState = (mapSeed|0) || 1;
+  for(let i=0;i<MAX_TREES;i++) spawnResource('tree', true);
+  for(let i=0;i<MAX_ROCKS;i++) spawnResource('rock', true);
+  for(let i=0;i<15;i++) spawnSoldier(true);
   spawnSupplyCrate();
   renderUpgradeList();
   renderCraftingList();
@@ -598,23 +694,27 @@ function makeSoldier(type, x, y, state, ownerId=null){
   };
 }
 
-function spawnSoldier(){
+function spawnSoldier(deterministic=false){
   const wildCount = soldiers.filter(s=>s.state==='wild'||s.state==='hostile').length;
   if(wildCount >= MAX_WILD) return;
-  const type = SOLDIER_TYPES[randInt(0, SOLDIER_TYPES.length-1)]; 
-  let x,y;
-  do{ x = randInt(150, WORLD_W-150); y = randInt(150, WORLD_H-150);
-  }while(dist(x,y,player.x,player.y) < 600);
-  soldiers.push(makeSoldier(type, x, y, 'wild'));
+  const type = deterministic ? SOLDIER_TYPES[mapRandInt(0,SOLDIER_TYPES.length-1)] : SOLDIER_TYPES[randInt(0,SOLDIER_TYPES.length-1)];
+  let x,y,tries=0;
+  do{
+    x = deterministic ? mapRandInt(150,WORLD_W-150) : randInt(150,WORLD_W-150);
+    y = deterministic ? mapRandInt(150,WORLD_H-150) : randInt(150,WORLD_H-150);
+    tries++;
+  }while(!deterministic && dist(x,y,player.x,player.y)<600 && tries<50);
+  soldiers.push(makeSoldier(type,x,y,'wild'));
 }
 
-function spawnResource(kind){
+function spawnResource(kind, deterministic=false){
   if(kind==='tree' && resources.filter(r=>r.kind==='tree').length>=MAX_TREES) return;
   if(kind==='rock' && resources.filter(r=>r.kind==='rock').length>=MAX_ROCKS) return;
-  const x = randInt(80, WORLD_W-80), y = randInt(80, WORLD_H-80);
-  if(dist(x,y,player.x,player.y) < 300) return;
+  const x = deterministic ? mapRandInt(80,WORLD_W-80) : randInt(80,WORLD_W-80);
+  const y = deterministic ? mapRandInt(80,WORLD_H-80) : randInt(80,WORLD_H-80);
+  if(!deterministic && dist(x,y,player.x,player.y)<300) return;
   const hp = kind==='tree' ? 60 : 100;
-  resources.push({id:idCounter++, kind, x, y, hp, maxHp:hp, radius: kind==='tree'?22:26});
+  resources.push({id:idCounter++,kind,x,y,hp,maxHp:hp,radius:kind==='tree'?22:26});
 }
 
 function spawnSupplyCrate(){
@@ -833,10 +933,11 @@ window.addEventListener('beforeunload', saveUpgradeProgress);
 /* ============================= UI RENDERING ============================= */
 function cycleArmyCommand(){
   if(armyCommand === 'FOLLOW') armyCommand = 'ATTACK';
-  else if(armyCommand === 'ATTACK') armyCommand = 'HOLD';
+  else if(armyCommand === 'ATTACK') armyCommand = 'FARM';
+  else if(armyCommand === 'FARM') armyCommand = 'HOLD';
   else armyCommand = 'FOLLOW';
   document.getElementById('cmdText').textContent = armyCommand;
-  document.getElementById('cmdText').style.color = armyCommand==='FOLLOW'?'#5fbf6c':armyCommand==='ATTACK'?'#ff5555':'#e8a33d';
+  document.getElementById('cmdText').style.color = armyCommand==='FOLLOW'?'#5fbf6c':armyCommand==='ATTACK'?'#ff5555':armyCommand==='FARM'?'#8fd14f':'#e8a33d';
   if(armyCommand === 'ATTACK') armyFocusTargetId = null; 
   showPrompt('Army Command: ' + armyCommand, 1000);
 }
@@ -1008,12 +1109,7 @@ function tryPlaceWall(){
   player.wood -= c_w; player.stone -= c_s;
   const localBuild = {id:idCounter++, x:gx, y:gy, hp, maxHp:hp, kind:buildKind, radius, attackCd:0, ownerId:'local'};
   walls.push(localBuild);
-  if(palmonNetwork.ws && palmonNetwork.ws.readyState === WebSocket.OPEN){
-    palmonNetwork.ws.send(JSON.stringify({
-      type:'build',
-      build:{id:localBuild.id, x:localBuild.x, y:localBuild.y, hp:localBuild.hp, maxHp:localBuild.maxHp, kind:localBuild.kind, radius:localBuild.radius}
-    }));
-  }
+  broadcastLocalBuild(localBuild);
   spawnParticles(gx, gy, 12, '#c9a227', 100, 300, 3);
   syncHUD();
 }
@@ -1269,14 +1365,63 @@ function updateBots(dt){
   bots = bots.filter(b => b.hp > 0);
 }
 
+function countPlayerTurrets(){
+  return walls.filter(w=>w.kind==='turret' && w.ownerId==='player' && !w.dead).length;
+}
+function chooseFarmTarget(s){
+  const available=resources.filter(r=>!r.dead);
+  if(!available.length) return null;
+  const nearby=available.filter(r=>dist(s.x,s.y,r.x,r.y)<900);
+  const pool=nearby.length?nearby:available;
+  return pool[Math.floor(Math.random()*pool.length)] || null;
+}
+function broadcastLocalBuild(build){
+  if(palmonNetwork.ws && palmonNetwork.ws.readyState===WebSocket.OPEN){
+    palmonNetwork.ws.send(JSON.stringify({type:'build',build:{id:build.id,x:build.x,y:build.y,hp:build.hp,maxHp:build.maxHp,kind:build.kind,radius:build.radius}}));
+  }
+}
+function engineerBuildTurret(s){
+  if(s.ownerId!=='player' || !s.type.engineer) return;
+  if(countPlayerTurrets()>=3) return;
+  if(player.wood<20 || player.stone<15) return;
+  const ang=Math.random()*Math.PI*2;
+  const gx=Math.round((s.x+Math.cos(ang)*80)/WALL_CELL)*WALL_CELL;
+  const gy=Math.round((s.y+Math.sin(ang)*80)/WALL_CELL)*WALL_CELL;
+  if(gx<40||gy<40||gx>WORLD_W-40||gy>WORLD_H-40) return;
+  if(walls.some(w=>dist(w.x,w.y,gx,gy)<WALL_CELL*0.8)) return;
+  if(resources.some(r=>dist(r.x,r.y,gx,gy)<30)) return;
+  player.wood-=20; player.stone-=15;
+  const turret={id:idCounter++,x:gx,y:gy,hp:180,maxHp:180,kind:'turret',radius:20,attackCd:0,ownerId:'player',builtBy:s.id};
+  walls.push(turret); broadcastLocalBuild(turret); syncHUD();
+}
+function gatherFarmResource(s,r,dt){
+  if(!r || r.dead) return false;
+  if(dist(s.x,s.y,r.x,r.y)>38) return false;
+  r.hp -= 18*dt*(1+getStat('gather')*0.30);
+  if(Math.random()<0.22){ if(r.kind==='tree') player.wood+=1; else player.stone+=1; }
+  if(r.hp<=0){
+    r.dead=true;
+    if(r.kind==='tree') player.wood+=12; else player.stone+=12;
+    spawnFloater(r.x,r.y-30,r.kind==='tree'?'+13 WOOD':'+13 STONE','#d8dcd2'); syncHUD();
+  }
+  return true;
+}
+function findPlayerTurretTarget(w){
+  let target=null,bestD=400;
+  for(const s of soldiers){
+    if(s.state==='dead') continue;
+    if(s.state!=='hostile' && !(s.state==='tamed' && s.ownerId!=='player')) continue;
+    const d=dist(w.x,w.y,s.x,s.y); if(d<bestD){target=s;bestD=d;}
+  }
+  for(const b of bots){ const d=dist(w.x,w.y,b.x,b.y); if(d<bestD){target=b;bestD=d;} }
+  return target;
+}
 function updateSoldiers(dt){
   for(const w of walls){
     if(w.kind === 'turret'){
       w.attackCd -= dt * 1000;
       if(w.attackCd <= 0){
-        let target = null, bestD = 400;
-        for(const h of hostileList()){ const d = dist(w.x,w.y,h.x,h.y); if(d<bestD){target=h; bestD=d;} }
-        for(const b of bots){ const d = dist(w.x,w.y,b.x,b.y); if(d<bestD){target=b; bestD=d;} }
+        let target = findPlayerTurretTarget(w);
         
         if(target){
           w.attackCd = 500;
@@ -1351,12 +1496,29 @@ function updateSoldiers(dt){
         for(const pa of armyList('player')){ const d=dist(s.x,s.y,pa.x,pa.y); if(d<bestD){enemy=pa; bestD=d;} }
       }
 
-      if(s.ownerId === 'player' && armyCommand === 'ATTACK'){
+      if(s.ownerId==='player' && s.type.engineer){
+        s.engineerTimer=(s.engineerTimer||0)-dt*1000;
+        if(s.engineerTimer<=0){ engineerBuildTurret(s); s.engineerTimer=rand(4500,7500); }
+      }
+      if(s.ownerId==='player' && armyCommand==='FARM'){
+        let target=farmTargets.get(s.id);
+        if(!target || target.dead || !resources.includes(target)){ target=chooseFarmTarget(s); farmTargets.set(s.id,target); }
+        if(target){
+          if(dist(s.x,s.y,target.x,target.y)>42){ moveToward(s,target.x,target.y,155,dt); }
+          else gatherFarmResource(s,target,dt);
+          s.angle=Math.atan2(target.y-s.y,target.x-s.x);
+        }
+      } else if(s.ownerId==='player' && armyCommand==='ATTACK'){
         const dtTarget = dist(s.x, s.y, armyTargetPos.x, armyTargetPos.y);
+        if(!enemy){
+          const candidates=soldiers.filter(w=>(w.state==='wild'||w.state==='hostile') && w!==s);
+          if(candidates.length) enemy=candidates[Math.floor(Math.random()*candidates.length)];
+        }
         if(enemy && dist(s.x,s.y,enemy.x,enemy.y) <= t.range){
           s.angle = Math.atan2(enemy.y-s.y, enemy.x-s.x); s.attackCd-=dt*1000;
           if(s.attackCd<=0){ s.attackCd=t.rate; fireWeapon(s, enemy, 'ally'); }
-        } else if(dtTarget > 40) moveToward(s, armyTargetPos.x, armyTargetPos.y, 180, dt);
+        } else if(enemy){ moveToward(s, enemy.x, enemy.y, 180, dt); s.angle=Math.atan2(enemy.y-s.y,enemy.x-s.x); }
+        else if(dtTarget > 40) moveToward(s, armyTargetPos.x, armyTargetPos.y, 180, dt);
       } else {
         // Follow leader
         if(enemy && dist(s.x,s.y,enemy.x,enemy.y) <= t.range){
@@ -1460,15 +1622,18 @@ function respawnMapEntities(){
   supplyCrates = [];
   bots = [];
   soldiers = [makeSoldier(RECRUIT, player.x-60, player.y-40, 'tamed', 'player')];
-  for(let i=0;i<MAX_TREES;i++) spawnResource('tree');
-  for(let i=0;i<MAX_ROCKS;i++) spawnResource('rock');
-  for(let i=0;i<15;i++) spawnSoldier();
+  farmTargets = new Map();
+  mapRngState = (mapSeed|0) || 1;
+  for(let i=0;i<MAX_TREES;i++) spawnResource('tree', true);
+  for(let i=0;i<MAX_ROCKS;i++) spawnResource('rock', true);
+  for(let i=0;i<15;i++) spawnSoldier(true);
   spawnSupplyCrate();
 }
 
 function applyMapSeed(seed, announce=true){
   const numericSeed = Number(seed);
   mapSeed = Number.isFinite(numericSeed) ? Math.floor(numericSeed) : Date.now();
+  setMapTypeFromSeed(mapSeed);
   mapChangeTimer = MAP_REGEN_INTERVAL;
   mapChangePulse = 1.0;
   mapRequestPending = false;
@@ -1502,14 +1667,9 @@ function updateGameLogic(dt){
   if(mapChangePulse > 0) mapChangePulse = Math.max(0, mapChangePulse - dt);
 
   mapChangeTimer -= dt*1000;
-  if(mapChangeTimer <= 0 && !mapRequestPending){
-    const nextSeed = Date.now();
-    if(palmonNetwork.ws && palmonNetwork.ws.readyState === WebSocket.OPEN){
-      mapRequestPending = true;
-      palmonNetwork.ws.send(JSON.stringify({type:'mapRequest', seed:nextSeed}));
-    } else {
-      applyMapSeed(nextSeed, true);
-    }
+  if(mapChangeTimer <= 0){
+    mapChangeTimer = MAP_REGEN_INTERVAL;
+    if(!(palmonNetwork.ws && palmonNetwork.ws.readyState === WebSocket.OPEN)) applyMapSeed(Date.now(), true);
   }
 
   soldierSpawnT-=dt*1000; if(soldierSpawnT<=0){ spawnSoldier(); soldierSpawnT=rand(2000,4000); }
@@ -1555,12 +1715,19 @@ function terrainHash(x,y){
 function drawBackground(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // Taming.io-inspired soft grass terrain (visual only).
+  // Each map has a distinct visual theme. The seed chooses the same theme for every player.
+  let top, bottom;
+  switch(currentMap.id){
+    case 'desert': top='#d9ad57'; bottom='#b77c32'; break;
+    case 'snow': top='#dceaf2'; bottom='#a9c4d2'; break;
+    case 'volcano': top='#4b3028'; bottom='#231714'; break;
+    case 'forest': top='#49783f'; bottom='#234a2b'; break;
+    case 'island': top='#4c8e55'; bottom='#2d6a43'; break;
+    default: top='#5f9449'; bottom='#3f7132';
+  }
   const grd = ctx.createLinearGradient(0,0,0,canvas.height);
-  grd.addColorStop(0,'#5f9449');
-  grd.addColorStop(1,'#3f7132');
-  ctx.fillStyle = grd;
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  grd.addColorStop(0,top); grd.addColorStop(1,bottom);
+  ctx.fillStyle = grd; ctx.fillRect(0,0,canvas.width,canvas.height);
 
   const cell = 120;
   const sx0 = Math.floor(camera.x/cell)-1, sy0 = Math.floor(camera.y/cell)-1;
@@ -1569,22 +1736,38 @@ function drawBackground(){
       const wx=gx*cell+cell/2, wy=gy*cell+cell/2;
       const r=terrainHash(gx,gy);
       const sx=wx-camera.x, sy=wy-camera.y;
-      if(r<0.20){
-        ctx.fillStyle='rgba(54,99,43,0.17)';
-        ctx.beginPath(); ctx.ellipse(sx,sy,70,45,terrainHash(gy,gx)*Math.PI,0,Math.PI*2); ctx.fill();
-      } else if(r>0.83){
-        ctx.fillStyle='rgba(187,166,86,0.11)';
-        ctx.beginPath(); ctx.ellipse(sx,sy,52,30,terrainHash(gy,gx)*Math.PI,0,Math.PI*2); ctx.fill();
+      if(currentMap.id==='desert'){
+        ctx.fillStyle = r<0.5 ? 'rgba(119,77,28,0.13)' : 'rgba(246,211,125,0.10)';
+        ctx.beginPath(); ctx.ellipse(sx,sy,75,38,terrainHash(gy,gx)*Math.PI,0,Math.PI*2); ctx.fill();
+      } else if(currentMap.id==='snow'){
+        ctx.fillStyle='rgba(255,255,255,0.16)';
+        ctx.beginPath(); ctx.ellipse(sx,sy,72,45,terrainHash(gy,gx)*Math.PI,0,Math.PI*2); ctx.fill();
+        if(r>0.72){ ctx.strokeStyle='rgba(103,141,157,0.20)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(sx,sy,18+r*20,0,Math.PI*2); ctx.stroke(); }
+      } else if(currentMap.id==='volcano'){
+        ctx.fillStyle = r<0.25 ? 'rgba(118,39,24,0.22)' : 'rgba(16,10,8,0.14)';
+        ctx.beginPath(); ctx.ellipse(sx,sy,75,42,terrainHash(gy,gx)*Math.PI,0,Math.PI*2); ctx.fill();
+      } else if(currentMap.id==='forest'){
+        ctx.fillStyle='rgba(21,73,32,0.22)';
+        ctx.beginPath(); ctx.ellipse(sx,sy,78,48,terrainHash(gy,gx)*Math.PI,0,Math.PI*2); ctx.fill();
+      } else if(currentMap.id==='island'){
+        ctx.fillStyle='rgba(58,112,61,0.16)';
+        ctx.beginPath(); ctx.ellipse(sx,sy,72,45,terrainHash(gy,gx)*Math.PI,0,Math.PI*2); ctx.fill();
+      } else {
+        if(r<0.20){ ctx.fillStyle='rgba(54,99,43,0.17)'; ctx.beginPath(); ctx.ellipse(sx,sy,70,45,terrainHash(gy,gx)*Math.PI,0,Math.PI*2); ctx.fill(); }
+        else if(r>0.83){ ctx.fillStyle='rgba(187,166,86,0.11)'; ctx.beginPath(); ctx.ellipse(sx,sy,52,30,terrainHash(gy,gx)*Math.PI,0,Math.PI*2); ctx.fill(); }
       }
-      // Small grass clusters.
-      ctx.strokeStyle='rgba(226,246,177,0.18)'; ctx.lineWidth=1.2;
-      for(let i=0;i<3;i++){
-        const ox=(terrainHash(gx+i,gy+2)-0.5)*85, oy=(terrainHash(gx+3,gy+i)-0.5)*55;
-        const px=sx+ox, py=sy+oy;
-        ctx.beginPath(); ctx.moveTo(px,py+5); ctx.lineTo(px-3,py-2); ctx.moveTo(px,py+5); ctx.lineTo(px+2,py-3); ctx.stroke();
+      if(currentMap.id==='grassland' || currentMap.id==='forest' || currentMap.id==='island'){
+        ctx.strokeStyle='rgba(226,246,177,0.18)'; ctx.lineWidth=1.2;
+        for(let i=0;i<3;i++){
+          const ox=(terrainHash(gx+i,gy+2)-0.5)*85, oy=(terrainHash(gx+3,gy+i)-0.5)*55;
+          const px=sx+ox, py=sy+oy;
+          ctx.beginPath(); ctx.moveTo(px,py+5); ctx.lineTo(px-3,py-2); ctx.moveTo(px,py+5); ctx.lineTo(px+2,py-3); ctx.stroke();
+        }
       }
     }
   }
+
+  drawMapDecor();
 
   // Subtle navigation grid.
   const grid = 200, startX = -((camera.x) % grid), startY = -((camera.y) % grid);
@@ -1869,7 +2052,22 @@ function drawRemoteBuilds(){
   for(const build of palmonNetwork.remoteBuilds.values()) drawRemoteBuild(build);
 }
 
+function drawRemoteSoldiers(){
+  for(const remote of palmonNetwork.remotePlayers.values()){
+    for(const s of (remote.soldiers||[])){
+      const sx=s.x-camera.x, sy=s.y-camera.y; if(sx<-60||sx>canvas.width+60||sy<-60||sy>canvas.height+60) continue;
+      const t=SOLDIER_TYPES.find(t=>t.name===s.type)||RECRUIT;
+      ctx.save(); ctx.fillStyle=t.color||'#aaa'; ctx.strokeStyle=remote.color||'#fff'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(sx,sy,13,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(sx+Math.cos(s.angle||0)*7,sy+Math.sin(s.angle||0)*7,4,0,Math.PI*2); ctx.fill();
+      drawHealthBar(sx,sy-20,Number(s.hp)||t.hp,Number(s.maxHp)||t.hp,28,'#5fbf6c');
+      ctx.fillStyle=remote.color||'#fff'; ctx.font='8px monospace'; ctx.textAlign='center'; ctx.fillText(remote.name||'PLAYER',sx,sy+25);
+      ctx.restore();
+    }
+  }
+}
 function drawRemotePlayers(){
+  drawRemoteSoldiers();
   for(const remote of palmonNetwork.remotePlayers.values()) drawRemotePlayer(remote);
 }
 
@@ -1920,16 +2118,19 @@ function connectPalmonNetwork(){
     if(message.type === 'welcome'){
       palmonNetwork.id = message.id;
       renderPalmonLeaderboard(message.players || []);
-      for(const build of message.builds || []) palmonNetwork.remoteBuilds.set(build.id, build);
-      if(message.mapSeed) mapSeed = Number(message.mapSeed) || mapSeed;
+      palmonNetwork.remoteBuilds.clear();
+      for(const build of message.builds || []) if(build.ownerId!==palmonNetwork.id) palmonNetwork.remoteBuilds.set(build.id, build);
+      if(message.mapSeed && Number(message.mapSeed)!==mapSeed) applyMapSeed(message.mapSeed, false);
     }
     if(message.type === 'snapshot'){
       renderPalmonLeaderboard(message.players || []);
+      palmonNetwork.remotePlayers.clear();
       for(const remote of message.players || []){
         if(remote.id !== palmonNetwork.id) palmonNetwork.remotePlayers.set(remote.id, remote);
       }
-      for(const build of message.builds || []) palmonNetwork.remoteBuilds.set(build.id, build);
-      if(message.mapSeed) mapSeed = Number(message.mapSeed) || mapSeed;
+      palmonNetwork.remoteBuilds.clear();
+      for(const build of message.builds || []) if(build.ownerId!==palmonNetwork.id) palmonNetwork.remoteBuilds.set(build.id, build);
+      if(message.mapSeed && Number(message.mapSeed)!==mapSeed) applyMapSeed(message.mapSeed, false);
     }
     if(message.type === 'playerJoined' || message.type === 'playerUpdated'){
       if(message.player && message.player.id !== palmonNetwork.id) palmonNetwork.remotePlayers.set(message.player.id, message.player);
@@ -1941,14 +2142,17 @@ function connectPalmonNetwork(){
     if(message.type === 'buildAdded' && message.build){
       if(message.build.ownerId !== palmonNetwork.id) palmonNetwork.remoteBuilds.set(message.build.id, message.build);
     }
+    if(message.type === 'buildUpdated' && message.build){
+      if(message.build.ownerId !== palmonNetwork.id) palmonNetwork.remoteBuilds.set(message.build.id, message.build);
+    }
     if(message.type === 'buildRemoved' && message.id){
       palmonNetwork.remoteBuilds.delete(message.id);
     }
-    if(message.type === 'mapReset' && message.seed){
-      applyMapSeed(message.seed, true);
+    if(message.type === 'mapReset' && message.mapSeed){
+      applyMapSeed(message.mapSeed, true);
     }
-    if(message.type === 'interact'){
-      showPrompt((message.fromName || 'A player') + ' interacted with you!', 1500);
+    if(message.type === 'playerInteraction' || message.type === 'interact'){
+      showPrompt(((message.from && message.from.name) || message.fromName || 'A player') + ' interacted with you!', 1500);
     }
   });
   palmonNetwork.ws.addEventListener('close', () => {

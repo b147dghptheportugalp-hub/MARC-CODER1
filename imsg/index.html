@@ -158,9 +158,40 @@
         .send-btn:hover {
             background-color: #1da851;
         }
+
+        .auth-screen { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; background: #1e1f22; }
+        .auth-box { width: min(92vw, 380px); padding: 30px; background: #2b2d31; border: 1px solid #404249; }
+        .auth-box h1 { color: #25d366; margin-bottom: 8px; }
+        .auth-box p, .auth-error { margin: 10px 0 18px; color: #949ba4; }
+        .auth-box input, .auth-box button, .channel-add input { width: 100%; padding: 12px; margin-top: 10px; border: 0; border-radius: 6px; }
+        .auth-box input, .channel-add input { background: #383a40; color: white; outline: none; }
+        .auth-box button, .channel-add button { background: #25d366; color: white; cursor: pointer; font-weight: bold; }
+        .auth-switch { background: transparent !important; color: #25d366 !important; }
+        .auth-error { color: #ff7676; min-height: 18px; }
+        .channel-add { padding: 10px; border-top: 1px solid #1e1f22; }
+        .channel-add button { padding: 8px; }
+        .online-users { padding: 12px; border-top: 1px solid #1e1f22; }
+        .online-users h3 { font-size: .8rem; color: #949ba4; margin-bottom: 8px; }
+        .online-user { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin: 6px 0; color: #dbdee1; }
+        .online-user button { border: 0; background: transparent; color: #25d366; cursor: pointer; }
+        .call-panel { position: fixed; right: 20px; bottom: 20px; z-index: 4; padding: 14px; background: #2b2d31; border: 1px solid #25d366; display: none; }
+        .call-panel video { width: 220px; max-width: 40vw; background: #111; display: block; margin-bottom: 8px; }
+        .call-panel button { padding: 8px 12px; border: 0; background: #d9534f; color: white; cursor: pointer; }
     </style>
 </head>
 <body>
+
+    <div class="auth-screen" id="authScreen">
+        <form class="auth-box" id="authForm">
+            <h1>DisApp</h1>
+            <p id="authSubtitle">Log in to continue</p>
+            <input id="usernameInput" required minlength="3" maxlength="24" placeholder="Username" autocomplete="username">
+            <input id="passwordInput" required minlength="6" type="password" placeholder="Password" autocomplete="current-password">
+            <div class="auth-error" id="authError"></div>
+            <button type="submit" id="authSubmit">Log in</button>
+            <button type="button" class="auth-switch" id="authSwitch">Create a new account</button>
+        </form>
+    </div>
 
     <div class="sidebar">
         <div class="sidebar-header">
@@ -171,14 +202,16 @@
             <li class="channel" data-channel="coding-help"># coding-help</li>
             <li class="channel" data-channel="voice-calls"># voice-calls</li>
         </ul>
+        <div class="channel-add"><input id="newChannelInput" placeholder="new-channel"><button id="createChannelButton">+ Add channel</button></div>
+        <div class="online-users"><h3>ONLINE</h3><div id="onlineUsers"></div></div>
     </div>
 
     <div class="chat-area">
         <div class="chat-header">
             <h2 id="channelTitle"># general-chat</h2>
             <div class="chat-actions">
-                <button onclick="alert('Calling feature requires WebRTC backend!')">📞 Call</button>
-                <button onclick="alert('Video feature requires WebRTC backend!')">📹 Video</button>
+                <button onclick="startCall(false)">📞 Call</button>
+                <button onclick="startCall(true)">📹 Video</button>
             </div>
         </div>
 
@@ -195,77 +228,71 @@
         </div>
     </div>
 
+    <div class="call-panel" id="callPanel"><video id="localVideo" autoplay muted playsinline></video><video id="remoteVideo" autoplay playsinline></video><button onclick="endCall()">End call</button></div>
+
     <script>
         const messageContainer = document.getElementById('messageContainer');
         const inputField = document.getElementById('messageInput');
         const channelTitle = document.getElementById('channelTitle');
+        const authScreen = document.getElementById('authScreen');
+        const authForm = document.getElementById('authForm');
+        const authError = document.getElementById('authError');
+        const authSwitch = document.getElementById('authSwitch');
+        const onlineUsers = document.getElementById('onlineUsers');
+        const callPanel = document.getElementById('callPanel');
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
         const activeChannel = { name: 'general-chat' };
-        const username = `Guest ${Math.floor(Math.random() * 900 + 100)}`;
-        let socket;
+        let socket; let authMode = 'login'; let currentUser; let users = []; let peer; let localStream; let callTarget;
 
-        function formatTime(timestamp) {
-            return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
-
+        function send(message) { if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message)); }
+        function formatTime(timestamp) { return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
         function renderMessage(message) {
-            const element = document.createElement('div');
-            element.className = `message ${message.userId === socket?.clientId ? 'sent' : 'received'}`;
-            element.textContent = message.text;
-            const timestamp = document.createElement('span');
-            timestamp.className = 'timestamp';
-            timestamp.textContent = `${message.name} · ${formatTime(message.timestamp)}`;
-            element.appendChild(timestamp);
-            messageContainer.appendChild(element);
+            const element = document.createElement('div'); element.className = `message ${message.userId === socket?.clientId ? 'sent' : 'received'}`; element.textContent = message.text;
+            const timestamp = document.createElement('span'); timestamp.className = 'timestamp'; timestamp.textContent = `${message.name} · ${formatTime(message.timestamp)}`; element.appendChild(timestamp); messageContainer.appendChild(element);
         }
-
-        function showMessages(messages) {
-            messageContainer.replaceChildren();
-            messages.forEach(renderMessage);
-            messageContainer.scrollTop = messageContainer.scrollHeight;
-        }
-
-        function connect() {
-            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            socket = new WebSocket(`${protocol}//${location.host}`);
-            socket.addEventListener('open', () => socket.send(JSON.stringify({ type: 'join', name: username, channel: activeChannel.name })));
-            socket.addEventListener('message', event => {
-                let message;
-                try { message = JSON.parse(event.data); } catch (_) { return; }
-                if (message.type === 'welcome') {
-                    socket.clientId = message.id;
-                    showMessages(message.messages || []);
-                }
-                if (message.type === 'channelJoined') {
-                    activeChannel.name = message.channel;
-                    channelTitle.textContent = `# ${activeChannel.name}`;
-                    showMessages(message.messages || []);
-                }
-                if (message.type === 'message') {
-                    renderMessage(message.message);
-                    messageContainer.scrollTop = messageContainer.scrollHeight;
-                }
+        function showMessages(messages) { messageContainer.replaceChildren(); messages.forEach(renderMessage); messageContainer.scrollTop = messageContainer.scrollHeight; }
+        function renderUsers() {
+            onlineUsers.replaceChildren(); users.filter(user => user.id !== socket?.clientId).forEach(user => {
+                const row = document.createElement('div'); row.className = 'online-user'; const name = document.createElement('span'); name.textContent = user.name;
+                const call = document.createElement('button'); call.textContent = 'Call'; call.onclick = () => startCall(false, user); const video = document.createElement('button'); video.textContent = 'Video'; video.onclick = () => startCall(true, user); row.append(name, call, video); onlineUsers.appendChild(row);
             });
-            socket.addEventListener('close', () => setTimeout(connect, 1500));
         }
-
-        function sendMessage() {
-            const messageText = inputField.value.trim();
-            if (!messageText || !socket || socket.readyState !== WebSocket.OPEN) return;
-            socket.send(JSON.stringify({ type: 'sendMessage', text: messageText }));
-            inputField.value = '';
+        function renderChannels(list) {
+            const channelList = document.querySelector('.channel-list'); channelList.replaceChildren(); list.forEach(channel => { const item = document.createElement('li'); item.className = `channel ${channel.id === activeChannel.name ? 'active' : ''}`; item.dataset.channel = channel.id; item.textContent = `# ${channel.name}`; item.onclick = () => switchChannel(channel.id); channelList.appendChild(item); });
         }
-
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') sendMessage();
+        function switchChannel(channel) { if (channel === activeChannel.name) return; send({ type: 'switchChannel', channel }); }
+        function connect() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'; socket = new WebSocket(`${protocol}//${location.host}`);
+            socket.onmessage = event => { let message; try { message = JSON.parse(event.data); } catch (_) { return; }
+                if (message.type === 'authenticated') { socket.clientId = message.id; currentUser = message.user; authScreen.style.display = 'none'; renderChannels(message.channels); users = message.users || []; showMessages(message.messages || []); renderUsers(); }
+                if (message.type === 'authError') authError.textContent = message.message;
+                if (message.type === 'channelJoined') { activeChannel.name = message.channel; channelTitle.textContent = `# ${message.channel}`; showMessages(message.messages || []); users = message.users || []; renderUsers(); }
+                if (message.type === 'channelsUpdated') renderChannels(message.channels);
+                if (message.type === 'message') { renderMessage(message.message); messageContainer.scrollTop = messageContainer.scrollHeight; }
+                if (message.type === 'userJoined' || message.type === 'userUpdated') { users = users.filter(user => user.id !== message.user.id).concat(message.user); renderUsers(); }
+                if (message.type === 'userLeft') { users = users.filter(user => user.id !== message.id); renderUsers(); }
+                handleCallMessage(message);
+            };
+            socket.onclose = () => { if (currentUser) setTimeout(connect, 1500); };
         }
+        authForm.onsubmit = event => { event.preventDefault(); authError.textContent = ''; send({ type: 'auth', mode: authMode, username: document.getElementById('usernameInput').value, password: document.getElementById('passwordInput').value }); };
+        authSwitch.onclick = () => { authMode = authMode === 'login' ? 'create' : 'login'; document.getElementById('authSubmit').textContent = authMode === 'login' ? 'Log in' : 'Create account'; authSwitch.textContent = authMode === 'login' ? 'Create a new account' : 'Back to log in'; document.getElementById('passwordInput').autocomplete = authMode === 'login' ? 'current-password' : 'new-password'; };
+        document.getElementById('createChannelButton').onclick = () => { const input = document.getElementById('newChannelInput'); if (input.value.trim()) { send({ type: 'createChannel', name: input.value }); input.value = ''; } };
+        function sendMessage() { const text = inputField.value.trim(); if (text) { send({ type: 'sendMessage', text }); inputField.value = ''; } }
+        function handleKeyPress(event) { if (event.key === 'Enter') sendMessage(); }
 
-        document.querySelectorAll('.channel').forEach(channel => channel.addEventListener('click', () => {
-            if (!socket || socket.readyState !== WebSocket.OPEN || channel.dataset.channel === activeChannel.name) return;
-            document.querySelector('.channel.active')?.classList.remove('active');
-            channel.classList.add('active');
-            socket.send(JSON.stringify({ type: 'switchChannel', channel: channel.dataset.channel }));
-        }));
-
+        async function startCall(video, user) {
+            callTarget = user || users.find(item => item.id !== socket?.clientId); if (!callTarget) return alert('No other users are online.');
+            try { localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video }); localVideo.srcObject = video ? localStream : null; callPanel.style.display = 'block'; peer = new RTCPeerConnection(); localStream.getTracks().forEach(track => peer.addTrack(track, localStream)); peer.onicecandidate = event => event.candidate && send({ type: 'iceCandidate', targetId: callTarget.id, candidate: event.candidate }); peer.ontrack = event => { remoteVideo.srcObject = event.streams[0]; }; const offer = await peer.createOffer(); await peer.setLocalDescription(offer); send({ type: 'callOffer', targetId: callTarget.id, offer, video }); } catch (_) { alert('Camera or microphone permission is required.'); endCall(); }
+        }
+        async function handleCallMessage(message) {
+            if (message.type === 'callOffer') { if (!confirm(`${message.fromName} is calling. Accept?`)) return send({ type: 'callEnd', targetId: message.fromId }); callTarget = { id: message.fromId, name: message.fromName }; localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: message.video }); localVideo.srcObject = message.video ? localStream : null; callPanel.style.display = 'block'; peer = new RTCPeerConnection(); localStream.getTracks().forEach(track => peer.addTrack(track, localStream)); peer.onicecandidate = event => event.candidate && send({ type: 'iceCandidate', targetId: callTarget.id, candidate: event.candidate }); peer.ontrack = event => { remoteVideo.srcObject = event.streams[0]; }; await peer.setRemoteDescription(message.offer); const answer = await peer.createAnswer(); await peer.setLocalDescription(answer); send({ type: 'callAnswer', targetId: callTarget.id, answer }); }
+            if (message.type === 'callAnswer' && peer) await peer.setRemoteDescription(message.answer);
+            if (message.type === 'iceCandidate' && peer) try { await peer.addIceCandidate(message.candidate); } catch (_) {}
+            if (message.type === 'callEnd') endCall();
+        }
+        function endCall() { if (callTarget) send({ type: 'callEnd', targetId: callTarget.id }); peer?.close(); localStream?.getTracks().forEach(track => track.stop()); peer = null; localStream = null; callTarget = null; localVideo.srcObject = null; remoteVideo.srcObject = null; callPanel.style.display = 'none'; }
         connect();
     </script>
 

@@ -228,7 +228,7 @@
         </div>
     </div>
 
-    <div class="call-panel" id="callPanel"><video id="localVideo" autoplay muted playsinline></video><video id="remoteVideo" autoplay playsinline></video><button onclick="endCall()">End call</button></div>
+    <div class="call-panel" id="callPanel"><div id="callStatus">Connecting...</div><video id="localVideo" autoplay muted playsinline></video><video id="remoteVideo" autoplay playsinline></video><button onclick="endCall()">End call</button></div>
 
     <script>
         const messageContainer = document.getElementById('messageContainer');
@@ -243,7 +243,7 @@
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
         const activeChannel = { name: 'general-chat' };
-        let socket; let authMode = 'login'; let currentUser; let users = []; let peer; let localStream; let callTarget;
+        let socket; let authMode = 'login'; let currentUser; let users = []; let peer; let localStream; let callTarget; let pendingCandidates = []; let endingCall = false;
 
         function send(message) { if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message)); }
         function formatTime(timestamp) { return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
@@ -282,17 +282,25 @@
         function sendMessage() { const text = inputField.value.trim(); if (text) { send({ type: 'sendMessage', text }); inputField.value = ''; } }
         function handleKeyPress(event) { if (event.key === 'Enter') sendMessage(); }
 
+        function makePeer(targetId) {
+            peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            peer.onicecandidate = event => event.candidate && send({ type: 'iceCandidate', targetId, candidate: event.candidate });
+            peer.ontrack = event => { remoteVideo.srcObject = event.streams[0]; document.getElementById('callStatus').textContent = 'Connected'; };
+            peer.onconnectionstatechange = () => { if (['failed', 'disconnected'].includes(peer.connectionState)) document.getElementById('callStatus').textContent = 'Connection interrupted'; };
+            return peer;
+        }
+
         async function startCall(video, user) {
             callTarget = user || users.find(item => item.id !== socket?.clientId); if (!callTarget) return alert('No other users are online.');
-            try { localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video }); localVideo.srcObject = video ? localStream : null; callPanel.style.display = 'block'; peer = new RTCPeerConnection(); localStream.getTracks().forEach(track => peer.addTrack(track, localStream)); peer.onicecandidate = event => event.candidate && send({ type: 'iceCandidate', targetId: callTarget.id, candidate: event.candidate }); peer.ontrack = event => { remoteVideo.srcObject = event.streams[0]; }; const offer = await peer.createOffer(); await peer.setLocalDescription(offer); send({ type: 'callOffer', targetId: callTarget.id, offer, video }); } catch (_) { alert('Camera or microphone permission is required.'); endCall(); }
+            try { endingCall = false; pendingCandidates = []; document.getElementById('callStatus').textContent = `Calling ${callTarget.name}...`; localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video }); localVideo.srcObject = video ? localStream : null; callPanel.style.display = 'block'; makePeer(callTarget.id); localStream.getTracks().forEach(track => peer.addTrack(track, localStream)); const offer = await peer.createOffer(); await peer.setLocalDescription(offer); send({ type: 'callOffer', targetId: callTarget.id, offer, video }); } catch (_) { alert('Camera or microphone permission is required.'); endCall(true); }
         }
         async function handleCallMessage(message) {
-            if (message.type === 'callOffer') { if (!confirm(`${message.fromName} is calling. Accept?`)) return send({ type: 'callEnd', targetId: message.fromId }); callTarget = { id: message.fromId, name: message.fromName }; localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: message.video }); localVideo.srcObject = message.video ? localStream : null; callPanel.style.display = 'block'; peer = new RTCPeerConnection(); localStream.getTracks().forEach(track => peer.addTrack(track, localStream)); peer.onicecandidate = event => event.candidate && send({ type: 'iceCandidate', targetId: callTarget.id, candidate: event.candidate }); peer.ontrack = event => { remoteVideo.srcObject = event.streams[0]; }; await peer.setRemoteDescription(message.offer); const answer = await peer.createAnswer(); await peer.setLocalDescription(answer); send({ type: 'callAnswer', targetId: callTarget.id, answer }); }
-            if (message.type === 'callAnswer' && peer) await peer.setRemoteDescription(message.answer);
-            if (message.type === 'iceCandidate' && peer) try { await peer.addIceCandidate(message.candidate); } catch (_) {}
-            if (message.type === 'callEnd') endCall();
+            if (message.type === 'callOffer') { if (!confirm(`${message.fromName} is calling. Accept?`)) return send({ type: 'callEnd', targetId: message.fromId }); try { endingCall = false; pendingCandidates = []; callTarget = { id: message.fromId, name: message.fromName }; document.getElementById('callStatus').textContent = `Connected to ${callTarget.name}`; localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: message.video }); localVideo.srcObject = message.video ? localStream : null; callPanel.style.display = 'block'; makePeer(callTarget.id); localStream.getTracks().forEach(track => peer.addTrack(track, localStream)); await peer.setRemoteDescription(message.offer); for (const candidate of pendingCandidates) await peer.addIceCandidate(candidate); pendingCandidates = []; const answer = await peer.createAnswer(); await peer.setLocalDescription(answer); send({ type: 'callAnswer', targetId: callTarget.id, answer }); } catch (_) { alert('Camera or microphone permission is required.'); endCall(true); } }
+            if (message.type === 'callAnswer' && peer) { await peer.setRemoteDescription(message.answer); for (const candidate of pendingCandidates) await peer.addIceCandidate(candidate); pendingCandidates = []; document.getElementById('callStatus').textContent = 'Connected'; }
+            if (message.type === 'iceCandidate' && peer) { if (peer.remoteDescription) { try { await peer.addIceCandidate(message.candidate); } catch (_) {} } else pendingCandidates.push(message.candidate); }
+            if (message.type === 'callEnd') endCall(true);
         }
-        function endCall() { if (callTarget) send({ type: 'callEnd', targetId: callTarget.id }); peer?.close(); localStream?.getTracks().forEach(track => track.stop()); peer = null; localStream = null; callTarget = null; localVideo.srcObject = null; remoteVideo.srcObject = null; callPanel.style.display = 'none'; }
+        function endCall(remote = false) { if (!remote && callTarget && !endingCall) { endingCall = true; send({ type: 'callEnd', targetId: callTarget.id }); } peer?.close(); localStream?.getTracks().forEach(track => track.stop()); peer = null; localStream = null; callTarget = null; pendingCandidates = []; localVideo.srcObject = null; remoteVideo.srcObject = null; callPanel.style.display = 'none'; }
         connect();
     </script>
 

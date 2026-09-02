@@ -167,22 +167,22 @@
             DisApp Public
         </div>
         <ul class="channel-list">
-            <li class="channel active"># general-chat</li>
-            <li class="channel"># coding-help</li>
-            <li class="channel"># voice-calls</li>
+            <li class="channel active" data-channel="general-chat"># general-chat</li>
+            <li class="channel" data-channel="coding-help"># coding-help</li>
+            <li class="channel" data-channel="voice-calls"># voice-calls</li>
         </ul>
     </div>
 
     <div class="chat-area">
         <div class="chat-header">
-            <h2># general-chat</h2>
+            <h2 id="channelTitle"># general-chat</h2>
             <div class="chat-actions">
                 <button onclick="alert('Calling feature requires WebRTC backend!')">📞 Call</button>
                 <button onclick="alert('Video feature requires WebRTC backend!')">📹 Video</button>
             </div>
         </div>
 
-        <div class="messages" id="messageContainer">
+        <div class="messages" id="messageContainer" aria-live="polite">
             <div class="message received">
                 Hey! Welcome to the new public app.
                 <span class="timestamp">10:00 AM</span>
@@ -196,41 +196,77 @@
     </div>
 
     <script>
+        const messageContainer = document.getElementById('messageContainer');
+        const inputField = document.getElementById('messageInput');
+        const channelTitle = document.getElementById('channelTitle');
+        const activeChannel = { name: 'general-chat' };
+        const username = `Guest ${Math.floor(Math.random() * 900 + 100)}`;
+        let socket;
+
+        function formatTime(timestamp) {
+            return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function renderMessage(message) {
+            const element = document.createElement('div');
+            element.className = `message ${message.userId === socket?.clientId ? 'sent' : 'received'}`;
+            element.textContent = message.text;
+            const timestamp = document.createElement('span');
+            timestamp.className = 'timestamp';
+            timestamp.textContent = `${message.name} · ${formatTime(message.timestamp)}`;
+            element.appendChild(timestamp);
+            messageContainer.appendChild(element);
+        }
+
+        function showMessages(messages) {
+            messageContainer.replaceChildren();
+            messages.forEach(renderMessage);
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+
+        function connect() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            socket = new WebSocket(`${protocol}//${location.host}`);
+            socket.addEventListener('open', () => socket.send(JSON.stringify({ type: 'join', name: username, channel: activeChannel.name })));
+            socket.addEventListener('message', event => {
+                let message;
+                try { message = JSON.parse(event.data); } catch (_) { return; }
+                if (message.type === 'welcome') {
+                    socket.clientId = message.id;
+                    showMessages(message.messages || []);
+                }
+                if (message.type === 'channelJoined') {
+                    activeChannel.name = message.channel;
+                    channelTitle.textContent = `# ${activeChannel.name}`;
+                    showMessages(message.messages || []);
+                }
+                if (message.type === 'message') {
+                    renderMessage(message.message);
+                    messageContainer.scrollTop = messageContainer.scrollHeight;
+                }
+            });
+            socket.addEventListener('close', () => setTimeout(connect, 1500));
+        }
+
         function sendMessage() {
-            const inputField = document.getElementById('messageInput');
             const messageText = inputField.value.trim();
-
-            if (messageText !== "") {
-                const messageContainer = document.getElementById('messageContainer');
-
-                // Get current time
-                const now = new Date();
-                const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                // Create new message element
-                const newMessage = document.createElement('div');
-                newMessage.classList.add('message', 'sent');
-                
-                newMessage.innerHTML = `
-                    ${messageText}
-                    <span class="timestamp">${timeString}</span>
-                `;
-
-                // Add to chat and scroll to bottom
-                messageContainer.appendChild(newMessage);
-                messageContainer.scrollTop = messageContainer.scrollHeight;
-
-                // Clear input
-                inputField.value = '';
-            }
+            if (!messageText || !socket || socket.readyState !== WebSocket.OPEN) return;
+            socket.send(JSON.stringify({ type: 'sendMessage', text: messageText }));
+            inputField.value = '';
         }
 
-        // Allow sending with the Enter key
         function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
+            if (event.key === 'Enter') sendMessage();
         }
+
+        document.querySelectorAll('.channel').forEach(channel => channel.addEventListener('click', () => {
+            if (!socket || socket.readyState !== WebSocket.OPEN || channel.dataset.channel === activeChannel.name) return;
+            document.querySelector('.channel.active')?.classList.remove('active');
+            channel.classList.add('active');
+            socket.send(JSON.stringify({ type: 'switchChannel', channel: channel.dataset.channel }));
+        }));
+
+        connect();
     </script>
 
 </body>

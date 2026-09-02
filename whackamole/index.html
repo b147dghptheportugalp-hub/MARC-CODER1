@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whack-a-Mole</title>
+
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #7ec850;
+        text-align: center;
+        /* Prevent double-tap zooming on mobile */
+        touch-action: manipulation; 
+    }
+
+    h1 {
+        color: white;
+        margin-top: 20px;
+    }
+
+    #info {
+        font-size: 24px;
+        color: white;
+        margin: 15px;
+        font-weight: bold;
+    }
+
+    #board {
+        width: 330px;
+        margin: 20px auto;
+        display: grid;
+        grid-template-columns: repeat(3, 100px);
+        gap: 10px;
+        justify-content: center;
+    }
+
+    .hole {
+        width: 100px;
+        height: 100px;
+        background: #8b5a2b;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 55px;
+        cursor: pointer;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        box-shadow: inset 0 -10px 15px rgba(0,0,0,0.4);
+    }
+
+    .controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+
+    select {
+        padding: 10px 15px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 2px solid #333;
+        cursor: pointer;
+    }
+
+    button {
+        padding: 10px 25px;
+        font-size: 18px;
+        cursor: pointer;
+        background-color: #333;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+
+    button:active {
+        transform: scale(0.95);
+    }
+</style>
+</head>
+<body>
+
+<h1>🐹 Whack-a-Mole</h1>
+
+<div id="info">
+    Score: <span id="score">0</span>
+    &nbsp;&nbsp;
+    Time: <span id="time">30</span>
+</div>
+
+<div id="board"></div>
+
+<div class="controls">
+    <select id="difficulty">
+        <option value="easy">Easy</option>
+        <option value="normal" selected>Normal</option>
+        <option value="hard">Hard</option>
+        <option value="insane">Insane</option>
+    </select>
+    <button id="startBtn" onclick="startGame()">Start Game</button>
+</div>
+
+<script>
+    const board = document.getElementById("board");
+    const scoreText = document.getElementById("score");
+    const timeText = document.getElementById("time");
+    const difficultySelect = document.getElementById("difficulty");
+    const startBtn = document.getElementById("startBtn");
+
+    let score = 0;
+    let time = 30;
+    let mole = -1;
+    let gameRunning = false;
+    let moleTimer;
+    let gameTimer;
+
+    // Generate the board
+    for(let i = 0; i < 9; i++) {
+        const hole = document.createElement("div");
+        hole.className = "hole";
+        hole.dataset.index = i;
+
+        hole.onclick = function() {
+            if(!gameRunning) return;
+
+            if(Number(this.dataset.index) === mole) {
+                score++;
+                scoreText.textContent = score;
+                mole = -1;
+                this.textContent = ""; 
+            }
+        };
+
+        board.appendChild(hole);
+    }
+
+    function spawnMole() {
+        const holes = document.querySelectorAll(".hole");
+        holes.forEach(h => h.textContent = ""); // Clear previous mole
+
+        mole = Math.floor(Math.random() * 9);
+        holes[mole].textContent = "🐹";
+    }
+
+    function startGame() {
+        if (gameRunning) return; // Prevent clicking start multiple times
+        
+        // Reset everything
+        score = 0;
+        gameRunning = true;
+        startBtn.disabled = true; // Disable button while playing
+        difficultySelect.disabled = true;
+
+        // Apply Difficulty Settings
+        let moleSpeed = 700;
+        const diff = difficultySelect.value;
+        
+        if (diff === "easy") {
+            time = 30;
+            moleSpeed = 900;
+        } else if (diff === "normal") {
+            time = 25;
+            moleSpeed = 700;
+        } else if (diff === "hard") {
+            time = 20;
+            moleSpeed = 500;
+        } else if (diff === "insane") {
+            time = 15;
+            moleSpeed = 350;
+        }
+
+        scoreText.textContent = score;
+        timeText.textContent = time;
+
+        spawnMole();
+
+        // Mole appearing timer
+        moleTimer = setInterval(() => {
+            if(!gameRunning) {
+                clearInterval(moleTimer);
+                return;
+            }
+            spawnMole();
+        }, moleSpeed);
+
+        // Overall game countdown timer
+        gameTimer = setInterval(() => {
+            time--;
+            timeText.textContent = time;
+
+            if(time <= 0) {
+                endGame();
+            }
+        }, 1000);
+    }
+
+    function endGame() {
+        gameRunning = false;
+        clearInterval(gameTimer);
+        clearInterval(moleTimer);
+        
+        document.querySelectorAll(".hole").forEach(h => h.textContent = "");
+        
+        startBtn.disabled = false;
+        difficultySelect.disabled = false;
+        
+        // Small timeout so the UI updates before the alert blocks it
+        setTimeout(() => {
+            alert(`Game Over! 🐹\nDifficulty: ${difficultySelect.value.toUpperCase()}\nYour final score: ${score}`);
+        }, 50);
+    }
+</script>
+
+</body>
+</html>

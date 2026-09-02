@@ -3,8 +3,9 @@ services:
     name: poxel-io
     runtime: node
     plan: free
-    buildCommand: npm install --prefix poxel-io
-    startCommand: npm start --prefix poxel-io
+    rootDir: poxel-io
+    buildCommand: npm install
+    startCommand: npm start
     healthCheckPath: /health
   - type: web
     name: palmon-io

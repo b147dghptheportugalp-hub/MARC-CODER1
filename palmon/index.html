@@ -2109,7 +2109,7 @@ function connectPalmonNetwork(){
     palmonNetwork.ws.send(JSON.stringify({ type: 'join', name: localStorage.getItem('palmon-name') || 'Palmon Player' }));
     palmonNetwork.stateTimer = setInterval(() => {
       if(palmonNetwork.ws.readyState === WebSocket.OPEN && started){
-        palmonNetwork.ws.send(JSON.stringify({ type: 'state', x: player.x, y: player.y, angle: player.angle }));
+        palmonNetwork.ws.send(JSON.stringify({ type: 'state', x: player.x, y: player.y, angle: player.angle, soldiers: armyList().filter(s=>s.state!=='dead').map(s=>({ id:s.id, type:s.type.name, x:s.x, y:s.y, angle:s.angle, hp:s.hp, maxHp:s.maxHp })) }));
       }
     }, 50);
   });

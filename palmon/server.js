@@ -28,7 +28,8 @@ function publicPlayer(player) {
     x: player.x,
     y: player.y,
     angle: player.angle,
-    color: player.color
+    color: player.color,
+    soldiers: player.soldiers || []
   };
 }
 
@@ -106,7 +107,8 @@ wss.on('connection', ws => {
     y: WORLD_H / 2,
     angle: 0,
     color: `hsl(${Math.floor(Math.random() * 360)} 75% 55%)`,
-    builds: new Set()
+    builds: new Set(),
+    soldiers: []
   };
   players.set(player.id, player);
   send(ws, { type: 'welcome', id: player.id, players: snapshot(), builds: buildSnapshot(), mapSeed, mapRotateMs: MAP_ROTATE_MS });
@@ -128,6 +130,17 @@ wss.on('connection', ws => {
         if (Number.isFinite(x)) player.x = Math.max(0, Math.min(WORLD_W, x));
         if (Number.isFinite(y)) player.y = Math.max(0, Math.min(WORLD_H, y));
         if (Number.isFinite(angle)) player.angle = angle;
+        if (Array.isArray(message.soldiers)) {
+          player.soldiers = message.soldiers.slice(0, 40).map(soldier => ({
+            id: String(soldier.id || '').slice(0, 40),
+            type: String(soldier.type || 'Recruit').slice(0, 30),
+            x: Math.max(0, Math.min(WORLD_W, Number(soldier.x) || player.x)),
+            y: Math.max(0, Math.min(WORLD_H, Number(soldier.y) || player.y)),
+            angle: Number(soldier.angle) || 0,
+            hp: Math.max(0, Number(soldier.hp) || 0),
+            maxHp: Math.max(1, Number(soldier.maxHp) || 1)
+          }));
+        }
         broadcast({ type: 'playerUpdated', player: publicPlayer(player) }, player.id);
       }
 
@@ -138,8 +151,9 @@ wss.on('connection', ws => {
       if (message.type === 'build' || message.type === 'buildPlaced') {
         if (player.builds && player.builds.size >= MAX_BUILDS_PER_PLAYER) return;
         const allowed = new Set(['wood','stone','turret','spike','heal_beacon','weapon_smith']);
-        const kind = String(message.kind || '');
-        const x = Number(message.x), y = Number(message.y);
+        const source = message.build && typeof message.build === 'object' ? message.build : message;
+        const kind = String(source.kind || '');
+        const x = Number(source.x), y = Number(source.y);
         if (!allowed.has(kind) || !Number.isFinite(x) || !Number.isFinite(y)) return;
         const radius = kind === 'weapon_smith' ? 25 : (kind === 'turret' ? 25 : 22);
         const hp = kind === 'stone' ? 180 : kind === 'wood' ? 100 : kind === 'turret' ? 120 : kind === 'spike' ? 80 : kind === 'heal_beacon' ? 100 : 140;

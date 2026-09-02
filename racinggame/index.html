@@ -987,6 +987,7 @@
         const remoteCars = new Map();
 
         function joinOnlineRace() {
+            if (onlineRace.ws && (onlineRace.ws.readyState === WebSocket.OPEN || onlineRace.ws.readyState === WebSocket.CONNECTING)) return;
             onlineRace.enabled = true;
             const status = document.getElementById('online-race-status');
             status.textContent = 'Connecting to online lobby...';
@@ -1013,6 +1014,7 @@
                 if (message.type === 'playerLeft') { onlineRace.players.delete(message.id); remoteCars.delete(message.id); }
             });
             onlineRace.ws.addEventListener('close', () => { onlineRace.players.clear(); remoteCars.clear(); status.textContent = 'Online lobby disconnected'; });
+            onlineRace.ws.addEventListener('error', () => { status.textContent = 'Online lobby unavailable'; });
         }
 
         function syncRemoteRacePlayers(players) {
@@ -1192,6 +1194,13 @@
         function showMenu() {
             raceEnded = true;
             if (animFrameId) cancelAnimationFrame(animFrameId);
+            clearInterval(onlineRace.stateTimer);
+            onlineRace.stateTimer = null;
+            if (onlineRace.ws) onlineRace.ws.close();
+            onlineRace.ws = null;
+            onlineRace.enabled = false;
+            onlineRace.players.clear();
+            remoteCars.clear();
             document.getElementById('game-over-modal').classList.remove('active');
             document.getElementById('game-screen').classList.remove('active');
             document.getElementById('menu-screen').classList.add('active');

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'arcadesuite-dynamic-v3';
+const CACHE_NAME = 'arcadesuite-dynamic-v4';
 
 // Core files that get saved immediately when the app is installed
 const CORE_ASSETS = [
@@ -15,12 +15,26 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(CORE_ASSETS);
-    })
+    }).then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => Promise.all(
+      cacheNames
+        .filter((cacheName) => cacheName !== CACHE_NAME)
+        .map((cacheName) => caches.delete(cacheName))
+    )).then(() => self.clients.claim())
   );
 });
 
 // Step 2: Intercept requests, ignore AI, and dynamically cache the rest
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   const requestUrl = event.request.url;
 
   // EXCLUSION: If the user is trying to load anything from the AI tool, DO NOT cache it.
@@ -54,8 +68,12 @@ self.addEventListener('fetch', (event) => {
 
         return networkResponse;
       }).catch(() => {
-        // If they are offline and the file isn't cached yet, it will just fail gracefully
-        console.log('You are offline and this game hasn\'t been cached yet.');
+        // Keep app navigation usable after the installed app is reopened offline.
+        if (event.request.mode === 'navigate') {
+          return caches.match('/index.html');
+        }
+
+        return Response.error();
       });
     })
   );

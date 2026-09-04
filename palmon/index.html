@@ -1095,6 +1095,7 @@ function tryPlaceWall(){
   const gx = Math.round(px/WALL_CELL)*WALL_CELL, gy = Math.round(py/WALL_CELL)*WALL_CELL;
 
   for(const w of walls){ if(dist(w.x,w.y,gx,gy) < WALL_CELL*0.8) return; }
+  for(const w of palmonNetwork.remoteBuilds.values()){ if(dist(w.x,w.y,gx,gy) < WALL_CELL*0.8) return; }
   for(const r of resources){ if(dist(r.x,r.y,gx,gy) < 30) return; }
 
   let c_w=0, c_s=0, hp=0, radius=22;
@@ -1298,6 +1299,12 @@ function attemptTame(){
 function resolveCollisions(ent){
   for(const w of walls){
     const d = dist(ent.x,ent.y,w.x,w.y), minD = (ent.radius||16) + w.radius;
+    if(d < minD && d>0.001){
+      const push = minD-d; ent.x += (ent.x-w.x)/d*push; ent.y += (ent.y-w.y)/d*push;
+    }
+  }
+  for(const w of palmonNetwork.remoteBuilds.values()){
+    const d = dist(ent.x,ent.y,w.x,w.y), minD = (ent.radius||16) + (w.radius||22);
     if(d < minD && d>0.001){
       const push = minD-d; ent.x += (ent.x-w.x)/d*push; ent.y += (ent.y-w.y)/d*push;
     }

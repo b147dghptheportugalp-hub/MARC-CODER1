@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Decision Wheel</title>
+    <style>
+        /* Base page styling to make it look sleek and modern */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            background: #1e1e24; 
+            color: #fff; 
+            padding-top: 50px; 
+            margin: 0;
+        }
+
+        /* The pointer that indicates the winner */
+        .wheel-container { position: relative; margin-bottom: 30px; }
+        .pointer { 
+            position: absolute; 
+            top: -15px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            width: 0; 
+            height: 0; 
+            border-left: 15px solid transparent; 
+            border-right: 15px solid transparent; 
+            border-top: 30px solid #ff4757; 
+            z-index: 10; 
+            filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.5)); 
+        }
+
+        /* The spinning canvas */
+        canvas { 
+            border-radius: 50%; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.4); 
+            /* This transition creates the smooth spinning animation */
+            transition: transform 4s cubic-bezier(0.17, 0.67, 0.1, 1); 
+            background: #2f3640; 
+        }
+
+        /* Input and button styling */
+        .controls { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; max-width: 350px; }
+        textarea { 
+            width: 100%; 
+            height: 120px; 
+            padding: 12px; 
+            border-radius: 8px; 
+            border: 2px solid #a4b0be; 
+            background: #2f3640; 
+            color: #fff; 
+            font-size: 1rem; 
+            resize: none; 
+            box-sizing: border-box; 
+        }
+        button { 
+            width: 100%; 
+            padding: 15px; 
+            font-size: 1.2rem; 
+            cursor: pointer; 
+            background: #2ed573; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            transition: 0.2s; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+        }
+        button:hover { background: #26de81; }
+        button:disabled { background: #7bed9f; cursor: not-allowed; }
+        
+        #winner { font-size: 1.5rem; font-weight: bold; color: #ff4757; min-height: 35px; text-align: center; }
+    </style>
+</head>
+<body >
+
+    <div class="wheel-container">
+        <div class="pointer"></div>
+        <canvas id="wheel" width="300" height="300"></canvas>
+    </div>
+
+    <div class="controls">
+        <div id="winner"></div>
+        <button id="spinBtn">Spin the Wheel</button>
+        <textarea id="options" placeholder="Enter options here...&#10;One per line!"></textarea>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = document.getElementById('spinBtn');
+        const optionsInput = document.getElementById('options');
+        const winnerDisplay = document.getElementById('winner');
+
+        // Default placeholder options
+        let options = ["Pizza", "Tacos", "Burgers", "Sushi", "Salad"];
+        optionsInput.value = options.join('\n');
+        
+        let currentRotation = 0;
+        
+        // A nice array of colors to loop through for the wheel slices
+        const colors = ['#ff6b81', '#1e90ff', '#ffa502', '#a4b0be', '#3742fa', '#ff4757', '#7bed9f', '#ff7f50'];
+
+        // Function to draw the wheel based on the textarea input
+        function drawWheel() {
+            options = optionsInput.value.split('\n').filter(opt => opt.trim() !== '');
+            if (options.length === 0) options = ["Empty!"];
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const arc = (2 * Math.PI) / options.length;
+
+            options.forEach((text, i) => {
+                ctx.beginPath();
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.moveTo(150, 150);
+                ctx.arc(150, 150, 150, i * arc, (i + 1) * arc);
+                ctx.fill();
+
+                // Draw the text inside each slice
+                ctx.save();
+                ctx.translate(150, 150);
+                ctx.rotate((i * arc) + (arc / 2));
+                ctx.fillStyle = "#fff";
+                ctx.font = "bold 16px sans-serif";
+                ctx.textAlign = "right";
+                // Pushes the text toward the outer edge of the circle
+                ctx.fillText(text, 135, 6); 
+                ctx.restore();
+            });
+        }
+
+        // Redraw the wheel whenever the user types in the textarea
+        optionsInput.addEventListener('input', drawWheel);
+        drawWheel(); // Initial render on load
+
+        // The spinning logic
+        spinBtn.addEventListener('click', () => {
+            if (options.length === 1 && options[0] === "Empty!") return;
+            
+            spinBtn.disabled = true;
+            winnerDisplay.innerText = "Spinning...";
+
+            // Pick a random winner behind the scenes first
+            const randomIndex = Math.floor(Math.random() * options.length);
+            const sliceAngle = 360 / options.length;
+            
+            // Calculate the exact angle needed to make the winning slice land at the top pointer (270 degrees)
+            const centerAngle = (randomIndex * sliceAngle) + (sliceAngle / 2);
+            const targetRotation = 270 - centerAngle;
+
+            // Add 5 to 10 extra full spins for visual flair
+            const extraSpins = (Math.floor(Math.random() * 5) + 5) * 360; 
+            
+            // Calculate the new rotation degree (ensuring it always spins forward)
+            currentRotation = currentRotation - (currentRotation % 360) + targetRotation + extraSpins;
+
+            // Apply the CSS rotation
+            canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+            // Wait 4 seconds (matching the CSS transition) before announcing the winner
+            setTimeout(() => {
+                winnerDisplay.innerText = `Winner: ${options[randomIndex]} 🎉`;
+                spinBtn.disabled = false;
+            }, 4000); 
+        });
+    </script>
+</body>
+</html>

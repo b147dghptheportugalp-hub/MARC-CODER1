@@ -12,6 +12,7 @@ const MAX_PLAYERS = 50;
 const MAX_BUILDS_PER_PLAYER = 120;
 const players = new Map();
 const builds = new Map();
+const teams = new Map();
 let nextId = 1;
 let nextBuildId = 1;
 let mapSeed = Math.floor(Math.random() * 2147483647);
@@ -29,8 +30,18 @@ function publicPlayer(player) {
     y: player.y,
     angle: player.angle,
     color: player.color,
+    teamId: player.teamId,
+    teamName: player.teamName,
     soldiers: player.soldiers || []
   };
+}
+
+function sameTeam(first, second) {
+  return !!first && !!second && !!first.teamId && first.teamId === second.teamId;
+}
+
+function teamInfo(player) {
+  return player.teamId ? { id: player.teamId, name: player.teamName } : null;
 }
 
 function broadcast(message, exceptId = null) {
@@ -59,12 +70,14 @@ function publicBuild(build) {
   return {
     id: build.id,
     ownerId: build.ownerId,
+    ownerTeamId: build.ownerTeamId,
     x: build.x,
     y: build.y,
     hp: build.hp,
     maxHp: build.maxHp,
     kind: build.kind,
-    radius: build.radius
+    radius: build.radius,
+    clientBuildId: build.clientBuildId
   };
 }
 
@@ -107,6 +120,8 @@ wss.on('connection', ws => {
     y: WORLD_H / 2,
     angle: 0,
     color: `hsl(${Math.floor(Math.random() * 360)} 75% 55%)`,
+    teamId: null,
+    teamName: null,
     builds: new Set(),
     soldiers: []
   };
@@ -121,6 +136,27 @@ wss.on('connection', ws => {
       if (message.type === 'join') {
         player.name = String(message.name || 'Palmon Player').trim().slice(0, 20) || 'Palmon Player';
         send(ws, { type: 'snapshot', players: snapshot(), builds: buildSnapshot(), mapSeed, mapRotateMs: MAP_ROTATE_MS });
+        broadcast({ type: 'playerUpdated', player: publicPlayer(player) });
+      }
+      if (message.type === 'createTeam' || message.type === 'joinTeam' || message.type === 'leaveTeam') {
+        if (message.type === 'leaveTeam') {
+          player.teamId = null; player.teamName = null;
+        } else if (message.type === 'createTeam') {
+          if (player.teamId) return send(ws, { type: 'teamError', message: 'Leave your current team first.' });
+          const name = String(message.name || '').trim().replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, ' ').slice(0, 24);
+          if (!name) return send(ws, { type: 'teamError', message: 'Choose a team name.' });
+          if ([...teams.values()].some(team => team.name.toLowerCase() === name.toLowerCase())) return send(ws, { type: 'teamError', message: 'That team name is already taken.' });
+          const id = `team-${nextId++}`;
+          teams.set(id, { id, name, ownerId: player.id });
+          player.teamId = id; player.teamName = name;
+        } else {
+          if (player.teamId) return send(ws, { type: 'teamError', message: 'Leave your current team first.' });
+          const lookup = String(message.team || '').trim().toLowerCase();
+          const team = [...teams.values()].find(item => item.id.toLowerCase() === lookup || item.name.toLowerCase() === lookup);
+          if (!team) return send(ws, { type: 'teamError', message: 'Team not found. Use its name or code.' });
+          player.teamId = team.id; player.teamName = team.name;
+        }
+        send(ws, { type: 'teamUpdated', team: teamInfo(player) });
         broadcast({ type: 'playerUpdated', player: publicPlayer(player) });
       }
       if (message.type === 'state') {
@@ -157,7 +193,7 @@ wss.on('connection', ws => {
         if (!allowed.has(kind) || !Number.isFinite(x) || !Number.isFinite(y)) return;
         const radius = kind === 'weapon_smith' ? 25 : (kind === 'turret' ? 25 : 22);
         const hp = kind === 'stone' ? 180 : kind === 'wood' ? 100 : kind === 'turret' ? 120 : kind === 'spike' ? 80 : kind === 'heal_beacon' ? 100 : 140;
-        const build = { id: `b${nextBuildId++}`, ownerId: player.id, kind, x: Math.max(0, Math.min(WORLD_W, x)), y: Math.max(0, Math.min(WORLD_H, y)), hp, maxHp: hp, radius };
+        const build = { id: `b${nextBuildId++}`, clientBuildId: String(source.id || ''), ownerId: player.id, ownerTeamId: player.teamId, kind, x: Math.max(0, Math.min(WORLD_W, x)), y: Math.max(0, Math.min(WORLD_H, y)), hp, maxHp: hp, radius };
         builds.set(build.id, build);
         player.builds.add(build.id);
         broadcast({ type: 'buildAdded', build: publicBuild(build) });
@@ -169,23 +205,32 @@ wss.on('connection', ws => {
         if (!build || build.ownerId !== player.id) return;
         builds.delete(build.id);
         player.builds.delete(build.id);
-        broadcast({ type: 'buildRemoved', id: build.id });
+        broadcast({ type: 'buildRemoved', id: build.id, ownerId: build.ownerId, clientBuildId: build.clientBuildId });
       }
 
       if (message.type === 'buildDamage') {
         const buildId = String(message.id || message.buildId || '');
         const build = builds.get(buildId);
         const damage = Number(message.damage);
-        if (!build || !Number.isFinite(damage) || damage <= 0 || damage > 500) return;
+        const attacker = players.get(String(message.attackerId || player.id));
+        if (!build || !attacker || sameTeam(attacker, players.get(build.ownerId)) || !Number.isFinite(damage) || damage <= 0 || damage > 500) return;
         build.hp = Math.max(0, build.hp - damage);
         if (build.hp <= 0) {
           builds.delete(build.id);
           const owner = players.get(build.ownerId);
           if (owner) owner.builds.delete(build.id);
-          broadcast({ type: 'buildRemoved', id: build.id });
+          broadcast({ type: 'buildRemoved', id: build.id, ownerId: build.ownerId, clientBuildId: build.clientBuildId });
         } else {
           broadcast({ type: 'buildUpdated', build: publicBuild(build) });
         }
+      }
+
+      if (message.type === 'playerDamage') {
+        const target = players.get(String(message.targetId || ''));
+        const damage = Number(message.damage);
+        if (!target || target.id === player.id || sameTeam(player, target) || !Number.isFinite(damage) || damage <= 0 || damage > 250) return;
+        if (Math.hypot(target.x - player.x, target.y - player.y) > 950) return;
+        send(target.ws, { type: 'playerDamage', damage, from: publicPlayer(player) });
       }
 
       if (message.type === 'interactPlayer' || message.type === 'playerInteract' || message.type === 'interact') {
@@ -205,7 +250,7 @@ wss.on('connection', ws => {
     for (const [buildId, build] of builds) {
       if (build.ownerId === player.id) {
         builds.delete(buildId);
-        broadcast({ type: 'buildRemoved', id: buildId });
+        broadcast({ type: 'buildRemoved', id: buildId, ownerId: build.ownerId, clientBuildId: build.clientBuildId });
       }
     }
     broadcast({ type: 'playerLeft', id: player.id });

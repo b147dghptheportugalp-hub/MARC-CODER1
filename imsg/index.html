@@ -174,6 +174,14 @@
         .online-users h3 { font-size: .8rem; color: #949ba4; margin-bottom: 8px; }
         .online-user { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin: 6px 0; color: #dbdee1; }
         .online-user button { border: 0; background: transparent; color: #25d366; cursor: pointer; }
+        .social-tools { padding: 12px; border-top: 1px solid #1e1f22; }
+        .social-tools h3 { font-size: .8rem; color: #949ba4; margin-bottom: 8px; }
+        .social-tools form { display: grid; gap: 6px; margin-bottom: 12px; }
+        .social-tools input, .social-tools button { width: 100%; padding: 8px; border: 0; border-radius: 5px; }
+        .social-tools input { background: #383a40; color: white; outline: none; }
+        .social-tools button { background: #25d366; color: white; cursor: pointer; font-weight: bold; }
+        .friend-list { display: flex; flex-wrap: wrap; gap: 5px; color: #dbdee1; font-size: .8rem; }
+        .friend-chip { padding: 4px 7px; background: #383a40; border-radius: 4px; }
         .call-panel { position: fixed; right: 20px; bottom: 20px; z-index: 4; padding: 14px; background: #2b2d31; border: 1px solid #25d366; display: none; }
         .call-panel video { width: 220px; max-width: 40vw; background: #111; display: block; margin-bottom: 8px; }
         .call-panel button { padding: 8px 12px; border: 0; background: #d9534f; color: white; cursor: pointer; }
@@ -204,6 +212,20 @@
         </ul>
         <div class="channel-add"><input id="newChannelInput" placeholder="new-channel"><button id="createChannelButton">+ Add channel</button></div>
         <div class="online-users"><h3>ONLINE</h3><div id="onlineUsers"></div></div>
+        <div class="social-tools">
+            <h3>FRIENDS</h3>
+            <form id="friendForm">
+                <input id="friendUsernameInput" placeholder="username" autocomplete="off" maxlength="24">
+                <button type="submit">+ Add friend</button>
+            </form>
+            <div class="friend-list" id="friendList"></div>
+            <h3 style="margin-top:14px;">PRIVATE GROUP</h3>
+            <form id="groupForm">
+                <input id="groupNameInput" placeholder="group name" autocomplete="off" maxlength="30">
+                <input id="groupMembersInput" placeholder="friends, comma separated" autocomplete="off">
+                <button type="submit">Create private group</button>
+            </form>
+        </div>
     </div>
 
     <div class="chat-area">
@@ -239,11 +261,12 @@
         const authError = document.getElementById('authError');
         const authSwitch = document.getElementById('authSwitch');
         const onlineUsers = document.getElementById('onlineUsers');
+        const friendList = document.getElementById('friendList');
         const callPanel = document.getElementById('callPanel');
         const localVideo = document.getElementById('localVideo');
         const remoteVideo = document.getElementById('remoteVideo');
         const activeChannel = { name: 'general-chat' };
-        let socket; let authMode = 'login'; let currentUser; let users = []; let peer; let localStream; let callTarget; let pendingCandidates = []; let endingCall = false;
+        let socket; let authMode = 'login'; let currentUser; let users = []; let friends = []; let peer; let localStream; let callTarget; let pendingCandidates = []; let endingCall = false;
 
         function send(message) { if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message)); }
         function formatTime(timestamp) { return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
@@ -252,23 +275,31 @@
             const timestamp = document.createElement('span'); timestamp.className = 'timestamp'; timestamp.textContent = `${message.name} · ${formatTime(message.timestamp)}`; element.appendChild(timestamp); messageContainer.appendChild(element);
         }
         function showMessages(messages) { messageContainer.replaceChildren(); messages.forEach(renderMessage); messageContainer.scrollTop = messageContainer.scrollHeight; }
+        function renderFriends() {
+            friendList.replaceChildren();
+            if (!friends.length) { friendList.textContent = 'No friends yet'; return; }
+            friends.forEach(friend => { const chip = document.createElement('span'); chip.className = 'friend-chip'; chip.textContent = friend; friendList.appendChild(chip); });
+        }
         function renderUsers() {
             onlineUsers.replaceChildren(); users.filter(user => user.id !== socket?.clientId).forEach(user => {
                 const row = document.createElement('div'); row.className = 'online-user'; const name = document.createElement('span'); name.textContent = user.name;
-                const call = document.createElement('button'); call.textContent = 'Call'; call.onclick = () => startCall(false, user); const video = document.createElement('button'); video.textContent = 'Video'; video.onclick = () => startCall(true, user); row.append(name, call, video); onlineUsers.appendChild(row);
+                const add = document.createElement('button'); add.textContent = friends.includes(user.name.toLowerCase()) ? 'Friend' : '+ Friend'; add.disabled = friends.includes(user.name.toLowerCase()); add.onclick = () => send({ type: 'addFriend', username: user.name });
+                const call = document.createElement('button'); call.textContent = 'Call'; call.onclick = () => startCall(false, user); const video = document.createElement('button'); video.textContent = 'Video'; video.onclick = () => startCall(true, user); row.append(name, add, call, video); onlineUsers.appendChild(row);
             });
         }
         function renderChannels(list) {
-            const channelList = document.querySelector('.channel-list'); channelList.replaceChildren(); list.forEach(channel => { const item = document.createElement('li'); item.className = `channel ${channel.id === activeChannel.name ? 'active' : ''}`; item.dataset.channel = channel.id; item.textContent = `# ${channel.name}`; item.onclick = () => switchChannel(channel.id); channelList.appendChild(item); });
+            const channelList = document.querySelector('.channel-list'); channelList.replaceChildren(); list.forEach(channel => { const item = document.createElement('li'); item.className = `channel ${channel.id === activeChannel.name ? 'active' : ''}`; item.dataset.channel = channel.id; item.textContent = `${channel.private ? '🔒' : '#'} ${channel.name}`; item.onclick = () => switchChannel(channel.id); channelList.appendChild(item); });
         }
         function switchChannel(channel) { if (channel === activeChannel.name) return; send({ type: 'switchChannel', channel }); }
         function connect() {
             const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'; socket = new WebSocket(`${protocol}//${location.host}`);
             socket.onmessage = event => { let message; try { message = JSON.parse(event.data); } catch (_) { return; }
-                if (message.type === 'authenticated') { socket.clientId = message.id; currentUser = message.user; authScreen.style.display = 'none'; renderChannels(message.channels); users = message.users || []; showMessages(message.messages || []); renderUsers(); }
+                if (message.type === 'authenticated') { socket.clientId = message.id; currentUser = message.user; friends = (message.friends || []).map(friend => friend.toLowerCase()); authScreen.style.display = 'none'; renderChannels(message.channels); users = message.users || []; showMessages(message.messages || []); renderFriends(); renderUsers(); }
                 if (message.type === 'authError') authError.textContent = message.message;
                 if (message.type === 'channelJoined') { activeChannel.name = message.channel; channelTitle.textContent = `# ${message.channel}`; showMessages(message.messages || []); users = message.users || []; renderUsers(); }
                 if (message.type === 'channelsUpdated') renderChannels(message.channels);
+                if (message.type === 'friendsUpdated') { friends = (message.friends || []).map(friend => friend.toLowerCase()); renderFriends(); renderUsers(); }
+                if (message.type === 'error') alert(message.message);
                 if (message.type === 'message') { renderMessage(message.message); messageContainer.scrollTop = messageContainer.scrollHeight; }
                 if (message.type === 'userJoined' || message.type === 'userUpdated') { users = users.filter(user => user.id !== message.user.id).concat(message.user); renderUsers(); }
                 if (message.type === 'userLeft') { users = users.filter(user => user.id !== message.id); renderUsers(); }
@@ -279,6 +310,8 @@
         authForm.onsubmit = event => { event.preventDefault(); authError.textContent = ''; send({ type: 'auth', mode: authMode, username: document.getElementById('usernameInput').value, password: document.getElementById('passwordInput').value }); };
         authSwitch.onclick = () => { authMode = authMode === 'login' ? 'create' : 'login'; document.getElementById('authSubmit').textContent = authMode === 'login' ? 'Log in' : 'Create account'; authSwitch.textContent = authMode === 'login' ? 'Create a new account' : 'Back to log in'; document.getElementById('passwordInput').autocomplete = authMode === 'login' ? 'current-password' : 'new-password'; };
         document.getElementById('createChannelButton').onclick = () => { const input = document.getElementById('newChannelInput'); if (input.value.trim()) { send({ type: 'createChannel', name: input.value }); input.value = ''; } };
+        document.getElementById('friendForm').onsubmit = event => { event.preventDefault(); const input = document.getElementById('friendUsernameInput'); if (input.value.trim()) { send({ type: 'addFriend', username: input.value.trim() }); input.value = ''; } };
+        document.getElementById('groupForm').onsubmit = event => { event.preventDefault(); const name = document.getElementById('groupNameInput'); const members = document.getElementById('groupMembersInput'); const memberNames = members.value.split(',').map(value => value.trim()).filter(Boolean); if (name.value.trim() && memberNames.length) { send({ type: 'createPrivateGroup', name: name.value.trim(), members: memberNames }); name.value = ''; members.value = ''; } };
         function sendMessage() { const text = inputField.value.trim(); if (text) { send({ type: 'sendMessage', text }); inputField.value = ''; } }
         function handleKeyPress(event) { if (event.key === 'Enter') sendMessage(); }
 

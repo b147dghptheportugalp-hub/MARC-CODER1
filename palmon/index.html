@@ -113,6 +113,29 @@
   #playerLeaderboardList{font-size:11px;line-height:1.7;max-height:112px;overflow-y:auto;color:var(--ink);}
   #playerLeaderboardList .online-player{display:flex;justify-content:space-between;gap:8px;white-space:nowrap;}
   #playerLeaderboardList .online-player span:first-child{overflow:hidden;text-overflow:ellipsis;}
+  #teamToggleBtn{position:absolute;top:14px;right:264px;z-index:7;width:34px;height:34px;border:2px solid #b9f36b;border-radius:6px;background:#6dbb35;color:#15220d;font-size:17px;line-height:1;cursor:pointer;box-shadow:0 2px 0 #315b1d,0 0 10px rgba(109,187,53,.4);}
+  #teamToggleBtn:hover{background:#86d94b;}
+  #teamPanel{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;width:auto;padding:28px;background:rgba(15,20,12,.72);border:0;border-radius:0;box-shadow:none;pointer-events:auto;}
+  #teamPanel.open{display:flex;}
+  .team-modal-box{width:min(92vw,1040px);min-height:410px;padding:22px 26px 30px;background:#a45f32;border:8px solid #3b2b20;border-radius:10px;box-shadow:0 12px 0 #241b15,0 0 0 3px #f0bf63;}
+  .team-modal-header{display:flex;align-items:center;justify-content:space-between;margin:-2px -2px 28px;}
+  .team-modal-header h2{display:inline-block;margin:0;padding:10px 22px;background:#f0bf63;border:7px solid #3b2b20;border-radius:5px;color:#fff5d7;font-size:clamp(18px,3vw,34px);font-weight:900;letter-spacing:1px;text-shadow:3px 3px #3b2b20;}
+  #teamCloseBtn{width:64px;height:64px;margin-left:15px;background:#f0bf63;border:7px solid #3b2b20;border-radius:5px;color:#fff5d7;font-size:42px;line-height:36px;font-weight:900;text-shadow:3px 3px #3b2b20;cursor:pointer;}
+  #teamStatus{margin:0 auto 16px;max-width:820px;padding:10px 16px;background:#7b401f;color:#ffe8b6;font-size:14px;font-weight:700;border-radius:6px;word-break:break-word;}
+  .team-modal-content{max-width:830px;margin:auto;}
+  .team-action-row{display:flex;gap:14px;align-items:center;margin:10px 0;padding:12px 14px;background:#7b401f;border-radius:7px;}
+  .team-action-row input{flex:1;min-width:0;}
+  #teamPanel input,#teamPanel button{font:700 16px 'Bahnschrift','Segoe UI',sans-serif;}
+  #teamPanel input{padding:14px 16px;background:#ffe7bd;color:#3b2b20;outline:none;border:5px solid #3b2b20;border-radius:7px;}
+  #teamPanel input::placeholder{color:#a98962;}
+  #teamPanel .team-action-row button{width:120px;padding:14px 10px;background:#302820;color:#fff5d7;border:0;border-radius:7px;box-shadow:0 6px 0 #1b1713;cursor:pointer;}
+  #teamPanel .team-action-row button:active{transform:translateY(4px);box-shadow:0 2px 0 #1b1713;}
+  #teamPanel .team-create-row{display:flex;gap:14px;margin-top:18px;}
+  #teamPanel .team-create-row input{flex:1;}
+  #createTeamBtn{width:132px;padding:14px 10px;background:#302820;color:#fff5d7;border:0;border-radius:7px;box-shadow:0 6px 0 #1b1713;cursor:pointer;}
+  #leaveTeamBtn{display:block;margin:22px auto 0;padding:9px 24px;background:transparent;color:#ffe8b6;border:3px solid #7b401f;border-radius:6px;cursor:pointer;}
+  #mapInfo{top:auto!important;bottom:238px!important;left:14px!important;transform:none!important;}
+  #controls{left:330px;}
 
   #prompt{bottom:90px;left:50%;transform:translateX(-50%);padding:10px 20px;font-size:14px;
     letter-spacing:1px;text-align:center;display:none;border:1px solid var(--amber); box-shadow: 0 0 15px rgba(232,163,61,0.3); border-radius: 4px; background:rgba(0,0,0,0.8);}
@@ -165,7 +188,7 @@
 
   /* PHONE LAYOUT */
   @media (pointer: coarse), (max-width: 700px){
-    #vitals{top:8px;left:8px;width:min(270px,calc(100vw - 16px));padding:8px;transform-origin:top left;}
+    #vitals{top:auto;bottom:150px;left:8px;width:min(270px,calc(100vw - 16px));padding:8px;transform-origin:bottom left;}
     #vitals .label{width:40px;font-size:9px;}
     #vitals .row{gap:5px;margin-bottom:4px;}
     #resRow{gap:8px;font-size:11px;padding:5px;}
@@ -173,7 +196,19 @@
     #armyPanel h3{font-size:10px;letter-spacing:1px;}
     #armyList{font-size:10px;line-height:1.5;max-height:25vh;}
     #playerLeaderboard{display:none;}
+    #teamToggleBtn{top:8px;right:198px;width:30px;height:30px;font-size:14px;}
+    #teamPanel{padding:12px;}
+    .team-modal-box{width:96vw;min-height:0;padding:14px 12px 20px;border-width:5px;}
+    .team-modal-header{margin-bottom:18px;}
+    .team-modal-header h2{padding:8px 10px;border-width:5px;font-size:16px;}
+    #teamCloseBtn{width:48px;height:48px;border-width:5px;font-size:30px;}
+    .team-action-row{gap:8px;padding:8px;}
+    #teamPanel input,#teamPanel button{font-size:13px;}
+    #teamPanel input{padding:11px 10px;border-width:3px;}
+    #teamPanel .team-action-row button,#createTeamBtn{width:100px;padding:11px 6px;}
+    #teamPanel .team-create-row{gap:8px;margin-top:12px;}
     #controls{display:none;}
+    #mapInfo{top:auto!important;bottom:342px!important;left:8px!important;transform:none!important;}
     #minimapWrap{width:118px;height:118px;right:8px;bottom:8px;}
     #prompt{bottom:175px;max-width:88vw;padding:8px 12px;font-size:12px;}
     #mapInfo{top:8px!important;font-size:9px!important;padding:5px 9px!important;max-width:55vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -253,6 +288,28 @@
 <div class="hud panel" id="playerLeaderboard">
   <h3>Players Online <span id="playerCount">0</span></h3>
   <div id="playerLeaderboardList"><div style="color:var(--ink-dim);">Connecting...</div></div>
+</div>
+
+<button id="teamToggleBtn" type="button" aria-label="Open team menu" aria-expanded="false">👤+</button>
+<div class="hud panel" id="teamPanel">
+  <div class="team-modal-box">
+    <div class="team-modal-header">
+      <h2>CREATE/JOIN A TEAM</h2>
+      <button id="teamCloseBtn" type="button" aria-label="Close team menu">×</button>
+    </div>
+    <div class="team-modal-content">
+      <div id="teamStatus">No team</div>
+      <div class="team-action-row">
+        <input id="joinTeamInput" placeholder="team name or code" maxlength="32">
+        <button id="joinTeamBtn" type="button">JOIN</button>
+      </div>
+      <div class="team-create-row">
+        <input id="teamNameInput" placeholder="Name of team" maxlength="24">
+        <button id="createTeamBtn" type="button">CREATE</button>
+      </div>
+      <button id="leaveTeamBtn" type="button">LEAVE TEAM</button>
+    </div>
+  </div>
 </div>
 
 <div class="hud panel" id="effectsBar" style="display:none;"></div>
@@ -472,7 +529,7 @@ let shockwaves = [];
 let particles = [];
 let supplyCrates = [];
 const palmonNetwork = {
-  ws: null, id: null, connected: false, remotePlayers: new Map(), remoteBuilds: new Map(), stateTimer: null
+  ws: null, id: null, connected: false, teamId: null, teamName: null, remotePlayers: new Map(), remoteBuilds: new Map(), stateTimer: null
 };
 
 let buildMode = false;
@@ -800,6 +857,10 @@ function armyList(ownerId=null){
   return soldiers.filter(s=> s.state==='tamed' && (ownerId === null ? (s.ownerId==='player' || s.ownerId==null) : s.ownerId===ownerId)); 
 }
 function hostileList(){ return soldiers.filter(s=>s.state==='hostile'); }
+function isEnemyNetworkPlayer(remote){ return remote && remote.id !== palmonNetwork.id && (!palmonNetwork.teamId || !remote.teamId || remote.teamId !== palmonNetwork.teamId); }
+function sendPalmonMessage(message){
+  if(palmonNetwork.ws && palmonNetwork.ws.readyState===WebSocket.OPEN) palmonNetwork.ws.send(JSON.stringify(message));
+}
 
 function damageSoldier(s, dmg, creditPlayer){
   if(s.state==='dead') return;
@@ -1247,7 +1308,12 @@ function playerSwing(){
       const d = dist(player.x, player.y, b.x, b.y);
       if(d <= 80 && d < bestD){ best = b; bestD = d; }
     }
+    for(const remote of palmonNetwork.remotePlayers.values()){
+      const d = dist(player.x, player.y, remote.x, remote.y);
+      if(isEnemyNetworkPlayer(remote) && d <= 80 && d < bestD){ best = {...remote, remotePlayer:true}; bestD = d; }
+    }
     if(best){
+      if(best.remotePlayer){ sendPalmonMessage({type:'playerDamage', targetId:best.id, damage:baseDmg, attackerId:palmonNetwork.id}); return; }
       if(best.state==='wild'){ best.state='hostile'; spawnFloater(best.x, best.y-50, 'PROVOKED', '#ff8a8a'); }
       if(best.weapon) damageBot(best, baseDmg); 
       else damageSoldier(best, baseDmg, true);
@@ -1421,6 +1487,10 @@ function findPlayerTurretTarget(w){
     const d=dist(w.x,w.y,s.x,s.y); if(d<bestD){target=s;bestD=d;}
   }
   for(const b of bots){ const d=dist(w.x,w.y,b.x,b.y); if(d<bestD){target=b;bestD=d;} }
+  for(const remote of palmonNetwork.remotePlayers.values()){
+    const d=dist(w.x,w.y,remote.x,remote.y);
+    if(isEnemyNetworkPlayer(remote) && d<bestD){target={...remote,remotePlayer:true};bestD=d;}
+  }
   return target;
 }
 function updateSoldiers(dt){
@@ -1498,6 +1568,7 @@ function updateSoldiers(dt){
       for(const h of hostileList()){ const d=dist(s.x,s.y,h.x,h.y); if(d<bestD){enemy=h; bestD=d;} }
       if(s.ownerId === 'player'){
         for(const b of bots){ const d=dist(s.x,s.y,b.x,b.y); if(d<bestD){enemy=b; bestD=d;} }
+        for(const remote of palmonNetwork.remotePlayers.values()) if(isEnemyNetworkPlayer(remote)){ const d=dist(s.x,s.y,remote.x,remote.y); if(d<bestD){enemy={...remote,remotePlayer:true}; bestD=d;} }
       } else {
         if(dist(s.x,s.y,player.x,player.y) < bestD){ enemy = player; bestD = dist(s.x,s.y,player.x,player.y); }
         for(const pa of armyList('player')){ const d=dist(s.x,s.y,pa.x,pa.y); if(d<bestD){enemy=pa; bestD=d;} }
@@ -1554,6 +1625,10 @@ function moveToward(entity, tx, ty, speed, dt){
 function fireWeapon(shooter, target, side){
   const t = shooter.type;
   if(!t.ranged){
+    if(target.remotePlayer){
+      if(side==='ally') sendPalmonMessage({type:'playerDamage', targetId:target.id, damage:t.dmg * getDamageMult(), attackerId:palmonNetwork.id});
+      return;
+    }
     if(side==='enemy'){
       if(target===player) damagePlayer(t.dmg); else if(target.hp) damageSoldier(target, t.dmg, false);
     } else { damageSoldier(target, t.dmg * getDamageMult(), true); }
@@ -1593,6 +1668,18 @@ function updateProjectiles(dt){
         if(dist(p.x,p.y,a.x,a.y) < 22){ damageSoldier(a, p.dmg, false); p.dead=true; break; }
       }
     } else {
+      for(const remote of palmonNetwork.remotePlayers.values()){
+        if(isEnemyNetworkPlayer(remote) && dist(p.x,p.y,remote.x,remote.y) < (p.big?30:22)){
+          sendPalmonMessage({type:'playerDamage', targetId:remote.id, damage:p.dmg, attackerId:palmonNetwork.id}); p.dead=true; break;
+        }
+      }
+      if(p.dead) continue;
+      for(const build of palmonNetwork.remoteBuilds.values()){
+        if(isEnemyNetworkPlayer({id:build.ownerId, teamId:build.ownerTeamId}) && dist(p.x,p.y,build.x,build.y) < (p.big?34:25)){
+          sendPalmonMessage({type:'buildDamage', id:build.id, damage:p.dmg, attackerId:palmonNetwork.id}); p.dead=true; break;
+        }
+      }
+      if(p.dead) continue;
       for(const h of hostileList()){
         if(dist(p.x,p.y,h.x,h.y) < (p.big?30:22)){
           damageSoldier(h, p.dmg, true); p.dead=true;
@@ -2090,8 +2177,8 @@ function renderPalmonLeaderboard(players){
     const name = document.createElement('span');
     name.textContent = onlinePlayer.id === palmonNetwork.id ? `${onlinePlayer.name} (you)` : onlinePlayer.name;
     const status = document.createElement('span');
-    status.textContent = 'ONLINE';
-    status.style.color = onlinePlayer.color || 'var(--ok)';
+    status.textContent = onlinePlayer.teamName ? `TEAM: ${onlinePlayer.teamName}` : 'ONLINE';
+    status.style.color = onlinePlayer.teamId && onlinePlayer.teamId === palmonNetwork.teamId ? 'var(--ok)' : (onlinePlayer.color || 'var(--ok)');
     row.append(name, status);
     list.appendChild(row);
   }
@@ -2109,6 +2196,32 @@ function palmonServerUrl(){
   return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host || 'localhost:3001'}`;
 }
 
+function renderTeamStatus(){
+  const status = document.getElementById('teamStatus');
+  if(status) status.textContent = palmonNetwork.teamId ? `${palmonNetwork.teamName} · ${palmonNetwork.teamId}` : 'No team';
+}
+
+document.getElementById('teamToggleBtn').addEventListener('click', () => {
+  const button = document.getElementById('teamToggleBtn');
+  const panel = document.getElementById('teamPanel');
+  const open = panel.classList.toggle('open');
+  button.setAttribute('aria-expanded', String(open));
+});
+document.getElementById('teamCloseBtn').addEventListener('click', () => {
+  document.getElementById('teamPanel').classList.remove('open');
+  document.getElementById('teamToggleBtn').setAttribute('aria-expanded', 'false');
+});
+
+document.getElementById('createTeamBtn').addEventListener('click', () => {
+  const name = document.getElementById('teamNameInput').value.trim();
+  if(name) sendPalmonMessage({type:'createTeam', name});
+});
+document.getElementById('joinTeamBtn').addEventListener('click', () => {
+  const team = document.getElementById('joinTeamInput').value.trim();
+  if(team) sendPalmonMessage({type:'joinTeam', team});
+});
+document.getElementById('leaveTeamBtn').addEventListener('click', () => sendPalmonMessage({type:'leaveTeam'}));
+
 function connectPalmonNetwork(){
   try { palmonNetwork.ws = new WebSocket(palmonServerUrl()); } catch(_) { return; }
   palmonNetwork.ws.addEventListener('open', () => {
@@ -2124,12 +2237,16 @@ function connectPalmonNetwork(){
     let message; try { message = JSON.parse(event.data); } catch(_) { return; }
     if(message.type === 'welcome'){
       palmonNetwork.id = message.id;
+      const ownPlayer = (message.players || []).find(item => item.id === palmonNetwork.id);
+      palmonNetwork.teamId = ownPlayer?.teamId || null; palmonNetwork.teamName = ownPlayer?.teamName || null; renderTeamStatus();
       renderPalmonLeaderboard(message.players || []);
       palmonNetwork.remoteBuilds.clear();
       for(const build of message.builds || []) if(build.ownerId!==palmonNetwork.id) palmonNetwork.remoteBuilds.set(build.id, build);
       if(message.mapSeed && Number(message.mapSeed)!==mapSeed) applyMapSeed(message.mapSeed, false);
     }
     if(message.type === 'snapshot'){
+      const ownPlayer = (message.players || []).find(item => item.id === palmonNetwork.id);
+      if(ownPlayer){ palmonNetwork.teamId = ownPlayer.teamId || null; palmonNetwork.teamName = ownPlayer.teamName || null; renderTeamStatus(); }
       renderPalmonLeaderboard(message.players || []);
       palmonNetwork.remotePlayers.clear();
       for(const remote of message.players || []){
@@ -2140,8 +2257,12 @@ function connectPalmonNetwork(){
       if(message.mapSeed && Number(message.mapSeed)!==mapSeed) applyMapSeed(message.mapSeed, false);
     }
     if(message.type === 'playerJoined' || message.type === 'playerUpdated'){
+      if(message.player && message.player.id === palmonNetwork.id){ palmonNetwork.teamId = message.player.teamId || null; palmonNetwork.teamName = message.player.teamName || null; renderTeamStatus(); }
       if(message.player && message.player.id !== palmonNetwork.id) palmonNetwork.remotePlayers.set(message.player.id, message.player);
+      renderPalmonLeaderboard([...palmonNetwork.remotePlayers.values(), ...(message.player && message.player.id === palmonNetwork.id ? [message.player] : [])]);
     }
+    if(message.type === 'teamUpdated'){ palmonNetwork.teamId = message.team?.id || null; palmonNetwork.teamName = message.team?.name || null; renderTeamStatus(); }
+    if(message.type === 'teamError') showPrompt(message.message, 1800);
     if(message.type === 'playerLeft'){
       palmonNetwork.remotePlayers.delete(message.id);
       for(const [bid, build] of palmonNetwork.remoteBuilds){ if(build.ownerId === message.id) palmonNetwork.remoteBuilds.delete(bid); }
@@ -2151,10 +2272,13 @@ function connectPalmonNetwork(){
     }
     if(message.type === 'buildUpdated' && message.build){
       if(message.build.ownerId !== palmonNetwork.id) palmonNetwork.remoteBuilds.set(message.build.id, message.build);
+      else { const local = walls.find(w => String(w.id) === String(message.build.clientBuildId)); if(local) local.hp = message.build.hp; }
     }
     if(message.type === 'buildRemoved' && message.id){
       palmonNetwork.remoteBuilds.delete(message.id);
+      if(message.ownerId === palmonNetwork.id) walls = walls.filter(w => String(w.id) !== String(message.clientBuildId));
     }
+    if(message.type === 'playerDamage') damagePlayer(Number(message.damage) || 0);
     if(message.type === 'mapReset' && message.mapSeed){
       applyMapSeed(message.mapSeed, true);
     }

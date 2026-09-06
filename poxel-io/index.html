@@ -1110,6 +1110,60 @@
             transform: scale(0.95);
         }
 
+        #btn-m-zoom {
+            position: absolute;
+            bottom: 135px;
+            left: 40px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            background: rgba(11,11,22,0.9);
+            border: 1px solid var(--border-neon);
+            color: var(--border-neon);
+            font: 700 0.65rem 'Orbitron', sans-serif;
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+
+        #mobile-zoom-panel {
+            position: absolute;
+            bottom: 185px;
+            left: 40px;
+            width: min(220px, calc(100vw - 80px));
+            padding: 12px;
+            background: rgba(5,5,10,0.94);
+            border: 1px solid var(--border-neon);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 0.65rem;
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+
+        #mobile-zoom-panel[hidden] {
+            display: none;
+        }
+
+        #mobile-zoom-panel label {
+            display: flex;
+            justify-content: space-between;
+            color: var(--border-neon);
+            margin-bottom: 8px;
+        }
+
+        #mobile-zoom-slider {
+            display: block;
+            width: 100%;
+            accent-color: var(--pink-neon);
+        }
+
+        .zoom-range-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+            color: #888;
+            font-size: 0.55rem;
+        }
+
         /* Responsive tweaks for phones/small tablets */
         @media (max-width: 900px) {
             .lobby-main-container {
@@ -1400,6 +1454,16 @@
         </div>
 
         <button id="btn-m-fire"></button>
+
+        <button id="btn-m-zoom" type="button" aria-expanded="false">ZOOM</button>
+        <div id="mobile-zoom-panel" hidden>
+            <label for="mobile-zoom-slider">
+                <span>CAMERA ZOOM</span>
+                <span id="mobile-zoom-value">NORMAL</span>
+            </label>
+            <input id="mobile-zoom-slider" type="range" min="35" max="110" value="70" step="1">
+            <div class="zoom-range-labels"><span>ZOOM IN</span><span>WIDE</span></div>
+        </div>
     </div>
 
     <div id="endmatch-overlay">
@@ -1991,6 +2055,7 @@ let playerDirection = new THREE.Vector3();
 let prevFrameTime = performance.now();
 let canJump = false, yVelocity = 0, jumpSequenceCount = 0;
 let pitch = 0, yaw = 0;
+const defaultCameraFov = 70;
 
 // Sprint / Slide movement state
 let isSprinting = false;
@@ -2290,6 +2355,7 @@ function startGameplayEngine() {
     document.getElementById("hud-streak-count").innerText = "";
     
     camera.position.set(0, 2, 60);
+    setCameraZoom(defaultCameraFov);
     pitch = 0;
     yaw = 0;
     camera.rotation.set(0, 0, 0);
@@ -2968,6 +3034,10 @@ function bindMobileControls() {
     const btnFire = document.getElementById('btn-m-fire');
     const btnSprint = document.getElementById('btn-m-sprint');
     const btnSlide = document.getElementById('btn-m-slide');
+    const btnZoom = document.getElementById('btn-m-zoom');
+    const zoomPanel = document.getElementById('mobile-zoom-panel');
+    const zoomSlider = document.getElementById('mobile-zoom-slider');
+    const zoomValue = document.getElementById('mobile-zoom-value');
 
     function handleDPadTouch(e) {
         if (e.cancelable) e.preventDefault();
@@ -3065,10 +3135,29 @@ function bindMobileControls() {
         attemptSlide();
     }
 
+    function updateZoomLabel() {
+        const fov = Number(zoomSlider.value);
+        zoomValue.textContent = fov <= 50 ? 'MAX ZOOM' : fov >= 95 ? 'WIDE' : `${fov}°`;
+    }
+
+    function handleZoomToggle(e) {
+        if (e.cancelable) e.preventDefault();
+        const isOpen = !zoomPanel.hidden;
+        zoomPanel.hidden = isOpen;
+        btnZoom.setAttribute('aria-expanded', String(!isOpen));
+    }
+
+    function handleZoomInput() {
+        setCameraZoom(Number(zoomSlider.value));
+        updateZoomLabel();
+    }
+
     if (btnDash) btnDash.addEventListener('touchstart', handleDashStart, { passive: false });
     if (btnJump) btnJump.addEventListener('touchstart', handleJumpStart, { passive: false });
     if (btnSprint) btnSprint.addEventListener('touchstart', handleSprintToggle, { passive: false });
     if (btnSlide) btnSlide.addEventListener('touchstart', handleSlideStart, { passive: false });
+    if (btnZoom) btnZoom.addEventListener('touchstart', handleZoomToggle, { passive: false });
+    if (zoomSlider) zoomSlider.addEventListener('input', handleZoomInput);
 
     if (btnFire) {
         btnFire.addEventListener('touchstart', handleFireStart, { passive: false });
@@ -3101,7 +3190,18 @@ function bindMobileControls() {
         btnJump,
         btnSprint,
         btnSlide
+        btnZoom,
+        zoomPanel,
+        zoomSlider,
+        handleZoomToggle,
+        handleZoomInput
     };
+}
+
+function setCameraZoom(fov) {
+    if (!camera) return;
+    camera.fov = Math.max(35, Math.min(110, fov));
+    camera.updateProjectionMatrix();
 }
 
 function unbindMobileControls() {
@@ -3127,7 +3227,12 @@ function unbindMobileControls() {
         btnDash,
         btnJump,
         btnSprint,
-        btnSlide
+        btnSlide,
+        btnZoom,
+        zoomPanel,
+        zoomSlider,
+        handleZoomToggle,
+        handleZoomInput
     } = bindMobileControls.mobileHandlers;
 
     if (dpadCross) {
@@ -3143,6 +3248,11 @@ function unbindMobileControls() {
     if (btnJump) btnJump.removeEventListener('touchstart', handleJumpStart);
     if (btnSprint) btnSprint.removeEventListener('touchstart', handleSprintToggle);
     if (btnSlide) btnSlide.removeEventListener('touchstart', handleSlideStart);
+    if (btnZoom) {
+        btnZoom.removeEventListener('touchstart', handleZoomToggle);
+    }
+    if (zoomSlider) zoomSlider.removeEventListener('input', handleZoomInput);
+    if (zoomPanel) zoomPanel.hidden = true;
 
     if (btnFire) {
         btnFire.removeEventListener('touchstart', handleFireStart);

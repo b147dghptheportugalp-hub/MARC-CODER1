@@ -736,7 +736,15 @@ function joinOnlineGame() {
 }
 
 function spawnPlayer() {
+    const previousUpgrades = localPlayer ? { ...localPlayer.upgrades } : null;
+    const previousUpgradeCosts = localPlayer ? { ...localPlayer.upgradeCosts } : null;
     localPlayer = new Ship(playerName, "#0ff", false);
+    if (previousUpgrades) {
+        localPlayer.upgrades = previousUpgrades;
+        localPlayer.upgradeCosts = previousUpgradeCosts;
+        localPlayer.applyStats();
+        localPlayer.hp = localPlayer.maxHp;
+    }
     localPlayer.energy = 50; 
     ships.push(localPlayer);
 }

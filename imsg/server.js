@@ -31,13 +31,22 @@ function json(res, code, data) { res.writeHead(code, { 'Content-Type': 'applicat
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) { return { salt, hash: crypto.scryptSync(password, salt, 64).toString('hex') }; }
 function validName(value) { return String(value || '').trim().replace(/[^a-zA-Z0-9_.-]/g, '').slice(0, 24); }
 function publicUser(client) { return { id: client.id, name: client.name }; }
-function accountFriends(accountId) { return accounts[accountId]?.friends || []; }
+function accountFriends(accountId) { return Array.isArray(accounts[accountId]?.friends) ? accounts[accountId].friends : []; }
+function friendStatusList(accountId) {
+  const list = accountFriends(accountId);
+  return list.map(friendId => ({
+    id: friendId,
+    username: accounts[friendId]?.username || friendId,
+    online: [...clients.values()].some(client => client.account === friendId),
+    status: [...clients.values()].some(client => client.account === friendId) ? 'online' : 'offline'
+  }));
+}
 function channelList(client) { return channels.filter(channel => !channel.private || channel.members.includes(client.account)).map(channel => ({ id: channel.id, name: channel.name, private: !!channel.private })); }
 function getChannel(id) { return channels.find(channel => channel.id === id) || channels[0]; }
 function canAccessChannel(client, channel) { return channel && (!channel.private || channel.members.includes(client.account)); }
 function channelClients(channel) { return [...clients.values()].filter(client => client.channel === channel); }
 function broadcast(channel, message) { for (const client of channelClients(channel)) send(client.ws, message); }
-function authMessage(client) { return { type: 'authenticated', id: client.id, user: { username: client.name }, channels: channelList(client), friends: accountFriends(client.account), channel: client.channel, messages: history.get(client.channel) || [], users: channelClients(client.channel).map(publicUser) }; }
+function authMessage(client) { return { type: 'authenticated', id: client.id, user: { username: client.name }, channels: channelList(client), friends: friendStatusList(client.account), channel: client.channel, messages: history.get(client.channel) || [], users: channelClients(client.channel).map(publicUser) }; }
 
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent((req.url || '/').split('?')[0]);
@@ -93,8 +102,8 @@ wss.on('connection', ws => {
         if (!friendList.includes(friendId)) friendList.push(friendId);
         if (!otherFriends.includes(client.account)) otherFriends.push(client.account);
         accounts[client.account].friends = friendList; accounts[friendId].friends = otherFriends; saveAccounts();
-        send(ws, { type: 'friendsUpdated', friends: friendList });
-        for (const friendClient of clients.values()) if (friendClient.account === friendId) send(friendClient.ws, { type: 'friendsUpdated', friends: otherFriends });
+        send(ws, { type: 'friendsUpdated', friends: friendStatusList(client.account) });
+        for (const friendClient of clients.values()) if (friendClient.account === friendId) send(friendClient.ws, { type: 'friendsUpdated', friends: friendStatusList(friendId) });
         return;
       }
       if (message.type === 'createPrivateGroup') {

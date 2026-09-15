@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>escord - Web Chat UI</title>
+    <title>iMsg - Web Chat</title>
     <style>
         * {
             box-sizing: border-box;
@@ -202,9 +202,18 @@
         .group-list { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
         .group-item { padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); cursor: pointer; color: #edf4ff; }
         .group-item.active { background: rgba(122,162,255,0.12); border-color: rgba(122,162,255,0.2); }
-        .call-panel { position: fixed; right: 26px; bottom: 26px; z-index: 6; padding: 16px; background: rgba(18,22,31,0.96); border: 1px solid rgba(122,162,255,0.4); border-radius: 18px; box-shadow: 0 18px 42px rgba(0,0,0,0.35); display: none; }
-        .call-panel video { width: 230px; max-width: 40vw; background: #111; display: block; margin-bottom: 8px; border-radius: 12px; }
-        .call-panel button { padding: 9px 14px; border: 0; background: #e74c3c; color: white; cursor: pointer; border-radius: 10px; font-weight: 700; }
+        .call-panel { position: fixed; right: 26px; bottom: 26px; z-index: 6; width: min(92vw, 560px); padding: 16px; background: rgba(18,22,31,0.98); border: 1px solid rgba(122,162,255,0.4); border-radius: 18px; box-shadow: 0 18px 42px rgba(0,0,0,0.35); display: none; }
+        .call-topbar, .call-actions, .call-invite { display: flex; align-items: center; gap: 8px; }
+        .call-topbar { justify-content: space-between; margin-bottom: 12px; }
+        .call-invite { margin-bottom: 12px; }
+        .call-invite select { flex: 1; min-width: 0; padding: 9px; border: 1px solid rgba(255,255,255,0.12); border-radius: 9px; background: #252a38; color: #ecf2ff; }
+        .call-actions button, .call-invite button { padding: 9px 12px; border: 1px solid rgba(122,162,255,0.3); background: rgba(122,162,255,0.14); color: #fff; cursor: pointer; border-radius: 9px; font-weight: 700; }
+        .call-actions button:hover, .call-invite button:hover { background: rgba(122,162,255,0.28); }
+        .call-actions .end-call { background: #d94b5b; border-color: #d94b5b; }
+        .call-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; max-height: 300px; overflow-y: auto; }
+        .call-tile { position: relative; min-height: 110px; overflow: hidden; border-radius: 12px; background: #0b0d12; border: 1px solid rgba(255,255,255,0.1); }
+        .call-tile video { width: 100%; height: 100%; min-height: 110px; object-fit: cover; display: block; }
+        .call-tile span { position: absolute; left: 8px; bottom: 7px; padding: 3px 7px; border-radius: 6px; background: rgba(0,0,0,0.65); color: #fff; font-size: .78rem; }
     </style>
 </head>
 <body>
@@ -223,9 +232,9 @@
 
     <div class="sidebar">
         <div class="sidebar-header">
-            DisApp Publicv
+            DisApp Public
         </div>
-        <ul class="channel-list">ll
+        <ul class="channel-list">
         
             <li class="channel active" data-channel="general-chat"># general-chat</li>
             <li class="channel" data-channel="coding-help"># coding-help</li>
@@ -234,7 +243,7 @@
         <div class="channel-add"><input id="newChannelInput" placeholder="new-channel"><button id="createChannelButton">+ Add channel</button></div>
         <div class="online-users"><h3>ONLINE</h3><div id="onlineUsers"></div></div>
         <div class="social-tools">
-            <h3>FRIENDS</h3>t
+            <h3>FRIENDS</h3>
             <form id="friendForm">
                 <input id="friendUsernameInput" placeholder="username" autocomplete="off" maxlength="24">
                 <button type="submit">+ Add friend</button>
@@ -272,7 +281,12 @@
         </div>
     </div>
 
-    <div class="call-panel" id="callPanel"><div id="callStatus">Connecting...</div><video id="localVideo" autoplay muted playsinline></video><video id="remoteVideo" autoplay playsinline></video><button onclick="endCall()">End call</button></div>
+    <div class="call-panel" id="callPanel">
+        <div class="call-topbar"><strong id="callStatus">Call</strong><span id="callCount">0 people</span></div>
+        <div class="call-invite"><select id="callParticipantSelect"><option value="">Add someone to this call...</option></select><button onclick="addCallParticipant()">+ Add</button></div>
+        <div class="call-grid" id="callGrid"><div class="call-tile" id="localTile"><video id="localVideo" autoplay muted playsinline></video><span>You</span></div></div>
+        <div class="call-actions"><button id="muteButton" onclick="toggleMute()">🎙️ Mute</button><button id="videoButton" onclick="toggleVideo()">📹 Turn video off</button><button class="end-call" onclick="endCall()">☎ End call</button></div>
+    </div>
 
     <script>
         const messageContainer = document.getElementById('messageContainer');
@@ -287,9 +301,10 @@
         const groupList = document.getElementById('groupList');
         const callPanel = document.getElementById('callPanel');
         const localVideo = document.getElementById('localVideo');
-        const remoteVideo = document.getElementById('remoteVideo');
         const activeChannel = { name: 'general-chat' };
-        let socket; let authMode = 'login'; let currentUser; let users = []; let friends = []; let peer; let localStream; let callTarget; let pendingCandidates = []; let endingCall = false; let pendingAuth = null; let channelData = [];
+        let socket; let authMode = 'login'; let currentUser; let users = []; let friends = []; let localStream; let callVideoEnabled = false; let microphoneEnabled = true; let peers = new Map(); let pendingCandidates = new Map(); let pendingAuth = null; let channelData = [];
+        const callGrid = document.getElementById('callGrid');
+        const callParticipantSelect = document.getElementById('callParticipantSelect');
 
         function saveSession(account) {
             if (!account) return localStorage.removeItem('imsg-session');
@@ -351,6 +366,10 @@
         }
         function renderUsers() {
             onlineUsers.replaceChildren();
+            const selectedParticipant = callParticipantSelect.value;
+            callParticipantSelect.replaceChildren(new Option('Add someone to this call...', ''));
+            users.filter(user => user.id !== socket?.clientId && !peers.has(user.id)).forEach(user => callParticipantSelect.add(new Option(user.name, user.id)));
+            if ([...callParticipantSelect.options].some(option => option.value === selectedParticipant)) callParticipantSelect.value = selectedParticipant;
             const visibleUsers = users.filter(user => user.id !== socket?.clientId);
             visibleUsers.forEach(user => {
                 const row = document.createElement('div'); row.className = 'online-user';
@@ -420,25 +439,59 @@
         function sendMessage() { const text = inputField.value.trim(); if (text) { send({ type: 'sendMessage', text }); inputField.value = ''; } }
         function handleKeyPress(event) { if (event.key === 'Enter') sendMessage(); }
 
-        function makePeer(targetId) {
-            peer = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-            peer.onicecandidate = event => event.candidate && send({ type: 'iceCandidate', targetId, candidate: event.candidate });
-            peer.ontrack = event => { remoteVideo.srcObject = event.streams[0]; document.getElementById('callStatus').textContent = 'Connected'; };
-            peer.onconnectionstatechange = () => { if (['failed', 'disconnected'].includes(peer.connectionState)) document.getElementById('callStatus').textContent = 'Connection interrupted'; };
-            return peer;
+        function showCallPanel() { callPanel.style.display = 'block'; updateCallStatus(); }
+        function updateCallStatus() {
+            const count = peers.size;
+            document.getElementById('callCount').textContent = `${count} participant${count === 1 ? '' : 's'}`;
+            document.getElementById('callStatus').textContent = count ? 'Call in progress' : 'Starting call...';
         }
-
+        function addRemoteTile(targetId, name, stream) {
+            let tile = document.getElementById(`call-tile-${targetId}`);
+            if (!tile) {
+                tile = document.createElement('div'); tile.className = 'call-tile'; tile.id = `call-tile-${targetId}`;
+                const video = document.createElement('video'); video.autoplay = true; video.playsInline = true; tile.appendChild(video);
+                const label = document.createElement('span'); label.textContent = name; tile.appendChild(label); callGrid.appendChild(tile);
+            }
+            tile.querySelector('video').srcObject = stream;
+        }
+        function makePeer(target) {
+            const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            peers.set(target.id, { peer: pc, name: target.name }); pendingCandidates.set(target.id, []);
+            pc.onicecandidate = event => event.candidate && send({ type: 'iceCandidate', targetId: target.id, candidate: event.candidate });
+            pc.ontrack = event => { addRemoteTile(target.id, target.name, event.streams[0]); updateCallStatus(); };
+            pc.onconnectionstatechange = () => { if (['failed', 'closed'].includes(pc.connectionState)) removePeer(target.id, true); };
+            renderUsers(); updateCallStatus(); return pc;
+        }
+        async function ensureLocalMedia(video) {
+            if (!localStream) localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: !!video });
+            if (video && !localStream.getVideoTracks().length) {
+                const camera = await navigator.mediaDevices.getUserMedia({ video: true });
+                camera.getVideoTracks().forEach(track => { localStream.addTrack(track); peers.forEach(({ peer }) => peer.addTrack(track, localStream)); });
+            }
+            callVideoEnabled = !!localStream.getVideoTracks().some(track => track.enabled);
+            microphoneEnabled = localStream.getAudioTracks().some(track => track.enabled);
+            localVideo.srcObject = localStream; showCallPanel(); updateCallButtons();
+        }
         async function startCall(video, user) {
-            callTarget = user || users.find(item => item.id !== socket?.clientId); if (!callTarget) return alert('No other users are online.');
-            try { endingCall = false; pendingCandidates = []; document.getElementById('callStatus').textContent = `Calling ${callTarget.name}...`; localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video }); localVideo.srcObject = video ? localStream : null; callPanel.style.display = 'block'; makePeer(callTarget.id); localStream.getTracks().forEach(track => peer.addTrack(track, localStream)); const offer = await peer.createOffer(); await peer.setLocalDescription(offer); send({ type: 'callOffer', targetId: callTarget.id, offer, video }); } catch (_) { alert('Camera or microphone permission is required.'); endCall(true); }
+            const target = user || users.find(item => item.id !== socket?.clientId && !peers.has(item.id));
+            if (!target) return alert('No other users are available.');
+            try { await ensureLocalMedia(video); const pc = makePeer(target); localStream.getTracks().forEach(track => pc.addTrack(track, localStream)); const offer = await pc.createOffer(); await pc.setLocalDescription(offer); send({ type: 'callOffer', targetId: target.id, offer, video: callVideoEnabled }); } catch (_) { alert('Camera or microphone permission is required.'); endCall(); }
         }
+        function addCallParticipant() { const target = users.find(user => user.id === callParticipantSelect.value); if (target) startCall(callVideoEnabled, target); callParticipantSelect.value = ''; }
         async function handleCallMessage(message) {
-            if (message.type === 'callOffer') { if (!confirm(`${message.fromName} is calling. Accept?`)) return send({ type: 'callEnd', targetId: message.fromId }); try { endingCall = false; pendingCandidates = []; callTarget = { id: message.fromId, name: message.fromName }; document.getElementById('callStatus').textContent = `Connected to ${callTarget.name}`; localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: message.video }); localVideo.srcObject = message.video ? localStream : null; callPanel.style.display = 'block'; makePeer(callTarget.id); localStream.getTracks().forEach(track => peer.addTrack(track, localStream)); await peer.setRemoteDescription(message.offer); for (const candidate of pendingCandidates) await peer.addIceCandidate(candidate); pendingCandidates = []; const answer = await peer.createAnswer(); await peer.setLocalDescription(answer); send({ type: 'callAnswer', targetId: callTarget.id, answer }); } catch (_) { alert('Camera or microphone permission is required.'); endCall(true); } }
-            if (message.type === 'callAnswer' && peer) { await peer.setRemoteDescription(message.answer); for (const candidate of pendingCandidates) await peer.addIceCandidate(candidate); pendingCandidates = []; document.getElementById('callStatus').textContent = 'Connected'; }
-            if (message.type === 'iceCandidate' && peer) { if (peer.remoteDescription) { try { await peer.addIceCandidate(message.candidate); } catch (_) {} } else pendingCandidates.push(message.candidate); }
-            if (message.type === 'callEnd') endCall(true);
+            if (message.type === 'callOffer') {
+                if (peers.has(message.fromId) || !confirm(`${message.fromName} is calling. Accept?`)) { if (!peers.has(message.fromId)) send({ type: 'callEnd', targetId: message.fromId }); return; }
+                try { await ensureLocalMedia(message.video); const target = { id: message.fromId, name: message.fromName }; const pc = makePeer(target); localStream.getTracks().forEach(track => pc.addTrack(track, localStream)); await pc.setRemoteDescription(message.offer); for (const candidate of pendingCandidates.get(target.id) || []) await pc.addIceCandidate(candidate); pendingCandidates.set(target.id, []); const answer = await pc.createAnswer(); await pc.setLocalDescription(answer); send({ type: 'callAnswer', targetId: target.id, answer }); } catch (_) { alert('Camera or microphone permission is required.'); removePeer(message.fromId); }
+            }
+            if (message.type === 'callAnswer' && peers.has(message.fromId)) { const entry = peers.get(message.fromId); await entry.peer.setRemoteDescription(message.answer); for (const candidate of pendingCandidates.get(message.fromId) || []) await entry.peer.addIceCandidate(candidate); pendingCandidates.set(message.fromId, []); updateCallStatus(); }
+            if (message.type === 'iceCandidate' && peers.has(message.fromId)) { const entry = peers.get(message.fromId); if (entry.peer.remoteDescription) { try { await entry.peer.addIceCandidate(message.candidate); } catch (_) {} } else pendingCandidates.get(message.fromId).push(message.candidate); }
+            if (message.type === 'callEnd') removePeer(message.fromId);
         }
-        function endCall(remote = false) { if (!remote && callTarget && !endingCall) { endingCall = true; send({ type: 'callEnd', targetId: callTarget.id }); } peer?.close(); localStream?.getTracks().forEach(track => track.stop()); peer = null; localStream = null; callTarget = null; pendingCandidates = []; localVideo.srcObject = null; remoteVideo.srcObject = null; callPanel.style.display = 'none'; }
+        function removePeer(targetId, notify = false) { const entry = peers.get(targetId); if (!entry) return; if (notify) send({ type: 'callEnd', targetId }); entry.peer.close(); peers.delete(targetId); pendingCandidates.delete(targetId); document.getElementById(`call-tile-${targetId}`)?.remove(); renderUsers(); updateCallStatus(); if (!peers.size) endCall(true); }
+        function updateCallButtons() { document.getElementById('muteButton').textContent = microphoneEnabled ? '🎙️ Mute' : '🔇 Unmute'; document.getElementById('videoButton').textContent = callVideoEnabled ? '📹 Turn video off' : '📹 Turn video on'; }
+        function toggleMute() { microphoneEnabled = !microphoneEnabled; localStream?.getAudioTracks().forEach(track => { track.enabled = microphoneEnabled; }); updateCallButtons(); }
+        async function toggleVideo() { try { if (!localStream) return; if (!localStream.getVideoTracks().length) await ensureLocalMedia(true); localStream.getVideoTracks().forEach(track => { track.enabled = !callVideoEnabled; }); callVideoEnabled = !callVideoEnabled; updateCallButtons(); } catch (_) { alert('Camera permission is required.'); } }
+        function endCall(remote = false) { if (!remote) peers.forEach((_, targetId) => send({ type: 'callEnd', targetId })); peers.forEach(({ peer }) => peer.close()); peers.clear(); pendingCandidates.clear(); localStream?.getTracks().forEach(track => track.stop()); localStream = null; localVideo.srcObject = null; callGrid.querySelectorAll('.call-tile:not(#localTile)').forEach(tile => tile.remove()); callPanel.style.display = 'none'; renderUsers(); }
 
         const saved = restoreSession();
         if (saved) {

@@ -1785,7 +1785,9 @@ const weaponsInventory = {
         barrelLen: 0.4,
         beamColor: 0xffffff,
         gunStyle: "pistol",
-        modelPath: "pistol.fbx"
+        modelPath: "pistol.fbx",
+        modelScale: 0.58,
+        modelRotation: { x: Math.PI / 2, y: -Math.PI / 2, z: 0 }
     },
     // Arena pickup-only heavy weapon, not equippable from the loadout screen
     w_rocket: {
@@ -2456,8 +2458,11 @@ function loadGunModel(spec, targetGroup) {
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         const longestSide = Math.max(size.x, size.y, size.z) || 1;
-        model.scale.setScalar(0.9 / longestSide);
+        model.scale.setScalar((spec.modelScale || 0.9) / longestSide);
         model.position.set(-center.x * model.scale.x, -center.y * model.scale.y, -center.z * model.scale.z);
+        if (spec.modelRotation) {
+            model.rotation.set(spec.modelRotation.x || 0, spec.modelRotation.y || 0, spec.modelRotation.z || 0);
+        }
         loadedGunModels.set(spec.modelPath, model);
 
         if (targetGroup === currentGunViewModel && currentWeaponState.wepId === spec.id) {

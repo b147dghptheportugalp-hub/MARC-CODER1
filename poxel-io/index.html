@@ -1832,6 +1832,19 @@ const expandedWeaponSpecs = [
     weaponsInventory[id] = { id, name, classType, rarity, damage, fireRate, magCapacity, maxReserve, barrelLen, beamColor, gunStyle };
 });
 
+const weaponModelByStyle = {
+    pistol: "pistol.fbx",
+    smg: "smg.obj",
+    sniper: "heavy_sniper.obj"
+};
+const heavyWeaponModelIds = new Set(["w_titan_lmg", "w_titan_pulse"]);
+Object.values(weaponsInventory).forEach(weapon => {
+    if (!weapon.modelPath && weaponModelByStyle[weapon.gunStyle]) {
+        weapon.modelPath = weaponModelByStyle[weapon.gunStyle];
+    }
+    if (heavyWeaponModelIds.has(weapon.id)) weapon.modelPath = "heavy-smg.obj";
+});
+
 // Power-up definitions: id, display name, HUD color, effect duration (ms)
 const powerUpTypesConfig = {
     speed: { name: "SPEED BOOST", color: "#00e5ff", duration: 10000 },

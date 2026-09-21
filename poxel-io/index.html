@@ -14,6 +14,9 @@
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
     <style>
         /* CSS STYLING FRAMEWORK */
         :root {
@@ -1740,7 +1743,8 @@ const weaponsInventory = {
         maxReserve: 180,
         barrelLen: 0.5,
         beamColor: 0x00ffff, // Neon Cyan
-        gunStyle: "smg"
+        gunStyle: "smg",
+        modelPath: "smg.obj"
     },
     w_demolition: {
         id: "w_demolition",
@@ -1780,7 +1784,8 @@ const weaponsInventory = {
         maxReserve: 48,
         barrelLen: 0.4,
         beamColor: 0xffffff,
-        gunStyle: "pistol"
+        gunStyle: "pistol",
+        modelPath: "pistol.fbx"
     },
     // Arena pickup-only heavy weapon, not equippable from the loadout screen
     w_rocket: {
@@ -2414,6 +2419,54 @@ function buildGunModel(spec, scale = 1) {
     return group;
 }
 
+const loadedGunModels = new Map();
+
+function applyGunMaterial(model, spec) {
+    const material = new THREE.MeshStandardMaterial({
+        color: 0x22252d,
+        metalness: 0.7,
+        roughness: 0.32,
+        emissive: spec.beamColor,
+        emissiveIntensity: 0.12
+    });
+    model.traverse(child => {
+        if (!child.isMesh) return;
+        child.material = material;
+        child.castShadow = true;
+        child.receiveShadow = true;
+    });
+}
+
+function loadGunModel(spec, targetGroup) {
+    if (!spec.modelPath) return;
+    const cached = loadedGunModels.get(spec.modelPath);
+    if (cached) {
+        const model = cached.clone();
+        targetGroup.add(model);
+        return;
+    }
+
+    const isFbx = spec.modelPath.toLowerCase().endsWith('.fbx');
+    const LoaderClass = isFbx ? THREE.FBXLoader : THREE.OBJLoader;
+    if (typeof LoaderClass !== 'function') return;
+    const loader = new LoaderClass();
+    loader.load(spec.modelPath, model => {
+        applyGunMaterial(model, spec);
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const longestSide = Math.max(size.x, size.y, size.z) || 1;
+        model.scale.setScalar(0.9 / longestSide);
+        model.position.set(-center.x * model.scale.x, -center.y * model.scale.y, -center.z * model.scale.z);
+        loadedGunModels.set(spec.modelPath, model);
+
+        if (targetGroup === currentGunViewModel && currentWeaponState.wepId === spec.id) {
+            targetGroup.clear();
+            targetGroup.add(model.clone());
+        }
+    }, undefined, () => {});
+}
+
 // First-person weapon viewmodel, reattached to the camera whenever the active weapon changes
 let currentGunViewModel = null;
 function updateGunViewModel() {
@@ -2429,6 +2482,7 @@ function updateGunViewModel() {
     currentGunViewModel.position.set(0.16, -0.27, -0.72);
     currentGunViewModel.rotation.y = Math.PI * 0.02;
     camera.add(currentGunViewModel);
+    loadGunModel(spec, currentGunViewModel);
 }
 
 function switchWeaponSlot(slot) {

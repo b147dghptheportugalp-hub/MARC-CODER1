@@ -2464,7 +2464,9 @@ document.getElementById("match-play-btn").addEventListener("click", () => {
     if (isTouchDevice) {
         enterMatchMode();
     } else {
-        document.body.requestPointerLock();
+        enterMatchMode();
+        const pointerLockRequest = document.body.requestPointerLock();
+        if (pointerLockRequest && pointerLockRequest.catch) pointerLockRequest.catch(() => {});
     }
 });
 
@@ -2475,8 +2477,6 @@ document.getElementById("btn-exit-match").addEventListener("click", () => {
         exitMatchMode();
     }
 });
-
-document.addEventListener("pointerlockchange", () => {
 
 function requestLandscapeMode() {
     const lockLandscape = () => {
@@ -2491,7 +2491,9 @@ function requestLandscapeMode() {
         lockLandscape();
     }
 }
-    if (document.pointerLockElement === document.body) {
+
+document.addEventListener("pointerlockchange", () => {
+    if (document.pointerLockElement === document.body && !inMatch) {
         enterMatchMode();
     } else if (inMatch) {
         exitMatchMode();

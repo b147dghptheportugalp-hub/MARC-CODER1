@@ -1,4 +1,4 @@
-const CACHE_NAME = 'poxel-io-v1';
+const CACHE_NAME = 'poxel-io-v2';
 const CORE_ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {

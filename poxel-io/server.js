@@ -18,7 +18,39 @@ const weapons = {
   w_rocket: { damage: 65, fireRate: 1.0, range: 100 }
 };
 
-const classHp = { assault: 100, scout: 75, heavy: 150, sniper: 80 };
+Object.assign(weapons, {
+  w_medic_carbine: { damage: 28, fireRate: 0.18, range: 110 },
+  w_medic_burst: { damage: 36, fireRate: 0.32, range: 110 },
+  w_medic_smg: { damage: 16, fireRate: 0.08, range: 90 },
+  w_medic_shotgun: { damage: 88, fireRate: 0.92, range: 45 },
+  w_medic_beam: { damage: 22, fireRate: 0.11, range: 125 },
+  w_engineer_rifle: { damage: 31, fireRate: 0.2, range: 115 },
+  w_engineer_smg: { damage: 12, fireRate: 0.055, range: 85 },
+  w_engineer_grenade: { damage: 75, fireRate: 1.05, range: 100 },
+  w_engineer_marksman: { damage: 72, fireRate: 0.7, range: 170 },
+  w_engineer_auto: { damage: 19, fireRate: 0.13, range: 105 },
+  w_duelist_pistol: { damage: 34, fireRate: 0.16, range: 80 },
+  w_duelist_smg: { damage: 15, fireRate: 0.06, range: 90 },
+  w_duelist_blaster: { damage: 60, fireRate: 0.48, range: 60 },
+  w_duelist_rifle: { damage: 27, fireRate: 0.12, range: 115 },
+  w_duelist_dual: { damage: 21, fireRate: 0.09, range: 85 },
+  w_titan_cannon: { damage: 110, fireRate: 1.65, range: 130 },
+  w_titan_lmg: { damage: 26, fireRate: 0.17, range: 110 },
+  w_titan_shotgun: { damage: 98, fireRate: 1.1, range: 48 },
+  w_titan_bolt: { damage: 85, fireRate: 1.05, range: 180 },
+  w_titan_pulse: { damage: 35, fireRate: 0.24, range: 120 }
+});
+
+const classHp = {
+  assault: 100,
+  scout: 75,
+  heavy: 150,
+  sniper: 80,
+  medic: 115,
+  engineer: 105,
+  duelist: 90,
+  titan: 190
+};
 const players = new Map();
 const rooms = new Map();
 let nextId = 1;

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.1, maximum-scale=1.1, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <title>Shooter FPS | Voxel Arena</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#05050a">
@@ -156,6 +156,12 @@
             font-weight: 900;
             font-size: 1.2rem;
             color: #fff;
+            background: transparent;
+            border: 0;
+            padding: 0;
+            font-family: inherit;
+            cursor: pointer;
+            text-align: left;
         }
 
         .level-badge {
@@ -1250,6 +1256,53 @@
                 padding: 8px;
             }
         }
+
+        @media (max-width: 900px) {
+            html, body { overflow: hidden; }
+            .overlay-screen { padding: 12px; }
+            .header-logo { margin-top: 0; }
+            .header-logo h1 { font-size: clamp(1.6rem, 6vw, 2.4rem); letter-spacing: 3px; }
+            .top-right-profile { min-width: 0; padding: 8px 12px; gap: 6px; }
+            .username { font-size: 0.85rem; }
+            .sidebar-menu { gap: 6px; }
+            .sidebar-menu .menu-btn { min-width: 30%; padding: 8px 6px; font-size: 0.62rem; }
+            .play-panel { padding: 12px; gap: 8px; }
+            .play-big-btn { padding: 11px; font-size: 1.15rem; }
+            .select-class-panel-btn { padding: 9px; font-size: 0.72rem; }
+            .class-preview { padding: 6px; gap: 8px; }
+            .class-icon-placeholder { width: 34px; height: 34px; font-size: 1rem; }
+            .modal-container { padding: 8px; }
+            .modal-window { width: 100%; height: 96%; }
+            .modal-header { padding: 10px; }
+            .modal-header h2 { font-size: 1rem; }
+            .modal-body { padding: 8px; gap: 8px; }
+            .class-grid { gap: 8px; }
+            .class-card { padding: 8px; }
+            .class-card h3 { font-size: 0.9rem; }
+            .class-desc, .class-stats-list { font-size: 0.62rem; }
+        }
+
+        @media (orientation: landscape) and (max-width: 900px) {
+            .overlay-screen { padding: 8px 14px; }
+            .lobby-main-container { flex-direction: row; align-items: flex-end; gap: 10px; margin: 4px 0; }
+            .sidebar-menu { width: 34%; flex-direction: column; flex-wrap: nowrap; }
+            .sidebar-menu .menu-btn { min-width: 0; width: 100%; text-align: left; padding: 7px 10px; }
+            .top-right-profile { position: absolute; top: 8px; right: 14px; width: 220px; }
+            .header-logo h1 { font-size: clamp(1.4rem, 6vh, 2.3rem); }
+            .play-panel { width: 270px; }
+            #dpad-cross { left: 18px; bottom: 14px; transform: scale(0.72); transform-origin: bottom left; }
+            #btn-m-fire { right: 18px; bottom: 18px; width: 64px; height: 64px; }
+            #btn-m-dash { right: 26px; bottom: 92px; width: 54px; height: 54px; font-size: 0.7rem; }
+            #mobile-action-row { left: 18px; bottom: 116px; transform: scale(0.8); transform-origin: bottom left; }
+            #mobile-weapon-row { right: 92px; bottom: 18px; transform: scale(0.78); transform-origin: bottom right; }
+            #btn-m-zoom { left: 18px; bottom: 104px; padding: 7px 9px; }
+            #mobile-zoom-panel { left: 18px; bottom: 145px; }
+            #hud-overlay { padding: 10px; }
+            .hud-stats-panel { left: 10px; bottom: 10px; min-width: 130px; padding: 7px 10px; }
+            .hud-weapon-panel { right: 10px; bottom: 10px; min-width: 120px; padding: 7px 10px; }
+            .hud-top-match { top: 10px; padding: 5px 10px; font-size: 0.75rem; }
+            #online-leaderboard { top: 10px; right: 10px; width: 150px; padding: 6px 8px; font-size: 8px; }
+        }
     </style>
 </head>
 <body>
@@ -1265,7 +1318,7 @@
 
         <div class="top-right-profile">
             <div class="profile-row">
-                <span class="username" id="lobby-username">VoxelWarrior</span>
+                <button class="username" id="lobby-username" type="button" title="Change username" onclick="editUsername()">VoxelWarrior</button>
                 <span class="level-badge" id="lobby-level">LVL 1</span>
             </div>
             <div class="xp-bar-container">
@@ -1546,9 +1599,20 @@ let profileState = {
         assault: "w_vanguard",
         scout: "w_rapid_fire",
         heavy: "w_demolition",
-        sniper: "w_phantom"
+        sniper: "w_phantom",
+        medic: "w_medic_carbine",
+        engineer: "w_engineer_rifle",
+        duelist: "w_duelist_pistol",
+        titan: "w_titan_cannon"
     }
 };
+
+try {
+    const savedProfile = JSON.parse(localStorage.getItem('poxel-profile') || 'null');
+    if (savedProfile && typeof savedProfile === 'object') {
+        profileState = { ...profileState, ...savedProfile, equippedWeapons: { ...profileState.equippedWeapons, ...(savedProfile.equippedWeapons || {}) } };
+    }
+} catch (_) {}
 
 // Global Class definitions with precise statistical variables
 const classesConfig = {
@@ -1599,6 +1663,54 @@ const classesConfig = {
         jumpPower: 13,
         allowDoubleJump: false,
         difficulty: "⭐⭐⭐⭐"
+    },
+    medic: {
+        id: "medic",
+        name: "MEDIC",
+        desc: "A field support specialist with steady aim, strong armor, and rapid recovery.",
+        icon: "💉",
+        maxHp: 115,
+        maxAp: 70,
+        speedFactor: 1.05,
+        jumpPower: 14,
+        allowDoubleJump: false,
+        difficulty: "⭐⭐"
+    },
+    engineer: {
+        id: "engineer",
+        name: "ENGINEER",
+        desc: "A gadget expert carrying precision tools and extra ammunition for long fights.",
+        icon: "🛠️",
+        maxHp: 105,
+        maxAp: 80,
+        speedFactor: 0.95,
+        jumpPower: 13,
+        allowDoubleJump: false,
+        difficulty: "⭐⭐⭐"
+    },
+    duelist: {
+        id: "duelist",
+        name: "DUELIST",
+        desc: "An aggressive close-range fighter built around speed, mobility, and burst damage.",
+        icon: "⚔️",
+        maxHp: 90,
+        maxAp: 35,
+        speedFactor: 1.25,
+        jumpPower: 16,
+        allowDoubleJump: true,
+        difficulty: "⭐⭐⭐⭐"
+    },
+    titan: {
+        id: "titan",
+        name: "TITAN",
+        desc: "A heavily armored frontliner that trades speed for exceptional durability.",
+        icon: "🦾",
+        maxHp: 190,
+        maxAp: 120,
+        speedFactor: 0.65,
+        jumpPower: 10,
+        allowDoubleJump: false,
+        difficulty: "⭐⭐"
     }
 };
 
@@ -1688,6 +1800,31 @@ const weaponsInventory = {
     }
 };
 
+const expandedWeaponSpecs = [
+    ["w_medic_carbine", "Pulse Carbine", "medic", "rare", 28, 0.18, 24, 120, 0.65, 0x55ffdd, "rifle"],
+    ["w_medic_burst", "Recovery Burst", "medic", "epic", 36, 0.32, 18, 90, 0.55, 0x66ff99, "rifle"],
+    ["w_medic_smg", "Lifeline SMG", "medic", "rare", 16, 0.08, 40, 160, 0.45, 0x00ffcc, "smg"],
+    ["w_medic_shotgun", "Trauma Shotgun", "medic", "legendary", 88, 0.92, 6, 24, 0.62, 0xff6688, "shotgun"],
+    ["w_medic_beam", "Nano Beam", "medic", "epic", 22, 0.11, 30, 150, 0.8, 0x66ddff, "rifle"],
+    ["w_engineer_rifle", "Circuit Rifle", "engineer", "rare", 31, 0.2, 26, 130, 0.72, 0xffcc33, "rifle"],
+    ["w_engineer_smg", "Nailstorm", "engineer", "common", 12, 0.055, 55, 220, 0.4, 0xffaa00, "smg"],
+    ["w_engineer_grenade", "Forge Launcher", "engineer", "legendary", 75, 1.05, 5, 20, 0.9, 0xff6600, "rocket"],
+    ["w_engineer_marksman", "Longline", "engineer", "epic", 72, 0.7, 8, 32, 1.35, 0xffee88, "sniper"],
+    ["w_engineer_auto", "Auto Riveter", "engineer", "rare", 19, 0.13, 36, 144, 0.5, 0xffdd55, "rifle"],
+    ["w_duelist_pistol", "Flashpoint", "duelist", "epic", 34, 0.16, 14, 70, 0.38, 0xff44aa, "pistol"],
+    ["w_duelist_smg", "Viper SMG", "duelist", "rare", 15, 0.06, 42, 168, 0.42, 0xaa44ff, "smg"],
+    ["w_duelist_blaster", "Nova Blaster", "duelist", "legendary", 60, 0.48, 10, 40, 0.62, 0xff22cc, "shotgun"],
+    ["w_duelist_rifle", "Rift Rifle", "duelist", "epic", 27, 0.12, 32, 128, 0.68, 0xcc66ff, "rifle"],
+    ["w_duelist_dual", "Twin Fang", "duelist", "rare", 21, 0.09, 50, 200, 0.35, 0xff3377, "smg"],
+    ["w_titan_cannon", "Titan Cannon", "titan", "legendary", 110, 1.65, 4, 16, 1.1, 0xff3322, "rocket"],
+    ["w_titan_lmg", "Bulwark LMG", "titan", "epic", 26, 0.17, 60, 240, 0.72, 0xff8844, "rifle"],
+    ["w_titan_shotgun", "Siege Shotgun", "titan", "rare", 98, 1.1, 8, 32, 0.72, 0xffaa22, "shotgun"],
+    ["w_titan_bolt", "Colossus Bolt", "titan", "epic", 85, 1.05, 6, 24, 1.45, 0xff5544, "sniper"],
+    ["w_titan_pulse", "Aegis Pulse", "titan", "rare", 35, 0.24, 20, 100, 0.7, 0xff7744, "rifle"]
+].forEach(([id, name, classType, rarity, damage, fireRate, magCapacity, maxReserve, barrelLen, beamColor, gunStyle]) => {
+    weaponsInventory[id] = { id, name, classType, rarity, damage, fireRate, magCapacity, maxReserve, barrelLen, beamColor, gunStyle };
+});
+
 // Power-up definitions: id, display name, HUD color, effect duration (ms)
 const powerUpTypesConfig = {
     speed: { name: "SPEED BOOST", color: "#00e5ff", duration: 10000 },
@@ -1697,6 +1834,7 @@ const powerUpTypesConfig = {
 };
 
 // Selectable arena maps: each defines its own color theme, sky, and building layout
+const MAP_HALF_SIZE = 160;
 const mapsConfig = {
     neon_road: {
         id: "neon_road",
@@ -1903,6 +2041,18 @@ function updateLobbyStats() {
     document.getElementById("lobby-map-icon").innerText = activeMap.icon;
 }
 
+function editUsername() {
+    const currentName = profileState.username;
+    const nextName = window.prompt("ENTER YOUR USERNAME", currentName);
+    if (nextName === null) return;
+    const cleanName = nextName.trim().replace(/[^a-zA-Z0-9 _-]/g, '').slice(0, 20);
+    if (!cleanName) return;
+    profileState.username = cleanName;
+    localStorage.setItem('poxel-profile', JSON.stringify(profileState));
+    updateLobbyStats();
+    showPickupToast(`USERNAME: ${cleanName}`);
+}
+
 // Draw list cards into Selector modal dynamically
 function renderClassCards() {
     const container = document.getElementById("class-cards-container");
@@ -2106,6 +2256,7 @@ let prevFrameTime = performance.now();
 let canJump = false, yVelocity = 0, jumpSequenceCount = 0;
 let pitch = 0, yaw = 0;
 const defaultCameraFov = 70;
+const mobileCameraFov = 92;
 
 // Sprint / Slide movement state
 let isSprinting = false;
@@ -2275,8 +2426,8 @@ function updateGunViewModel() {
     if (!spec) return;
 
     currentGunViewModel = buildGunModel(spec, 1);
-    currentGunViewModel.position.set(0.35, -0.32, -0.6);
-    currentGunViewModel.rotation.y = Math.PI * 0.06;
+    currentGunViewModel.position.set(0.16, -0.27, -0.72);
+    currentGunViewModel.rotation.y = Math.PI * 0.02;
     camera.add(currentGunViewModel);
 }
 
@@ -2326,6 +2477,20 @@ document.getElementById("btn-exit-match").addEventListener("click", () => {
 });
 
 document.addEventListener("pointerlockchange", () => {
+
+function requestLandscapeMode() {
+    const lockLandscape = () => {
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(() => {});
+        }
+    };
+
+    if (isTouchDevice && document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().then(lockLandscape).catch(lockLandscape);
+    } else {
+        lockLandscape();
+    }
+}
     if (document.pointerLockElement === document.body) {
         enterMatchMode();
     } else if (inMatch) {
@@ -2334,6 +2499,7 @@ document.addEventListener("pointerlockchange", () => {
 });
 
 function enterMatchMode() {
+    requestLandscapeMode();
     document.getElementById("lobby-overlay").style.display = "none";
     document.getElementById("hud-overlay").style.display = "block";
     inMatch = true;
@@ -2405,7 +2571,7 @@ function startGameplayEngine() {
     document.getElementById("hud-streak-count").innerText = "";
     
     camera.position.set(0, 2, 60);
-    setCameraZoom(defaultCameraFov);
+    setCameraZoom(isTouchDevice ? mobileCameraFov : defaultCameraFov);
     pitch = 0;
     yaw = 0;
     camera.rotation.set(0, 0, 0);
@@ -2494,6 +2660,10 @@ function buildArenaEnvironment(mapConfig) {
     if (!renderer) {
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.15;
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.getElementById("canvas-container").appendChild(renderer.domElement);
@@ -2554,7 +2724,7 @@ function buildArenaEnvironment(mapConfig) {
         });
     }
     
-    const floorGeo = new THREE.PlaneGeometry(200, 200);
+    const floorGeo = new THREE.PlaneGeometry(MAP_HALF_SIZE * 2, MAP_HALF_SIZE * 2);
     const floorMesh = new THREE.Mesh(floorGeo, floorMat);
     floorMesh.rotation.x = -Math.PI / 2;
     floorMesh.receiveShadow = true;
@@ -2562,20 +2732,20 @@ function buildArenaEnvironment(mapConfig) {
 
     // BOUNDARIES
     const wallBorderMat = new THREE.MeshStandardMaterial({ color: mapConfig.isNeon ? 0x070710 : 0x222222, roughness: 0.9 });
-    const wallNorth = new THREE.Mesh(new THREE.BoxGeometry(200, 30, 2), wallBorderMat);
-    wallNorth.position.set(0, 15, -100);
+    const wallNorth = new THREE.Mesh(new THREE.BoxGeometry(MAP_HALF_SIZE * 2, 30, 2), wallBorderMat);
+    wallNorth.position.set(0, 15, -MAP_HALF_SIZE);
     scene.add(wallNorth);
 
-    const wallSouth = new THREE.Mesh(new THREE.BoxGeometry(200, 30, 2), wallBorderMat);
-    wallSouth.position.set(0, 15, 100);
+    const wallSouth = new THREE.Mesh(new THREE.BoxGeometry(MAP_HALF_SIZE * 2, 30, 2), wallBorderMat);
+    wallSouth.position.set(0, 15, MAP_HALF_SIZE);
     scene.add(wallSouth);
 
-    const wallEast = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 200), wallBorderMat);
-    wallEast.position.set(100, 15, 0);
+    const wallEast = new THREE.Mesh(new THREE.BoxGeometry(2, 30, MAP_HALF_SIZE * 2), wallBorderMat);
+    wallEast.position.set(MAP_HALF_SIZE, 15, 0);
     scene.add(wallEast);
 
-    const wallWest = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 200), wallBorderMat);
-    wallWest.position.set(-100, 15, 0);
+    const wallWest = new THREE.Mesh(new THREE.BoxGeometry(2, 30, MAP_HALF_SIZE * 2), wallBorderMat);
+    wallWest.position.set(-MAP_HALF_SIZE, 15, 0);
     scene.add(wallWest);
 
     // Procedural Modular Houses
@@ -3024,7 +3194,7 @@ function attemptSlide() {
 
 function attemptDash() {
     const now = performance.now();
-    if (now - lastPlayerDashTime < 2000) return; // 2 seconds cooldown
+    if (now - lastPlayerDashTime < 1400) return; // 1.4 seconds cooldown
     if (!canJump) return; // Must be grounded
 
     lastPlayerDashTime = now;
@@ -3043,7 +3213,7 @@ function attemptDash() {
     dir.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
 
     // Apply strong velocity impulse directly relative to camera look direction
-    const dashStrength = 30.0;
+    const dashStrength = 52.0;
     playerVelocity.x += dir.x * dashStrength;
     playerVelocity.z += dir.z * dashStrength;
 
@@ -3746,8 +3916,8 @@ function tick() {
         }
 
         // Keep player locked inside outer map boundary borders
-        camera.position.x = Math.max(-96, Math.min(96, camera.position.x));
-        camera.position.z = Math.max(-96, Math.min(96, camera.position.z));
+            camera.position.x = Math.max(-MAP_HALF_SIZE + 4, Math.min(MAP_HALF_SIZE - 4, camera.position.x));
+            camera.position.z = Math.max(-MAP_HALF_SIZE + 4, Math.min(MAP_HALF_SIZE - 4, camera.position.z));
 
         // --- PARTICLE SIMULATOR ---
         for (let i = particles.length - 1; i >= 0; i--) {

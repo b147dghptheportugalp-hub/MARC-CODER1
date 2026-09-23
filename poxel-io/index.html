@@ -1822,7 +1822,7 @@ const weaponsInventory = {
         beamColor: 0xff0000, // Crimson Red tracer
         gunStyle: "sniper",
         modelPath: "gun_models/sniper.obj",
-        modelRotation: { y: -Math.PI / 2 }
+        modelRotation: { x: Math.PI / 2, y: -Math.PI / 2 }
     },
     // Universal sidearm every class carries regardless of primary weapon
     w_pistol: {
@@ -2579,7 +2579,7 @@ function updateGunViewModel() {
     if (!spec) return;
 
     currentGunViewModel = buildGunModel(spec, 1);
-    currentGunViewModel.position.set(0.16, -0.27, -0.72);
+    currentGunViewModel.position.set(0.12, -0.22, -0.68);
     currentGunViewModel.rotation.y = Math.PI * 0.02;
     camera.add(currentGunViewModel);
     loadGunModel(spec, currentGunViewModel);

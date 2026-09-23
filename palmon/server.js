@@ -10,9 +10,17 @@ const WORLD_H = 4000;
 const MAP_ROTATE_MS = 150000;
 const MAX_PLAYERS = 50;
 const MAX_BUILDS_PER_PLAYER = 120;
-const players = new Map();
+function createTeamState() {
+  return {
+    players: new Map(),
+    teams: new Map(),
+  };
+}
+
+const state = createTeamState();
+const players = state.players;
 const builds = new Map();
-const teams = new Map();
+const teams = state.teams;
 let nextId = 1;
 let nextBuildId = 1;
 let mapSeed = Math.floor(Math.random() * 2147483647);
@@ -42,6 +50,170 @@ function sameTeam(first, second) {
 
 function teamInfo(player) {
   return player.teamId ? { id: player.teamId, name: player.teamName } : null;
+}
+
+function teamRoster(state, teamId) {
+  const team = state.teams.get(teamId);
+  if (!team) return [];
+  return [...team.members].map(id => {
+    const member = state.players.get(id);
+    return member ? { id: member.id, name: member.name, isOwner: team.ownerId === member.id } : null;
+  }).filter(Boolean);
+}
+
+function teamListPayload(state) {
+  return [...state.teams.values()].map(team => ({
+    id: team.id,
+    name: team.name,
+    ownerId: team.ownerId,
+    memberCount: team.members.size,
+    members: [...team.members].map(id => {
+      const player = state.players.get(id);
+      return player ? player.name : null;
+    }).filter(Boolean)
+  }));
+}
+
+function teamRequestsPayload(team) {
+  return (team?.pendingRequests || []).map((request) => ({
+    id: request.id,
+    fromId: request.fromId,
+    fromName: request.fromName,
+    teamId: request.teamId,
+    teamName: request.teamName
+  }));
+}
+
+function sendTeamMenuState(player) {
+  const team = teams.get(player.teamId);
+  const roster = teamRoster({ players, teams }, player.teamId);
+  const teamList = teamListPayload({ players, teams });
+  const requests = team ? teamRequestsPayload(team) : [];
+  send(player.ws, {
+    type: 'teamUpdated',
+    team: teamInfo(player),
+    roster,
+    requests,
+    teamList
+  });
+}
+
+function resolveTeamRequest(state, leaderId, teamId, memberId, accepted) {
+  const team = state.teams.get(teamId);
+  if (!team || team.ownerId !== leaderId) return false;
+  const member = state.players.get(memberId);
+  const leader = state.players.get(leaderId);
+  if (!member) return false;
+  const pendingIndex = (team.pendingRequests || []).findIndex(request => request.fromId === memberId && request.teamId === teamId);
+  if (pendingIndex === -1) return false;
+
+  const [request] = (team.pendingRequests || []).splice(pendingIndex, 1);
+  if (accepted) {
+    team.members.add(memberId);
+    member.teamId = team.id;
+    member.teamName = team.name;
+    if (member.ws) {
+      send(member.ws, {
+        type: 'teamUpdated',
+        team: teamInfo(member),
+        roster: teamRoster(state, teamId),
+        requests: teamRequestsPayload(team),
+        teamList: teamListPayload(state)
+      });
+    }
+    if (leader && leader.ws) {
+      send(leader.ws, {
+        type: 'teamUpdated',
+        team: teamInfo(leader),
+        roster: teamRoster(state, teamId),
+        requests: teamRequestsPayload(team),
+        teamList: teamListPayload(state)
+      });
+    }
+    if (member.ws) {
+      send(member.ws, { type: 'teamRequestResult', accepted: true, teamId: team.id, teamName: team.name, message: `You joined ${team.name}.` });
+    }
+    return true;
+  }
+
+  if (member.ws) {
+    send(member.ws, { type: 'teamRequestResult', accepted: false, teamId: team.id, teamName: team.name, message: `Your request to join ${team.name} was declined.` });
+  }
+  return true;
+}
+
+function removeMemberFromTeam(state, leaderId, teamId, memberId) {
+  const team = state.teams.get(teamId);
+  if (!team || team.ownerId !== leaderId || memberId === leaderId) return false;
+  if (!team.members.has(memberId)) return false;
+
+  team.members.delete(memberId);
+  const member = state.players.get(memberId);
+  if (member) {
+    member.teamId = null;
+    member.teamName = null;
+    send(member.ws, {
+      type: 'teamUpdated',
+      team: null,
+      roster: [],
+      requests: [],
+      teamList: teamListPayload(state)
+    });
+  }
+
+  if (team.members.size === 0) {
+    state.teams.delete(teamId);
+  }
+
+  const leader = state.players.get(leaderId);
+  if (leader) {
+    send(leader.ws, {
+      type: 'teamUpdated',
+      team: teamInfo(leader),
+      roster: teamRoster(state, teamId),
+      requests: team ? teamRequestsPayload(team) : [],
+      teamList: teamListPayload(state)
+    });
+  }
+  broadcast({ type: 'teamList', teams: teamListPayload(state) });
+  return true;
+}
+
+function leaveTeam(state, player) {
+  if (!player.teamId) return false;
+  const team = state.teams.get(player.teamId);
+  if (!team) {
+    player.teamId = null;
+    player.teamName = null;
+    return true;
+  }
+
+  if (team.ownerId === player.id) {
+    const nextOwner = [...team.members].find(id => id !== player.id && state.players.has(id));
+    team.members.delete(player.id);
+    if (nextOwner) {
+      team.ownerId = nextOwner;
+      const nextOwnerPlayer = state.players.get(nextOwner);
+      if (nextOwnerPlayer) {
+        nextOwnerPlayer.teamId = team.id;
+        nextOwnerPlayer.teamName = team.name;
+      }
+    } else {
+      state.teams.delete(team.id);
+    }
+  } else {
+    team.members.delete(player.id);
+  }
+
+  player.teamId = null;
+  player.teamName = null;
+
+  if (team.members && team.members.size === 0) {
+    state.teams.delete(team.id);
+  }
+
+  broadcast({ type: 'teamList', teams: teamListPayload(state) });
+  return true;
 }
 
 function broadcast(message, exceptId = null) {
@@ -138,25 +310,90 @@ wss.on('connection', ws => {
         send(ws, { type: 'snapshot', players: snapshot(), builds: buildSnapshot(), mapSeed, mapRotateMs: MAP_ROTATE_MS });
         broadcast({ type: 'playerUpdated', player: publicPlayer(player) });
       }
-      if (message.type === 'createTeam' || message.type === 'joinTeam' || message.type === 'leaveTeam') {
+      if (message.type === 'requestTeamList') {
+        send(ws, { type: 'teamList', teams: teamListPayload({ players, teams }) });
+        if (player.teamId) {
+          const team = teams.get(player.teamId);
+          send(ws, {
+            type: 'teamUpdated',
+            team: teamInfo(player),
+            roster: teamRoster({ players, teams }, player.teamId),
+            requests: team ? teamRequestsPayload(team) : [],
+            teamList: teamListPayload({ players, teams })
+          });
+        }
+      }
+
+      if (message.type === 'createTeam' || message.type === 'joinTeam' || message.type === 'leaveTeam' || message.type === 'kickTeamMember' || message.type === 'answerTeamRequest') {
         if (message.type === 'leaveTeam') {
-          player.teamId = null; player.teamName = null;
+          if (leaveTeam({ players, teams }, player)) {
+            send(ws, { type: 'teamUpdated', team: null, roster: [], requests: [], teamList: teamListPayload({ players, teams }) });
+          }
         } else if (message.type === 'createTeam') {
           if (player.teamId) return send(ws, { type: 'teamError', message: 'Leave your current team first.' });
           const name = String(message.name || '').trim().replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, ' ').slice(0, 24);
           if (!name) return send(ws, { type: 'teamError', message: 'Choose a team name.' });
           if ([...teams.values()].some(team => team.name.toLowerCase() === name.toLowerCase())) return send(ws, { type: 'teamError', message: 'That team name is already taken.' });
           const id = `team-${nextId++}`;
-          teams.set(id, { id, name, ownerId: player.id });
+          const team = { id, name, ownerId: player.id, members: new Set([player.id]), pendingRequests: [] };
+          teams.set(id, team);
           player.teamId = id; player.teamName = name;
+          send(ws, { type: 'teamUpdated', team: { id, name }, roster: teamRoster({ players, teams }, id), requests: [], teamList: teamListPayload({ players, teams }) });
+          broadcast({ type: 'teamList', teams: teamListPayload({ players, teams }) });
+        } else if (message.type === 'kickTeamMember') {
+          const memberId = String(message.memberId || '');
+          if (!memberId || !removeMemberFromTeam({ players, teams }, player.id, player.teamId, memberId)) {
+            return send(ws, { type: 'teamError', message: 'You can only kick members from your own team.' });
+          }
+          const currentTeam = teams.get(player.teamId);
+          send(ws, {
+            type: 'teamUpdated',
+            team: teamInfo(player),
+            roster: teamRoster({ players, teams }, player.teamId),
+            requests: currentTeam ? teamRequestsPayload(currentTeam) : [],
+            teamList: teamListPayload({ players, teams })
+          });
+        } else if (message.type === 'answerTeamRequest') {
+          const requestId = String(message.requestId || '');
+          const team = teams.get(player.teamId);
+          if (!team || team.ownerId !== player.id) return send(ws, { type: 'teamError', message: 'Only the team leader can answer join requests.' });
+          const request = (team.pendingRequests || []).find(item => item.id === requestId);
+          if (!request) return send(ws, { type: 'teamError', message: 'Request not found.' });
+          const accepted = Boolean(message.accept);
+          const member = players.get(request.fromId);
+          resolveTeamRequest({ players, teams }, player.id, team.id, request.fromId, accepted);
+          if (accepted && member) {
+            send(member.ws, { type: 'teamRequestResult', accepted: true, teamId: team.id, teamName: team.name, message: `You joined ${team.name}.` });
+          }
+          if (!accepted && member) {
+            send(member.ws, { type: 'teamRequestResult', accepted: false, teamId: team.id, teamName: team.name, message: `Your request to join ${team.name} was declined.` });
+          }
+          send(ws, {
+            type: 'teamUpdated',
+            team: teamInfo(player),
+            roster: teamRoster({ players, teams }, team.id),
+            requests: teamRequestsPayload(team),
+            teamList: teamListPayload({ players, teams })
+          });
+          broadcast({ type: 'teamList', teams: teamListPayload({ players, teams }) });
         } else {
           if (player.teamId) return send(ws, { type: 'teamError', message: 'Leave your current team first.' });
           const lookup = String(message.team || '').trim().toLowerCase();
           const team = [...teams.values()].find(item => item.id.toLowerCase() === lookup || item.name.toLowerCase() === lookup);
           if (!team) return send(ws, { type: 'teamError', message: 'Team not found. Use its name or code.' });
-          player.teamId = team.id; player.teamName = team.name;
+          if (team.members.has(player.id)) {
+            player.teamId = team.id; player.teamName = team.name;
+            return send(ws, { type: 'teamUpdated', team: teamInfo(player), roster: teamRoster({ players, teams }, team.id), requests: teamRequestsPayload(team), teamList: teamListPayload({ players, teams }) });
+          }
+          const request = { id: `req-${nextId++}`, fromId: player.id, fromName: player.name, teamId: team.id, teamName: team.name };
+          team.pendingRequests = team.pendingRequests || [];
+          team.pendingRequests.push(request);
+          const leader = players.get(team.ownerId);
+          if (leader) {
+            send(leader.ws, { type: 'teamRequest', request, requester: { id: player.id, name: player.name }, teamList: teamListPayload({ players, teams }) });
+          }
+          send(ws, { type: 'teamRequestSent', teamId: team.id, teamName: team.name, message: `Join request sent to ${team.name}.` });
         }
-        send(ws, { type: 'teamUpdated', team: teamInfo(player) });
         broadcast({ type: 'playerUpdated', player: publicPlayer(player) });
       }
       if (message.type === 'state') {
@@ -268,6 +505,19 @@ setInterval(() => {
   broadcast({ type: 'mapReset', mapSeed, seed: mapSeed, mapRotateMs: MAP_ROTATE_MS });
 }, MAP_ROTATE_MS);
 
-server.listen(PORT, HOST, () => {
-  console.log(`Palmon server running on ${HOST}:${PORT}`);
-});
+if (require.main === module) {
+  server.listen(PORT, HOST, () => {
+    console.log(`Palmon server running on ${HOST}:${PORT}`);
+  });
+}
+
+module.exports = {
+  createTeamState,
+  resolveTeamRequest,
+  removeMemberFromTeam,
+  teamListPayload,
+  teamRequestsPayload,
+  teamRoster,
+  leaveTeam,
+  state,
+};

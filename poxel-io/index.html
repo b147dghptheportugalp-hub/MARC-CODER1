@@ -579,6 +579,51 @@
             border-radius: 50%;
         }
 
+        #sniper-scope {
+            position: absolute;
+            inset: 0;
+            display: none;
+            overflow: hidden;
+            background: radial-gradient(circle at center, transparent 0 31%, rgba(0, 0, 0, 0.92) 31.2% 100%);
+        }
+
+        #sniper-scope.active {
+            display: block;
+        }
+
+        .scope-crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: min(62vw, 62vh);
+            height: min(62vw, 62vh);
+            transform: translate(-50%, -50%);
+            border: 2px solid rgba(220, 245, 255, 0.8);
+            border-radius: 50%;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.68), inset 0 0 18px rgba(0, 0, 0, 0.7);
+        }
+
+        .scope-crosshair::before,
+        .scope-crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(220, 245, 255, 0.8);
+        }
+
+        .scope-crosshair::before {
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 1px;
+        }
+
+        .scope-crosshair::after {
+            top: 0;
+            left: 50%;
+            width: 1px;
+            height: 100%;
+        }
+
         #online-leaderboard {
             position: absolute;
             top: 25px;
@@ -637,32 +682,35 @@
         #hud-hp-fill { background: #4caf50; }
         #hud-ap-fill { background: #2196f3; }
 
-        /* Weapon Display Panel (Bottom Right) */
+        /* Weapon Display Panel (Right Side) */
         .hud-weapon-panel {
             position: absolute;
-            bottom: 25px;
-            right: 25px;
+            top: 50%;
+            right: 24px;
+            transform: translateY(-50%);
             background: var(--panel-bg);
             border: 1px solid var(--pink-neon);
-            padding: 15px 25px;
+            padding: 12px 16px;
             border-radius: 6px;
             text-align: right;
-            min-width: 180px;
+            min-width: 140px;
             display: flex;
             flex-direction: column;
             gap: 5px;
         }
 
         #hud-weapon-name {
-            font-size: 1.2rem;
+            font-size: 0.85rem;
             font-weight: 900;
             color: var(--pink-neon);
+            white-space: nowrap;
         }
 
         #hud-weapon-ammo {
-            font-size: 2rem;
+            font-size: 2.2rem;
             font-weight: 900;
             color: #fff;
+            line-height: 1;
         }
 
         /* Top Center Score and Time Display */
@@ -1217,7 +1265,7 @@
             .modal-body { flex-direction: column; padding: 15px; }
             .class-grid { grid-template-columns: repeat(2, 1fr); }
             .hud-stats-panel { min-width: 160px; padding: 10px 15px; font-size: 0.8rem; }
-            .hud-weapon-panel { min-width: 130px; padding: 10px 15px; }
+            .hud-weapon-panel { right: 14px; min-width: 120px; padding: 10px 12px; }
             .hud-killfeed { max-width: 180px; }
             .hud-top-match { font-size: 1rem; padding: 6px 16px; gap: 10px; }
         }
@@ -1302,7 +1350,7 @@
             #mobile-zoom-panel { left: 18px; bottom: 145px; }
             #hud-overlay { padding: 10px; }
             .hud-stats-panel { left: 10px; bottom: 10px; min-width: 130px; padding: 7px 10px; }
-            .hud-weapon-panel { right: 10px; bottom: 10px; min-width: 120px; padding: 7px 10px; }
+            .hud-weapon-panel { right: 10px; min-width: 105px; padding: 7px 9px; }
             .hud-top-match { top: 10px; padding: 5px 10px; font-size: 0.75rem; }
             #online-leaderboard { top: 10px; right: 10px; width: 150px; padding: 6px 8px; font-size: 8px; }
         }
@@ -1474,6 +1522,9 @@
 
     <div id="hud-overlay">
         <div id="hud-crosshair"></div>
+        <div id="sniper-scope" aria-hidden="true">
+            <div class="scope-crosshair"></div>
+        </div>
         <div id="hitmarker"></div>
 
         <div class="hud-stats-panel">
@@ -1501,7 +1552,6 @@
         <div class="hud-weapon-panel">
             <div id="hud-weapon-name">Vanguard Rifle</div>
             <div id="hud-weapon-ammo">30 / 120</div>
-            <div style="font-size:0.65rem; color:#888; margin-top:2px;">[1] SIDEARM &nbsp; [2] PRIMARY</div>
         </div>
 
         <div class="hud-top-match">
@@ -1770,7 +1820,9 @@ const weaponsInventory = {
         maxReserve: 15,
         barrelLen: 1.2,
         beamColor: 0xff0000, // Crimson Red tracer
-        gunStyle: "sniper"
+        gunStyle: "sniper",
+        modelPath: "gun_models/sniper.obj",
+        modelRotation: { y: -Math.PI / 2 }
     },
     // Universal sidearm every class carries regardless of primary weapon
     w_pistol: {
@@ -1835,7 +1887,7 @@ const expandedWeaponSpecs = [
 const weaponModelByStyle = {
     pistol: "pistol.fbx",
     smg: "smg.obj",
-    sniper: "heavy_sniper.obj"
+    sniper: "gun_models/sniper.obj"
 };
 const heavyWeaponModelIds = new Set(["w_titan_lmg", "w_titan_pulse"]);
 Object.values(weaponsInventory).forEach(weapon => {
@@ -2277,6 +2329,9 @@ let canJump = false, yVelocity = 0, jumpSequenceCount = 0;
 let pitch = 0, yaw = 0;
 const defaultCameraFov = 70;
 const mobileCameraFov = 92;
+const sniperScopeFov = 28;
+let sniperAiming = false;
+let cameraFovBeforeSniperAim = defaultCameraFov;
 
 // Sprint / Slide movement state
 let isSprinting = false;
@@ -2435,6 +2490,8 @@ function buildGunModel(spec, scale = 1) {
 }
 
 const loadedGunModels = new Map();
+let phantomBulletTemplate = null;
+let phantomBulletLoadPending = false;
 
 function applyGunMaterial(model, spec) {
     const material = new THREE.MeshStandardMaterial({
@@ -2457,6 +2514,7 @@ function loadGunModel(spec, targetGroup) {
     const cached = loadedGunModels.get(spec.modelPath);
     if (cached) {
         const model = cached.clone();
+        targetGroup.clear();
         targetGroup.add(model);
         return;
     }
@@ -2485,6 +2543,29 @@ function loadGunModel(spec, targetGroup) {
     }, undefined, () => {});
 }
 
+function loadPhantomBulletTemplate() {
+    if (phantomBulletTemplate || phantomBulletLoadPending || typeof THREE.OBJLoader !== 'function') return;
+    phantomBulletLoadPending = true;
+    const loader = new THREE.OBJLoader();
+    loader.load('gun_models/sniper.obj', model => {
+        phantomBulletLoadPending = false;
+        const bulletGroup = model.getObjectByName('Barrett_M82A1_Bullet');
+        if (!bulletGroup) return;
+        applyGunMaterial(bulletGroup, weaponsInventory.w_phantom);
+        const box = new THREE.Box3().setFromObject(bulletGroup);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const longestSide = Math.max(size.x, size.y, size.z) || 1;
+        bulletGroup.scale.setScalar(0.18 / longestSide);
+        bulletGroup.position.set(-center.x * bulletGroup.scale.x, -center.y * bulletGroup.scale.y, -center.z * bulletGroup.scale.z);
+        const template = new THREE.Group();
+        template.add(bulletGroup);
+        phantomBulletTemplate = template;
+    }, undefined, () => {
+        phantomBulletLoadPending = false;
+    });
+}
+
 // First-person weapon viewmodel, reattached to the camera whenever the active weapon changes
 let currentGunViewModel = null;
 function updateGunViewModel() {
@@ -2493,6 +2574,7 @@ function updateGunViewModel() {
         camera.remove(currentGunViewModel);
         currentGunViewModel = null;
     }
+    if (sniperAiming) setSniperAim(false);
     const spec = weaponsInventory[currentWeaponState.wepId];
     if (!spec) return;
 
@@ -2501,6 +2583,7 @@ function updateGunViewModel() {
     currentGunViewModel.rotation.y = Math.PI * 0.02;
     camera.add(currentGunViewModel);
     loadGunModel(spec, currentGunViewModel);
+    if (spec.id === 'w_phantom') loadPhantomBulletTemplate();
 }
 
 function switchWeaponSlot(slot) {
@@ -2565,9 +2648,9 @@ function requestLandscapeMode() {
 }
 
 document.addEventListener("pointerlockchange", () => {
-    if (document.pointerLockElement === document.body && !inMatch) {
-        enterMatchMode();
-    } else if (inMatch) {
+    if (document.pointerLockElement === document.body) {
+        if (!inMatch) enterMatchMode();
+    } else if (inMatch && !isTouchDevice) {
         exitMatchMode();
     }
 });
@@ -2682,6 +2765,9 @@ function startGameplayEngine() {
     } else {
         document.addEventListener('mousemove', handleCameraRotation);
         document.addEventListener('mousedown', handleWeaponDischarge);
+        document.addEventListener('mousedown', handleSniperAimStart);
+        document.addEventListener('mouseup', handleSniperAimEnd);
+        document.addEventListener('contextmenu', preventGameContextMenu);
     }
 }
 
@@ -2704,6 +2790,10 @@ function stopGameplayEngine() {
     document.removeEventListener('keyup', handleKeyInputUp);
     document.removeEventListener('mousemove', handleCameraRotation);
     document.removeEventListener('mousedown', handleWeaponDischarge);
+    document.removeEventListener('mousedown', handleSniperAimStart);
+    document.removeEventListener('mouseup', handleSniperAimEnd);
+    document.removeEventListener('contextmenu', preventGameContextMenu);
+    setSniperAim(false);
     document.getElementById("mobile-controls").style.display = "none";
     document.getElementById("btn-exit-match").style.display = "none";
     unbindMobileControls();
@@ -3201,7 +3291,8 @@ function spawnEnemyBot(x, z, friendly = false, skinIndex = null, weaponId = null
         dashVector: new THREE.Vector3(),
         spawnPos: {x: x, z: z},
         friendly: friendly,
-        name: bName
+        name: bName,
+        weaponId: botWepId
     });
 }
 // --- INPUT LISTENERS ---
@@ -3494,8 +3585,30 @@ function bindMobileControls() {
 
 function setCameraZoom(fov) {
     if (!camera) return;
-    camera.fov = Math.max(35, Math.min(110, fov));
+    camera.fov = Math.max(25, Math.min(110, fov));
     camera.updateProjectionMatrix();
+}
+
+function isSniperWeaponActive() {
+    const spec = currentWeaponState && weaponsInventory[currentWeaponState.wepId];
+    return !!spec && spec.gunStyle === 'sniper';
+}
+
+function setSniperAim(aiming) {
+    if (!camera) return;
+    const scope = document.getElementById('sniper-scope');
+    if (aiming && (!inMatch || !isSniperWeaponActive())) return;
+
+    if (aiming && !sniperAiming) {
+        cameraFovBeforeSniperAim = camera.fov;
+        sniperAiming = true;
+        setCameraZoom(sniperScopeFov);
+        if (scope) scope.classList.add('active');
+    } else if (!aiming && sniperAiming) {
+        sniperAiming = false;
+        setCameraZoom(cameraFovBeforeSniperAim);
+        if (scope) scope.classList.remove('active');
+    }
 }
 
 function unbindMobileControls() {
@@ -3571,6 +3684,21 @@ function unbindMobileControls() {
 }
 
 // --- ACTIVE WEAPON FIRE LOGIC ---
+function handleSniperAimStart(e) {
+    if (e.button !== 2) return;
+    e.preventDefault();
+    setSniperAim(true);
+}
+
+function handleSniperAimEnd(e) {
+    if (e.button !== 2) return;
+    setSniperAim(false);
+}
+
+function preventGameContextMenu(e) {
+    if (inMatch) e.preventDefault();
+}
+
 function handleWeaponDischarge(e) {
     if (!inMatch || e.button !== 0) return;
     fireWeapon();
@@ -3659,7 +3787,11 @@ function fireWeapon() {
         triggerExplosionSplash(endPoint, null);
     }
 
-    renderLaserTracer(startPoint, endPoint, currentWeaponState.beamColor);
+    if (currentWeaponState.wepId === 'w_phantom') {
+        renderPhantomBullet(startPoint, endPoint);
+    } else {
+        renderLaserTracer(startPoint, endPoint, currentWeaponState.beamColor);
+    }
 
     // Auto-revert from an emptied special weapon (e.g. Rocket Launcher) back to the primary loadout
     if (activeWeaponSlot === "special" && currentWeaponState.magAmmo <= 0) {
@@ -3814,6 +3946,21 @@ function renderLaserTracer(start, end, colorHex) {
 
     // Fade tracer line from viewport shortly after drawing
     setTimeout(() => scene.remove(line), 75);
+}
+
+function renderPhantomBullet(start, end) {
+    if (!phantomBulletTemplate) {
+        loadPhantomBulletTemplate();
+        renderLaserTracer(start, end, weaponsInventory.w_phantom.beamColor);
+        return;
+    }
+
+    const bullet = phantomBulletTemplate.clone(true);
+    const direction = new THREE.Vector3().subVectors(end, start).normalize();
+    bullet.position.copy(start);
+    bullet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), direction);
+    scene.add(bullet);
+    setTimeout(() => scene.remove(bullet), 100);
 }
 
 function appendKillFeedLog(killer, victim, weaponName) {
@@ -4217,7 +4364,11 @@ function tick() {
                         } else if (targetBot) {
                             applyDamageToBot(targetBot, 25, targetPos, false, bot);
                         }
-                        renderLaserTracer(bot.mesh.position, targetPos, laserColor);
+                        if (bot.weaponId === 'w_phantom') {
+                            renderPhantomBullet(bot.mesh.position, targetPos);
+                        } else {
+                            renderLaserTracer(bot.mesh.position, targetPos, laserColor);
+                        }
                     } else {
                         // Draw offset shot missed tracer
                         const missOffsetVec = new THREE.Vector3(
@@ -4225,7 +4376,11 @@ function tick() {
                             (Math.random() - 0.5) * 8,
                             (Math.random() - 0.5) * 8
                         ).add(targetPos);
-                        renderLaserTracer(bot.mesh.position, missOffsetVec, laserColor);
+                        if (bot.weaponId === 'w_phantom') {
+                            renderPhantomBullet(bot.mesh.position, missOffsetVec);
+                        } else {
+                            renderLaserTracer(bot.mesh.position, missOffsetVec, laserColor);
+                        }
                     }
                 }
             } else if (bot.direction.lengthSq() > 0.1) {
@@ -4523,7 +4678,11 @@ function triggerPlayerHitDamage(amt) {
             if (typeof renderLaserTracer === 'function' && typeof THREE !== 'undefined' && camera) {
                 const start = new THREE.Vector3(msg.x, msg.y + 1.2, msg.z);
                 const end = start.clone().add(new THREE.Vector3(msg.dx, msg.dy, msg.dz).multiplyScalar(25));
-                renderLaserTracer(start, end, msg.weaponId === 'w_rapid_fire' ? 0x00ffff : 0xff007f);
+                if (msg.weaponId === 'w_phantom') {
+                    renderPhantomBullet(start, end);
+                } else {
+                    renderLaserTracer(start, end, msg.weaponId === 'w_rapid_fire' ? 0x00ffff : 0xff007f);
+                }
             }
         }
     }

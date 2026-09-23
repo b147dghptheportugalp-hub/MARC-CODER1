@@ -232,6 +232,7 @@ function shot(p, msg) {
       target.x = (Math.random() - 0.5) * 90;
       target.z = (Math.random() - 0.5) * 90;
       target.y = 2;
+      target.lastShot = 0;
       send(target.ws, { type: 'respawn', x: target.x, y: target.y, z: target.z, hp: target.hp, maxHp: target.maxHp });
     }, 1500);
   }

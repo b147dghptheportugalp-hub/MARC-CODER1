@@ -4423,6 +4423,13 @@ function triggerPlayerHitDamage(amt) {
         currentKillStreak = 0;
         document.getElementById("hud-streak-count").innerText = "";
 
+        currentWeaponState.lastFireTime = 0;
+        currentWeaponState.isReloading = false;
+        if (mobileFiringInterval) {
+            clearInterval(mobileFiringInterval);
+            mobileFiringInterval = null;
+        }
+
         showPickupToast("ELIMINATED! Respawning...");
         activePlayerCombatStats.hp = activePlayerCombatStats.maxHp;
         camera.position.set((Math.random() - 0.5) * 100, 2, (Math.random() - 0.5) * 100);
@@ -4669,6 +4676,10 @@ function triggerPlayerHitDamage(amt) {
         if (msg.type === 'respawn') {
             if (camera) camera.position.set(msg.x, msg.y, msg.z);
             if (typeof activePlayerCombatStats !== 'undefined') activePlayerCombatStats.hp = msg.hp;
+            if (typeof currentWeaponState !== 'undefined' && currentWeaponState) {
+                currentWeaponState.lastFireTime = 0;
+                currentWeaponState.isReloading = false;
+            }
             if (typeof updateHUD === 'function') updateHUD();
             return;
         }

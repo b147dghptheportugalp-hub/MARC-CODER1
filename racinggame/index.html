@@ -238,6 +238,81 @@
             border-color: #ff416c;
         }
 
+        #chat-panel {
+            position: absolute;
+            left: 16px;
+            bottom: 16px;
+            width: min(340px, calc(100vw - 32px));
+            z-index: 140;
+            background: rgba(9, 11, 18, 0.82);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+            overflow: hidden;
+        }
+
+        .chat-feed {
+            max-height: 160px;
+            overflow-y: auto;
+            padding: 10px 10px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.75rem;
+        }
+
+        .chat-message {
+            display: flex;
+            gap: 6px;
+            line-height: 1.4;
+            color: #e8ebff;
+            word-break: break-word;
+        }
+
+        .chat-user {
+            color: #4facfe;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        .chat-text {
+            color: #eef2ff;
+            overflow-wrap: anywhere;
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 8px;
+            padding: 8px 10px 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.8rem;
+            padding: 9px 10px;
+            outline: none;
+        }
+
+        .chat-input:focus {
+            border-color: rgba(79, 172, 254, 0.9);
+        }
+
+        .chat-send {
+            border: none;
+            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+            color: #fff;
+            font-weight: 800;
+            border-radius: 8px;
+            padding: 0 12px;
+            cursor: pointer;
+        }
+
         /* --- MOBILE CONTROLS OVERLAY --- */
         .viewport-mobile-controls {
             position: absolute;
@@ -513,6 +588,13 @@
 
     <div id="game-screen" class="screen">
         <button class="btn-menu" onclick="showMenu()">Main Menu</button>
+        <div id="chat-panel">
+            <div id="chat-feed" class="chat-feed"></div>
+            <div class="chat-input-row">
+                <input id="chat-input" class="chat-input" maxlength="120" placeholder="Type a message..." />
+                <button id="chat-send" class="chat-send" type="button">Send</button>
+            </div>
+        </div>
         <div id="viewports-grid" class="grid-1"></div>
     </div>
 
@@ -983,19 +1065,58 @@
         let activeTrack = TRACK_DATA[0];
         let maxLaps = 3;
         let raceEnded = false;
-        const onlineRace = { ws:null, id:null, players:new Map(), stateTimer:null, enabled:false };
+        const onlineRace = { ws:null, id:null, players:new Map(), stateTimer:null, enabled:false, localName:'Racer' };
         const remoteCars = new Map();
+
+        function appendChatMessage(name, text) {
+            const feed = document.getElementById('chat-feed');
+            if (!feed) return;
+            const row = document.createElement('div');
+            row.className = 'chat-message';
+            const user = document.createElement('span');
+            user.className = 'chat-user';
+            user.textContent = `${name}:`;
+            const msg = document.createElement('span');
+            msg.className = 'chat-text';
+            msg.textContent = text;
+            row.append(user, msg);
+            feed.appendChild(row);
+            while (feed.children.length > 16) feed.removeChild(feed.firstChild);
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = (input ? input.value : '').trim();
+            if (!text || !onlineRace.enabled || !onlineRace.ws || onlineRace.ws.readyState !== WebSocket.OPEN) return;
+            onlineRace.ws.send(JSON.stringify({ type: 'chat', name: onlineRace.localName, text }));
+            if (input) input.value = '';
+        }
+
+        function bindChatControls() {
+            const input = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('chat-send');
+            if (!input || !sendBtn) return;
+            input.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    sendChatMessage();
+                }
+            });
+            sendBtn.addEventListener('click', sendChatMessage);
+        }
 
         function joinOnlineRace() {
             if (onlineRace.ws && (onlineRace.ws.readyState === WebSocket.OPEN || onlineRace.ws.readyState === WebSocket.CONNECTING)) return;
             onlineRace.enabled = true;
+            onlineRace.localName = `Racer ${Math.floor(Math.random() * 900 + 100)}`;
             const status = document.getElementById('online-race-status');
             status.textContent = 'Connecting to online lobby...';
             const configured = new URLSearchParams(location.search).get('server') || window.RACE_SERVER_URL;
             const serverUrl = configured ? configured.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:') : ((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host);
             try { onlineRace.ws = new WebSocket(serverUrl); } catch (_) { status.textContent = 'Online lobby unavailable'; return; }
             onlineRace.ws.addEventListener('open', () => {
-                const name = `Racer ${Math.floor(Math.random() * 900 + 100)}`;
+                const name = onlineRace.localName;
                 const modelType = document.getElementById('p1-car-select').value;
                 onlineRace.ws.send(JSON.stringify({ type:'join', name, modelType }));
                 status.textContent = 'Online lobby joined';
@@ -1012,6 +1133,7 @@
                 if (message.type === 'snapshot') syncRemoteRacePlayers(message.players || []);
                 if (message.type === 'playerJoined' || message.type === 'playerUpdated') if (message.player && message.player.id !== onlineRace.id) syncRemoteRacePlayers([message.player]);
                 if (message.type === 'playerLeft') { onlineRace.players.delete(message.id); remoteCars.delete(message.id); }
+                if (message.type === 'chat' && message.text) appendChatMessage(message.name || 'Racer', message.text);
             });
             onlineRace.ws.addEventListener('close', () => { onlineRace.players.clear(); remoteCars.clear(); status.textContent = 'Online lobby disconnected'; });
             onlineRace.ws.addEventListener('error', () => { status.textContent = 'Online lobby unavailable'; });
@@ -1192,6 +1314,8 @@
         }
 
         function showMenu() {
+            const feed = document.getElementById('chat-feed');
+            if (feed) feed.textContent = '';
             raceEnded = true;
             if (animFrameId) cancelAnimationFrame(animFrameId);
             clearInterval(onlineRace.stateTimer);
@@ -1229,6 +1353,7 @@
         }
 
         window.addEventListener('resize', updateCanvasSizes);
+        bindChatControls();
 
         function runGameLoop() {
             if (raceEnded) return;

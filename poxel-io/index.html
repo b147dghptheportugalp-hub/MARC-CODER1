@@ -1179,16 +1179,40 @@
             transform: scale(0.95);
         }
 
-        #btn-m-zoom {
+        #btn-m-aim {
             position: absolute;
             bottom: 135px;
             left: 40px;
+            min-width: 76px;
             padding: 10px 14px;
+            border-radius: 6px;
+            background: rgba(255,0,127,0.18);
+            border: 2px solid var(--pink-neon);
+            color: #fff;
+            font: 900 0.7rem 'Orbitron', sans-serif;
+            letter-spacing: 1px;
+            pointer-events: auto;
+            touch-action: manipulation;
+            box-shadow: 0 0 12px rgba(255,0,127,0.22);
+        }
+
+        #btn-m-aim.aim-active {
+            background: rgba(0,255,204,0.18);
+            border-color: var(--border-neon);
+            color: var(--border-neon);
+            box-shadow: 0 0 18px rgba(0,255,204,0.3);
+        }
+
+        #btn-m-zoom {
+            position: absolute;
+            bottom: 100px;
+            left: 40px;
+            padding: 8px 11px;
             border-radius: 6px;
             background: rgba(11,11,22,0.9);
             border: 1px solid var(--border-neon);
             color: var(--border-neon);
-            font: 700 0.65rem 'Orbitron', sans-serif;
+            font: 700 0.58rem 'Orbitron', sans-serif;
             pointer-events: auto;
             touch-action: manipulation;
         }
@@ -1346,8 +1370,9 @@
             #btn-m-dash { right: 26px; bottom: 92px; width: 54px; height: 54px; font-size: 0.7rem; }
             #mobile-action-row { left: 18px; bottom: 116px; transform: scale(0.8); transform-origin: bottom left; }
             #mobile-weapon-row { right: 92px; bottom: 18px; transform: scale(0.78); transform-origin: bottom right; }
-            #btn-m-zoom { left: 18px; bottom: 104px; padding: 7px 9px; }
-            #mobile-zoom-panel { left: 18px; bottom: 145px; }
+            #btn-m-aim { left: 18px; bottom: 104px; padding: 7px 10px; }
+            #btn-m-zoom { left: 18px; bottom: 72px; padding: 6px 8px; }
+            #mobile-zoom-panel { left: 18px; bottom: 137px; }
             #hud-overlay { padding: 10px; }
             .hud-stats-panel { left: 10px; bottom: 10px; min-width: 130px; padding: 7px 10px; }
             .hud-weapon-panel { right: 10px; min-width: 105px; padding: 7px 9px; }
@@ -1611,11 +1636,12 @@
 
         <button id="btn-m-fire"></button>
 
-        <button id="btn-m-zoom" type="button" aria-expanded="false">ZOOM</button>
+        <button id="btn-m-aim" type="button" aria-pressed="false">AIM</button>
+        <button id="btn-m-zoom" type="button" aria-expanded="false">ZOOM SETTINGS</button>
         <div id="mobile-zoom-panel" hidden>
             <label for="mobile-zoom-slider">
-                <span>CAMERA ZOOM</span>
-                <span id="mobile-zoom-value">NORMAL</span>
+                <span>WEAPON AIM ZOOM</span>
+                <span id="mobile-zoom-value">AUTO</span>
             </label>
             <input id="mobile-zoom-slider" type="range" min="35" max="110" value="70" step="1">
             <div class="zoom-range-labels"><span>ZOOM IN</span><span>WIDE</span></div>
@@ -1890,17 +1916,145 @@ const weaponModelByStyle = {
     smg: "gun_models/smg.obj",
     sniper: "gun_models/sniper.obj"
 };
+// Explicit POXEL-IO OBJ links for the named weapons.
+// These override the generic gunStyle mapping above.
+// The supplied pistol can be loaded from either the normal POXEL-IO path
+// or directly from the uploaded filename while the folder is being updated.
+const weaponModelFallbacks = {
+    "gun_models/pistol.obj": ["gun_models/pistol.obj", "pistol(1).obj"]
+};
+
 const weaponModelOverrides = {
-    w_medic_smg: "heavy-smg.obj",
-    w_titan_lmg: "gun_models/lmg.obj"
+    w_vanguard: "gun_models/ak47.obj",
+    w_rapid_fire: "gun_models/smg.obj",
+    w_phantom: "gun_models/sniper.obj",
+    w_pistol: "gun_models/pistol.obj",
+    w_engineer_smg: "gun_models/smg.obj",       // Nailstorm
+    w_engineer_marksman: "gun_models/sniper.obj", // Longline
+    w_duelist_pistol: "gun_models/pistol.obj",  // Flashpoint
+    w_duelist_smg: "gun_models/smg.obj",        // Viper SMG
+    w_duelist_dual: "gun_models/smg.obj",       // Twin Fang
+    w_titan_lmg: "gun_models/lmg.obj",          // Bulwark LMG
+    w_titan_bolt: "gun_models/sniper.obj",      // Colossus Bolt
+
+    // Lifeline SMG: heavy-smg.obj is in the POXEL-IO root,
+    // not inside POXEL-IO/gun_models/.
+    w_medic_smg: "heavy-smg.obj"
 };
 Object.values(weaponsInventory).forEach(weapon => {
-    if (weaponModelOverrides[weapon.id]) {
+    // Every pistol uses the Sidearm Pistol OBJ as its universal model.
+    // This takes priority over any weapon-specific modelPath so future pistol
+    // variants automatically use the same Sidearm Pistol 3D model.
+    if (weapon.gunStyle === "pistol") {
+        weapon.modelPath = weaponModelByStyle.pistol;
+    } else if (weaponModelOverrides[weapon.id]) {
         weapon.modelPath = weaponModelOverrides[weapon.id];
     } else if (!weapon.modelPath && weaponModelByStyle[weapon.gunStyle]) {
         weapon.modelPath = weaponModelByStyle[weapon.gunStyle];
     }
 });
+
+// ============================================================
+// ENHANCED WEAPON VIEW PROFILES
+// Every imported OBJ gets a clean first-person orientation,
+// weapon-specific positioning, and a weapon-specific ADS FOV.
+// ============================================================
+const weaponModelRotationByPath = {
+    "gun_models/ak47.obj":    { x: Math.PI / 2, y: -Math.PI / 2, z: 0.015 },
+    "gun_models/smg.obj":     { x: Math.PI / 2, y: -Math.PI / 2, z: 0.0 },
+    "gun_models/sniper.obj":  { x: Math.PI / 2, y: -Math.PI / 2, z: 0.0 },
+    "gun_models/pistol.obj":  { x: Math.PI / 2, y: -Math.PI / 2, z: 0.0 },
+    "gun_models/lmg.obj":     { x: Math.PI / 2, y: -Math.PI / 2, z: 0.0 },
+    "heavy-smg.obj":          { x: Math.PI / 2, y: -Math.PI / 2, z: 0.0 }
+};
+
+const weaponViewProfiles = {
+    // hip = normal held position; aim = ADS-style position; aimFov = recommended FOV
+    default: {
+        aimFov: 50,
+        hip:  { x: 0.12, y: -0.22, z: -0.68 },
+        aim:  { x: 0.025, y: -0.16, z: -0.58 },
+        hipRot:  { x: 0.0, y: 0.025, z: 0.0 },
+        aimRot:  { x: 0.0, y: 0.0, z: 0.0 }
+    },
+    pistol: {
+        aimFov: 52,
+        hip:  { x: 0.17, y: -0.24, z: -0.64 },
+        aim:  { x: 0.035, y: -0.17, z: -0.56 },
+        hipRot:  { x: -0.035, y: 0.03, z: 0.02 },
+        aimRot:  { x: -0.01, y: 0.0, z: 0.0 }
+    },
+    smg: {
+        aimFov: 49,
+        hip:  { x: 0.14, y: -0.23, z: -0.70 },
+        aim:  { x: 0.028, y: -0.17, z: -0.61 },
+        hipRot:  { x: -0.025, y: 0.025, z: 0.01 },
+        aimRot:  { x: -0.005, y: 0.0, z: 0.0 }
+    },
+    rifle: {
+        aimFov: 45,
+        hip:  { x: 0.15, y: -0.225, z: -0.72 },
+        aim:  { x: 0.022, y: -0.165, z: -0.62 },
+        hipRot:  { x: -0.02, y: 0.02, z: 0.008 },
+        aimRot:  { x: -0.005, y: 0.0, z: 0.0 }
+    },
+    shotgun: {
+        aimFov: 56,
+        hip:  { x: 0.17, y: -0.24, z: -0.68 },
+        aim:  { x: 0.035, y: -0.18, z: -0.58 },
+        hipRot:  { x: -0.03, y: 0.03, z: 0.015 },
+        aimRot:  { x: -0.01, y: 0.0, z: 0.0 }
+    },
+    sniper: {
+        aimFov: 24,
+        hip:  { x: 0.135, y: -0.20, z: -0.78 },
+        aim:  { x: 0.0, y: -0.105, z: -0.54 },
+        hipRot:  { x: -0.02, y: 0.02, z: 0.0 },
+        aimRot:  { x: 0.0, y: 0.0, z: 0.0 },
+        scope: true
+    },
+    rocket: {
+        aimFov: 58,
+        hip:  { x: 0.18, y: -0.25, z: -0.72 },
+        aim:  { x: 0.04, y: -0.18, z: -0.62 },
+        hipRot:  { x: -0.025, y: 0.03, z: 0.0 },
+        aimRot:  { x: 0.0, y: 0.0, z: 0.0 }
+    },
+    lmg: {
+        aimFov: 43,
+        hip:  { x: 0.14, y: -0.22, z: -0.76 },
+        aim:  { x: 0.022, y: -0.15, z: -0.64 },
+        hipRot:  { x: -0.02, y: 0.02, z: 0.0 },
+        aimRot:  { x: -0.005, y: 0.0, z: 0.0 }
+    }
+};
+
+const weaponAimFovById = {
+    w_vanguard: 45,
+    w_rapid_fire: 49,
+    w_phantom: 24,
+    w_pistol: 52,
+    w_medic_smg: 49,
+    w_engineer_smg: 49,
+    w_engineer_marksman: 25,
+    w_duelist_pistol: 52,
+    w_duelist_smg: 49,
+    w_duelist_dual: 49,
+    w_titan_lmg: 43,
+    w_titan_bolt: 23
+};
+
+function getWeaponViewProfile(spec) {
+    const style = spec && spec.gunStyle ? spec.gunStyle : "rifle";
+    const profile = weaponViewProfiles[style] || weaponViewProfiles.default;
+    const profileCopy = { ...profile, hip: { ...profile.hip }, aim: { ...profile.aim }, hipRot: { ...profile.hipRot }, aimRot: { ...profile.aimRot } };
+    if (spec && weaponAimFovById[spec.id]) profileCopy.aimFov = weaponAimFovById[spec.id];
+    if (spec && spec.modelPath && weaponModelRotationByPath[spec.modelPath]) {
+        profileCopy.modelRotation = weaponModelRotationByPath[spec.modelPath];
+    }
+    return profileCopy;
+}
+
 
 // Power-up definitions: id, display name, HUD color, effect duration (ms)
 const powerUpTypesConfig = {
@@ -2335,9 +2489,10 @@ let canJump = false, yVelocity = 0, jumpSequenceCount = 0;
 let pitch = 0, yaw = 0;
 const defaultCameraFov = 70;
 const mobileCameraFov = 92;
-const sniperScopeFov = 28;
 let sniperAiming = false;
 let cameraFovBeforeSniperAim = defaultCameraFov;
+let targetCameraFov = defaultCameraFov;
+let weaponAimActive = false;
 
 // Sprint / Slide movement state
 let isSprinting = false;
@@ -2501,11 +2656,14 @@ let phantomBulletLoadPending = false;
 
 function applyGunMaterial(model, spec) {
     const material = new THREE.MeshStandardMaterial({
-        color: 0x22252d,
-        metalness: 0.7,
-        roughness: 0.32,
+        color: 0x252a34,
+        metalness: 0.78,
+        roughness: 0.27,
         emissive: spec.beamColor,
-        emissiveIntensity: 0.12
+        emissiveIntensity: 0.08,
+        side: THREE.DoubleSide,
+        transparent: false,
+        depthWrite: true
     });
 
     if (spec.modelPath === "gun_models/lmg.obj") {
@@ -2525,64 +2683,130 @@ function applyGunMaterial(model, spec) {
         child.material = material;
         child.castShadow = true;
         child.receiveShadow = true;
+        child.frustumCulled = false;
+        if (child.geometry) {
+            if (!child.geometry.attributes.normal && typeof child.geometry.computeVertexNormals === 'function') {
+                child.geometry.computeVertexNormals();
+            }
+        }
     });
+}
+
+function prepareLoadedGunModel(model, spec) {
+    applyGunMaterial(model, spec);
+
+    // Fit first, rotate second, then recenter AGAIN using the rotated bounds.
+    // This is important for OBJ files whose vertices are far away from (0,0,0),
+    // like the supplied FN Five-seven model.
+    model.position.set(0, 0, 0);
+
+    const originalBox = new THREE.Box3().setFromObject(model);
+    const originalSize = originalBox.getSize(new THREE.Vector3());
+    const longestSide = Math.max(originalSize.x, originalSize.y, originalSize.z) || 1;
+
+    const styleScale = {
+        pistol: 0.84,
+        smg: 0.88,
+        rifle: 0.92,
+        shotgun: 0.84,
+        sniper: 0.96,
+        rocket: 0.90,
+        lmg: 0.90
+    };
+    const scale = spec.modelScale || styleScale[spec.gunStyle] || 0.90;
+    model.scale.setScalar(scale / longestSide);
+
+    // Apply the model-specific orientation BEFORE centering so the final
+    // weapon pivot is actually in the middle of the visible mesh.
+    const profile = getWeaponViewProfile(spec);
+    const rotation = profile.modelRotation || spec.modelRotation || { x: 0, y: 0, z: 0 };
+    model.rotation.set(rotation.x || 0, rotation.y || 0, rotation.z || 0);
+    model.updateMatrixWorld(true);
+
+    const rotatedBox = new THREE.Box3().setFromObject(model);
+    const rotatedCenter = rotatedBox.getCenter(new THREE.Vector3());
+    model.position.set(-rotatedCenter.x, -rotatedCenter.y, -rotatedCenter.z);
+    model.updateMatrixWorld(true);
+    model.visible = true;
+
+    return model;
 }
 
 function loadGunModel(spec, targetGroup) {
-    if (!spec.modelPath) return;
-    const cached = loadedGunModels.get(spec.modelPath);
-    if (cached) {
-        const model = cached.clone();
-        targetGroup.clear();
-        targetGroup.add(model);
-        return;
-    }
+    if (!spec.modelPath || !targetGroup) return;
 
-    const isFbx = spec.modelPath.toLowerCase().endsWith('.fbx');
-    const LoaderClass = isFbx ? THREE.FBXLoader : THREE.OBJLoader;
-    if (typeof LoaderClass !== 'function') return;
-    const loader = new LoaderClass();
-    loader.load(spec.modelPath, model => {
-        applyGunMaterial(model, spec);
-        const box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        const longestSide = Math.max(size.x, size.y, size.z) || 1;
-        model.scale.setScalar((spec.modelScale || 0.9) / longestSide);
-        model.position.set(-center.x * model.scale.x, -center.y * model.scale.y, -center.z * model.scale.z);
-        if (spec.modelRotation) {
-            model.rotation.set(spec.modelRotation.x || 0, spec.modelRotation.y || 0, spec.modelRotation.z || 0);
-        }
-        loadedGunModels.set(spec.modelPath, model);
+    const candidates = weaponModelFallbacks[spec.modelPath] || [spec.modelPath];
 
-        if (targetGroup === currentGunViewModel && currentWeaponState.wepId === spec.id) {
+    const loadCandidate = (index) => {
+        const path = candidates[index];
+        if (!path) return;
+
+        const cached = loadedGunModels.get(path);
+        if (cached) {
+            const model = cached.clone(true);
+            const prepared = prepareLoadedGunModel(model, spec);
             targetGroup.clear();
-            targetGroup.add(model.clone());
+            targetGroup.add(prepared);
+            return;
         }
-    }, undefined, () => {});
+
+        const isFbx = path.toLowerCase().endsWith('.fbx');
+        const LoaderClass = isFbx ? THREE.FBXLoader : THREE.OBJLoader;
+        if (typeof LoaderClass !== 'function') return;
+
+        const loader = new LoaderClass();
+        loader.load(path, rawModel => {
+            loadedGunModels.set(path, rawModel.clone(true));
+            const model = prepareLoadedGunModel(rawModel, spec);
+
+            if (targetGroup === currentGunViewModel && currentWeaponState.wepId === spec.id) {
+                targetGroup.clear();
+                targetGroup.add(model);
+            }
+        }, undefined, () => {
+            // Try the next known location instead of silently failing.
+            if (index + 1 < candidates.length) loadCandidate(index + 1);
+        });
+    };
+
+    loadCandidate(0);
 }
 
-function loadPhantomBulletTemplate() {
-    if (phantomBulletTemplate || phantomBulletLoadPending || typeof THREE.OBJLoader !== 'function') return;
-    phantomBulletLoadPending = true;
-    const loader = new THREE.OBJLoader();
-    loader.load('gun_models/sniper.obj', model => {
-        phantomBulletLoadPending = false;
-        const bulletGroup = model.getObjectByName('Barrett_M82A1_Bullet');
-        if (!bulletGroup) return;
-        applyGunMaterial(bulletGroup, weaponsInventory.w_phantom);
-        const box = new THREE.Box3().setFromObject(bulletGroup);
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        const longestSide = Math.max(size.x, size.y, size.z) || 1;
-        bulletGroup.scale.setScalar(0.18 / longestSide);
-        bulletGroup.position.set(-center.x * bulletGroup.scale.x, -center.y * bulletGroup.scale.y, -center.z * bulletGroup.scale.z);
-        const template = new THREE.Group();
-        template.add(bulletGroup);
-        phantomBulletTemplate = template;
-    }, undefined, () => {
-        phantomBulletLoadPending = false;
-    });
+function applyWeaponViewPose(immediate = false) {
+    if (!currentGunViewModel) return;
+    const spec = weaponsInventory[currentWeaponState.wepId];
+    if (!spec) return;
+
+    const profile = getWeaponViewProfile(spec);
+    const pose = weaponAimActive ? profile.aim : profile.hip;
+    const rot = weaponAimActive ? profile.aimRot : profile.hipRot;
+
+    currentGunViewModel.userData.targetPosition = new THREE.Vector3(pose.x, pose.y, pose.z);
+    currentGunViewModel.userData.targetRotation = new THREE.Euler(rot.x, rot.y, rot.z);
+
+    if (immediate) {
+        currentGunViewModel.position.copy(currentGunViewModel.userData.targetPosition);
+        currentGunViewModel.rotation.copy(currentGunViewModel.userData.targetRotation);
+    }
+}
+
+function updateWeaponViewPose(delta) {
+    if (!currentGunViewModel) return;
+    const targetPos = currentGunViewModel.userData.targetPosition;
+    const targetRot = currentGunViewModel.userData.targetRotation;
+    if (!targetPos || !targetRot) return;
+
+    const smooth = Math.min(1, delta * 15);
+    currentGunViewModel.position.lerp(targetPos, smooth);
+    currentGunViewModel.rotation.x += (targetRot.x - currentGunViewModel.rotation.x) * smooth;
+    currentGunViewModel.rotation.y += (targetRot.y - currentGunViewModel.rotation.y) * smooth;
+    currentGunViewModel.rotation.z += (targetRot.z - currentGunViewModel.rotation.z) * smooth;
+
+    if (camera) {
+        const fovSmooth = Math.min(1, delta * 11);
+        camera.fov += (targetCameraFov - camera.fov) * fovSmooth;
+        camera.updateProjectionMatrix();
+    }
 }
 
 // First-person weapon viewmodel, reattached to the camera whenever the active weapon changes
@@ -2593,14 +2817,22 @@ function updateGunViewModel() {
         camera.remove(currentGunViewModel);
         currentGunViewModel = null;
     }
-    if (sniperAiming) setSniperAim(false);
+
+    weaponAimActive = false;
+    targetCameraFov = isTouchDevice ? mobileCameraFov : defaultCameraFov;
     const spec = weaponsInventory[currentWeaponState.wepId];
     if (!spec) return;
 
+    const aimBtn = document.getElementById('btn-m-aim');
+    if (aimBtn) {
+        aimBtn.classList.remove('aim-active');
+        aimBtn.setAttribute('aria-pressed', 'false');
+        aimBtn.textContent = 'AIM';
+    }
+
     currentGunViewModel = buildGunModel(spec, 1);
-    currentGunViewModel.position.set(0.12, -0.22, -0.68);
-    currentGunViewModel.rotation.y = Math.PI * 0.02;
     camera.add(currentGunViewModel);
+    applyWeaponViewPose(true);
     loadGunModel(spec, currentGunViewModel);
     if (spec.id === 'w_phantom') loadPhantomBulletTemplate();
 }
@@ -2755,7 +2987,9 @@ function startGameplayEngine() {
     document.getElementById("hud-streak-count").innerText = "";
     
     camera.position.set(0, 2, 60);
-    setCameraZoom(isTouchDevice ? mobileCameraFov : defaultCameraFov);
+    targetCameraFov = isTouchDevice ? mobileCameraFov : defaultCameraFov;
+    camera.fov = targetCameraFov;
+    camera.updateProjectionMatrix();
     pitch = 0;
     yaw = 0;
     camera.rotation.set(0, 0, 0);
@@ -3446,6 +3680,7 @@ function bindMobileControls() {
     const btnFire = document.getElementById('btn-m-fire');
     const btnSprint = document.getElementById('btn-m-sprint');
     const btnSlide = document.getElementById('btn-m-slide');
+    const btnAim = document.getElementById('btn-m-aim');
     const btnZoom = document.getElementById('btn-m-zoom');
     const zoomPanel = document.getElementById('mobile-zoom-panel');
     const zoomSlider = document.getElementById('mobile-zoom-slider');
@@ -3552,11 +3787,20 @@ function bindMobileControls() {
         zoomValue.textContent = fov <= 50 ? 'MAX ZOOM' : fov >= 95 ? 'WIDE' : `${fov}°`;
     }
 
+    function handleAimToggle(e) {
+        if (e.cancelable) e.preventDefault();
+        setSniperAim(!weaponAimActive);
+    }
+
     function handleZoomToggle(e) {
         if (e.cancelable) e.preventDefault();
         const isOpen = !zoomPanel.hidden;
         zoomPanel.hidden = isOpen;
         btnZoom.setAttribute('aria-expanded', String(!isOpen));
+        if (!isOpen) {
+            zoomSlider.value = String(Math.round(getCurrentWeaponAimFov()));
+            updateZoomLabel();
+        }
     }
 
     function handleZoomInput() {
@@ -3564,6 +3808,7 @@ function bindMobileControls() {
         updateZoomLabel();
     }
 
+    if (btnAim) btnAim.addEventListener('touchstart', handleAimToggle, { passive: false });
     if (btnDash) btnDash.addEventListener('touchstart', handleDashStart, { passive: false });
     if (btnJump) btnJump.addEventListener('touchstart', handleJumpStart, { passive: false });
     if (btnSprint) btnSprint.addEventListener('touchstart', handleSprintToggle, { passive: false });
@@ -3595,6 +3840,7 @@ function bindMobileControls() {
         handleJumpStart,
         handleSprintToggle,
         handleSlideStart,
+        handleAimToggle,
         dpadCross,
         lookZone,
         btnFire,
@@ -3602,6 +3848,7 @@ function bindMobileControls() {
         btnJump,
         btnSprint,
         btnSlide,
+        btnAim,
         btnZoom,
         zoomPanel,
         zoomSlider,
@@ -3612,8 +3859,12 @@ function bindMobileControls() {
 
 function setCameraZoom(fov) {
     if (!camera) return;
-    camera.fov = Math.max(25, Math.min(110, fov));
-    camera.updateProjectionMatrix();
+    targetCameraFov = Math.max(20, Math.min(110, Number(fov)));
+}
+
+function getCurrentWeaponAimFov() {
+    const spec = currentWeaponState && weaponsInventory[currentWeaponState.wepId];
+    return getWeaponViewProfile(spec || {}).aimFov || 50;
 }
 
 function isSniperWeaponActive() {
@@ -3623,18 +3874,33 @@ function isSniperWeaponActive() {
 
 function setSniperAim(aiming) {
     if (!camera) return;
-    const scope = document.getElementById('sniper-scope');
-    if (aiming && (!inMatch || !isSniperWeaponActive())) return;
+    if (aiming && !inMatch) return;
 
-    if (aiming && !sniperAiming) {
-        cameraFovBeforeSniperAim = camera.fov;
-        sniperAiming = true;
-        setCameraZoom(sniperScopeFov);
-        if (scope) scope.classList.add('active');
-    } else if (!aiming && sniperAiming) {
-        sniperAiming = false;
-        setCameraZoom(cameraFovBeforeSniperAim);
+    const spec = weaponsInventory[currentWeaponState.wepId];
+    if (!spec) return;
+
+    if (aiming && !weaponAimActive) {
+        cameraFovBeforeSniperAim = targetCameraFov;
+        weaponAimActive = true;
+        setCameraZoom(getCurrentWeaponAimFov());
+        applyWeaponViewPose(false);
+
+        const profile = getWeaponViewProfile(spec);
+        const scope = document.getElementById('sniper-scope');
+        if (scope && profile.scope) scope.classList.add('active');
+    } else if (!aiming && weaponAimActive) {
+        weaponAimActive = false;
+        setCameraZoom(cameraFovBeforeSniperAim || (isTouchDevice ? mobileCameraFov : defaultCameraFov));
+        applyWeaponViewPose(false);
+        const scope = document.getElementById('sniper-scope');
         if (scope) scope.classList.remove('active');
+    }
+
+    const aimBtn = document.getElementById('btn-m-aim');
+    if (aimBtn) {
+        aimBtn.classList.toggle('aim-active', weaponAimActive);
+        aimBtn.setAttribute('aria-pressed', String(weaponAimActive));
+        aimBtn.textContent = weaponAimActive ? 'AIM ON' : 'AIM';
     }
 }
 
@@ -3655,6 +3921,7 @@ function unbindMobileControls() {
         handleJumpStart,
         handleSprintToggle,
         handleSlideStart,
+        handleAimToggle,
         dpadCross,
         lookZone,
         btnFire,
@@ -3678,6 +3945,7 @@ function unbindMobileControls() {
     document.removeEventListener('touchend', handleDPadTouch);
     document.removeEventListener('touchcancel', handleDPadTouch);
 
+    if (btnAim) btnAim.removeEventListener('touchstart', handleAimToggle);
     if (btnDash) btnDash.removeEventListener('touchstart', handleDashStart);
     if (btnJump) btnJump.removeEventListener('touchstart', handleJumpStart);
     if (btnSprint) btnSprint.removeEventListener('touchstart', handleSprintToggle);
@@ -4079,6 +4347,7 @@ function tick() {
         const now = performance.now();
         const delta = (now - prevFrameTime) / 1000;
         prevFrameTime = now;
+        updateWeaponViewPose(delta);
 
         // Friction dampening
         playerVelocity.x -= playerVelocity.x * 10.0 * delta;

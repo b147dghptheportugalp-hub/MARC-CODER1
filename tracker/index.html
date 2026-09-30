@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Universal Tracker (Up to 2099)</title>
+    <style>
+        :root {
+            --bg-color: #f0f4f8;
+            --card-bg: #ffffff;
+            --text-main: #1a202c;
+            --text-muted: #64748b;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.12);
+            --today-bg: #f1f5f9;
+            --today-border: #94a3b8;
+            --target-bg: #f0fdf4;
+            --target-border: #22c55e;
+            --target-text: #14532d;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.02);
+            --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #0f172a;
+                --card-bg: #1e293b;
+                --text-main: #f8fafc;
+                --text-muted: #94a3b8;
+                --accent: #60a5fa;
+                --accent-glow: rgba(96, 165, 250, 0.18);
+                --today-bg: #334155;
+                --today-border: #475569;
+                --target-bg: #064e3b;
+                --target-border: #10b981;
+                --target-text: #ecfdf5;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+            padding-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            margin-bottom: 4px;
+            color: var(--text-main);
+        }
+
+        .subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .live-clock {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-top: 6px;
+            display: block;
+        }
+
+        .widgets-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .hero-metric, .weather-widget {
+            background: var(--accent-glow);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: var(--transition);
+            min-height: 110px;
+        }
+
+        .hero-metric:hover, .weather-widget:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .hero-number, .weather-temp {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: var(--accent);
+            line-height: 1.1;
+        }
+
+        .hero-label, .weather-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .weather-desc {
+            font-size: 0.85rem;
+            color: var(--text-main);
+            font-weight: 600;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .weather-icon {
+            width: 20px;
+            height: 20px;
+            fill: var(--accent);
+        }
+
+        .hour-toggle-area {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .hour-btn {
+            background: var(--bg-color);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: var(--text-main);
+            padding: 12px;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: var(--transition);
+        }
+
+        .hour-btn:hover {
+            background: var(--accent-glow);
+            border-color: var(--accent);
+        }
+
+        .hour-btn::after {
+            content: '▼';
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+        }
+
+        .hour-btn.active::after {
+            transform: rotate(180deg);
+        }
+
+        .hour-display-pane {
+            background: var(--bg-color);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            text-align: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--accent);
+            display: none;
+            border-left: 4px solid var(--accent);
+            animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Calendar Navigation Bar styling */
+        .calendar-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-color);
+            padding: 10px 14px;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            gap: 8px;
+        }
+
+        .nav-selectors {
+            display: flex;
+            gap: 6px;
+        }
+
+        .nav-selectors select {
+            background: var(--card-bg);
+            color: var(--text-main);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: var(--radius-sm);
+            padding: 6px 10px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .nav-arrow-btn {
+            background: var(--card-bg);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            color: var(--text-main);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            transition: var(--transition);
+        }
+
+        .nav-arrow-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+            padding-top: 16px;
+        }
+
+        .view-label {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+
+        .toggle-btn {
+            background: var(--today-bg);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            color: var(--text-main);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .toggle-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .timeline-container {
+            position: relative;
+        }
+
+        .timeline-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+            gap: 10px;
+            max-height: 240px;
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+
+        .timeline-grid.list-view {
+            grid-template-columns: 1fr;
+            max-height: 260px;
+        }
+
+        .day-card {
+            background: var(--bg-color);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            transition: var(--transition);
+        }
+
+        .day-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .timeline-grid.list-view .day-card {
+            flex-direction: row;
+            justify-content: space-between;
+            text-align: left;
+            padding: 14px 18px;
+        }
+
+        .day-meta-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .timeline-grid.list-view .day-meta-group {
+            align-items: flex-start;
+        }
+
+        .day-name {
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.025em;
+        }
+
+        .day-num {
+            font-size: 1.35rem;
+            font-weight: 800;
+            margin: 2px 0;
+            color: var(--text-main);
+            line-height: 1.1;
+        }
+
+        .day-month-year {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        .day-card.today {
+            border-color: var(--today-border);
+            background: var(--today-bg);
+        }
+        
+        .day-card.today::before {
+            content: "TODAY";
+            position: absolute;
+            top: -6px;
+            font-size: 0.55rem;
+            font-weight: 900;
+            background: var(--accent);
+            color: white;
+            padding: 1px 6px;
+            border-radius: 8px;
+            letter-spacing: 0.05em;
+        }
+
+        .timeline-grid.list-view .day-card.today::before {
+            top: 50%;
+            transform: translateY(-50%);
+            right: 18px;
+            position: absolute;
+        }
+
+        .day-card.target {
+            background: var(--target-bg) !important;
+            border-color: var(--target-border) !important;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.15);
+        }
+
+        .day-card.target .day-num {
+            color: var(--target-text) !important;
+        }
+        
+        .day-card.target .day-name, .day-card.target .day-month-year {
+            color: var(--target-text) !important;
+            opacity: 0.9;
+        }
+
+        .detail-toast {
+            min-height: 48px;
+            text-align: center;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-color);
+            border-radius: var(--radius-md);
+            padding: 10px 16px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .reminders-section {
+            border-top: 1px solid rgba(148, 163, 184, 0.15);
+            padding-top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .reminder-form {
+            display: flex;
+            gap: 8px;
+        }
+
+        .reminder-form input[type="text"] {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: var(--bg-color);
+            color: var(--text-main);
+            outline: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .reminder-form input[type="text"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        .reminder-form button {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: var(--transition);
+        }
+
+        .reminder-form button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .reminder-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 160px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .reminder-item {
+            background: var(--bg-color);
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            animation: slideDown 0.2s ease-out;
+        }
+
+        .delete-btn {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            border-radius: 50%;
+            transition: var(--transition);
+        }
+
+        .delete-btn:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--today-border);
+            border-radius: 99px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <h1>Dynamic Tracker</h1>
+        <div class="subtitle" id="current-date-lbl">Loading...</div>
+        <div class="live-clock" id="live-time">00:00:00</div>
+    </header>
+
+    <div class="widgets-grid">
+        <div class="hero-metric">
+            <div class="hero-number" id="days-count">--</div>
+            <div class="hero-label" id="metric-label">Choose a Day</div>
+        </div>
+        <div class="weather-widget">
+            <div class="weather-temp" id="weather-temp">--°C</div>
+            <div class="weather-desc" id="weather-desc">
+                <svg class="weather-icon" viewBox="0 0 24 24">
+                    <path d="M12,18C11.11,18 10.26,17.8 9.5,17.45C11.56,16.5 13,14.42 13,12C13,9.58 11.56,7.5 9.5,6.55C10.26,6.2 11.11,6 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31L23.31,12L20,8.69Z"/>
+                </svg>
+                <span>Loading...</span>
+            </div>
+            <div class="weather-label">Live Weather</div>
+        </div>
+    </div>
+
+    <div class="hour-toggle-area">
+        <button class="hour-btn" id="hours-today-btn" onclick="togglePane('hour-pane', this)">⏱ Hours & Minutes Left Today</button>
+        <div class="hour-display-pane" id="hour-pane">--</div>
+        
+        <button class="hour-btn" id="hours-target-btn" onclick="togglePane('total-time-pane', this)">🔎 Time Left to Custom Target</button>
+        <div class="hour-display-pane" id="total-time-pane">Please select a target day on the timeline first!</div>
+    </div>
+
+    <!-- Calendar Navigation & Dropdown Controls -->
+    <div class="calendar-nav">
+        <button class="nav-arrow-btn" onclick="navigateMonth(-1)">◀</button>
+        <div class="nav-selectors">
+            <select id="select-month" onchange="onSelectorChange()"></select>
+            <select id="select-year" onchange="onSelectorChange()"></select>
+        </div>
+        <button class="nav-arrow-btn" onclick="navigateMonth(1)">▶</button>
+    </div>
+
+    <div class="controls">
+        <div class="view-label">Timeline Breakdown</div>
+        <button class="toggle-btn" id="view-toggle" onclick="toggleView()">Switch to List</button>
+    </div>
+
+    <div class="timeline-container">
+        <div class="timeline-grid" id="grid-container"></div>
+    </div>
+
+    <div class="detail-toast" id="detail-box">
+        Click any day above to set it as your target date.
+    </div>
+
+    <div class="reminders-section">
+        <div class="view-label">Quick Reminders</div>
+        <div class="reminder-form">
+            <input type="text" id="reminder-input" placeholder="e.g., Check milestone, plan events...">
+            <button onclick="addReminder()">Add</button>
+        </div>
+        <ul class="reminder-list" id="reminder-list"></ul>
+    </div>
+</div>
+
+<script>
+    const state = {
+        today: new Date(),
+        viewDate: new Date(), // Tracks currently navigated month & year
+        targetDate: null,
+        isGridView: true
+    };
+
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    let reminders = JSON.parse(localStorage.getItem('track_reminders_universal_v2')) || [];
+
+    function startClock() {
+        const timeContainer = document.getElementById('live-time');
+        const updateClock = () => {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString(undefined, {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+            timeContainer.innerText = timeString;
+        };
+        updateClock();
+        setInterval(updateClock, 1000);
+    }
+
+    function initWeather() {
+        const month = state.viewDate.getMonth();
+        let temp = 15;
+        let desc = "Partly Cloudy";
+        let iconPath = "M12 18c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6zm0-10c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4z";
+
+        if (month >= 5 && month <= 7) { 
+            temp = 21 + Math.floor(Math.random() * 5);
+            desc = "Mostly Cloudy";
+            iconPath = "M12,18C11.11,18 10.26,17.8 9.5,17.45C11.56,16.5 13,14.42 13,12C13,9.58 11.56,7.5 9.5,6.55C10.26,6.2 11.11,6 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31L23.31,12L20,8.69Z";
+        } else if (month >= 8 && month <= 10) { 
+            temp = 10 + Math.floor(Math.random() * 4);
+            desc = "Breezy & Rain";
+            iconPath = "M19 15h-1.3c-.3-2.6-2.5-4.7-5.2-4.7-.7 0-1.4.1-2 .4C10 8.1 7.6 6.3 4.8 6.3 2.1 6.3 0 8.4 0 11.1c0 .7.1 1.4.4 2H1C.4 13.1 0 13.7 0 14.4V15h19c1.7 0 3-1.3 3-3s-1.3-3-3-3z";
+        } else if (month >= 11 || month <= 1) { 
+            temp = 2 + Math.floor(Math.random() * 5);
+            desc = "Cold & Foggy";
+            iconPath = "M12 2v20M17 5l-10 14M7 5l10 14";
+        } else { 
+            temp = 13 + Math.floor(Math.random() * 4);
+            desc = "Mild Showers";
+            iconPath = "M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8z";
+        }
+
+        document.getElementById("weather-temp").innerText = `${temp}°C`;
+        const descSpan = document.querySelector("#weather-desc span");
+        const descSvg = document.querySelector("#weather-desc svg path");
+        if (descSpan) descSpan.innerText = desc;
+        if (descSvg) descSvg.setAttribute("d", iconPath);
+    }
+
+    // Populate Selector Dropdowns with real options up to 2099
+    function populateSelectors() {
+        const selectMonth = document.getElementById('select-month');
+        const selectYear = document.getElementById('select-year');
+        
+        selectMonth.innerHTML = '';
+        selectYear.innerHTML = '';
+
+        months.forEach((m, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.innerText = m;
+            selectMonth.appendChild(opt);
+        });
+
+        const startYear = state.today.getFullYear();
+        for (let y = startYear; y <= 2099; y++) {
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.innerText = y;
+            selectYear.appendChild(opt);
+        }
+
+        syncSelectors();
+    }
+
+    function syncSelectors() {
+        document.getElementById('select-month').value = state.viewDate.getMonth();
+        document.getElementById('select-year').value = state.viewDate.getFullYear();
+    }
+
+    function onSelectorChange() {
+        const m = parseInt(document.getElementById('select-month').value);
+        const y = parseInt(document.getElementById('select-year').value);
+        state.viewDate = new Date(y, m, 1);
+        renderTimeline();
+        initWeather();
+    }
+
+    function navigateMonth(direction) {
+        let currentMonth = state.viewDate.getMonth();
+        let currentYear = state.viewDate.getFullYear();
+
+        currentMonth += direction;
+        if (currentMonth < 0) {
+            currentMonth = 11;
+            currentYear--;
+        } else if (currentMonth > 11) {
+            currentMonth = 0;
+            currentYear++;
+        }
+
+        // Keep bounds within current year to 2099
+        if (currentYear < state.today.getFullYear() || currentYear > 2099) return;
+
+        state.viewDate = new Date(currentYear, currentMonth, 1);
+        syncSelectors();
+        renderTimeline();
+        initWeather();
+    }
+
+    function initApp() {
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
+
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-date-lbl').innerText = `${state.today.toLocaleDateString(undefined, options)}`;
+        
+        startClock();
+        populateSelectors();
+        initWeather();
+        renderTimeline();
+        renderReminders();
+        updateHoursPanel();
+        
+        setInterval(() => {
+            updateHoursPanel();
+            updateTotalTimePanel();
+        }, 1000);
+    }
+
+    function updateHoursPanel() {
+        const now = new Date();
+        const hoursLeft = 23 - now.getHours();
+        const minutesLeft = 59 - now.getMinutes();
+        const secondsLeft = 59 - now.getSeconds();
+        
+        document.getElementById('hour-pane').innerText = 
+            `${hoursLeft}h ${minutesLeft}m ${secondsLeft}s remaining until tomorrow`;
+    }
+
+    function togglePane(paneId, btnEl) {
+        const pane = document.getElementById(paneId);
+        const allPanes = document.querySelectorAll('.hour-display-pane');
+        const allButtons = document.querySelectorAll('.hour-btn');
+        const isCurrentlyOpen = pane.style.display === "block";
+
+        allPanes.forEach(p => p.style.display = "none");
+        allButtons.forEach(b => b.classList.remove('active'));
+
+        if (!isCurrentlyOpen) {
+            pane.style.display = "block";
+            btnEl.classList.add('active');
+            if (paneId === 'total-time-pane') {
+                updateTotalTimePanel();
+            } else {
+                updateHoursPanel();
+            }
+        }
+    }
+
+    function updateTotalTimePanel() {
+        const pane = document.getElementById('total-time-pane');
+        if (!state.targetDate) {
+            pane.innerHTML = `<span style="color: var(--text-muted)">Please select a target day on the timeline first!</span>`;
+            return;
+        }
+
+        const now = new Date();
+        const targetMidnight = new Date(state.targetDate.getFullYear(), state.targetDate.getMonth(), state.targetDate.getDate());
+        const msDiff = targetMidnight - now;
+
+        if (msDiff <= 0) {
+            if (state.targetDate.getDate() === now.getDate() && state.targetDate.getMonth() === now.getMonth() && state.targetDate.getFullYear() === now.getFullYear()) {
+                pane.innerText = "The target date is today!";
+            } else {
+                pane.innerText = "The selected target date has already passed.";
+            }
+            return;
+        }
+
+        const totalSeconds = Math.floor(msDiff / 1000);
+        const totalMinutes = Math.floor(totalSeconds / 60);
+        const totalHours = Math.floor(totalMinutes / 60);
+        
+        const displayDays = Math.floor(totalHours / 24);
+        const remainingHours = totalHours % 24;
+        const remainingMinutes = totalMinutes % 60;
+        const remainingSeconds = totalSeconds % 60;
+
+        pane.innerText = `${displayDays}d ${remainingHours}h ${remainingMinutes}m ${remainingSeconds}s left to destination`;
+    }
+
+    function renderTimeline() {
+        const container = document.getElementById('grid-container');
+        container.innerHTML = '';
+        container.className = state.isGridView ? 'timeline-grid' : 'timeline-grid list-view';
+
+        const viewYear = state.viewDate.getFullYear();
+        const viewMonth = state.viewDate.getMonth();
+
+        // Dynamically compute days in the currently navigated Month & Year
+        const firstDayOfMonth = new Date(viewYear, viewMonth, 1);
+        const lastDayOfMonth = new Date(viewYear, viewMonth + 1, 0);
+        const totalDays = lastDayOfMonth.getDate();
+
+        for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
+            const currentCursorDate = new Date(viewYear, viewMonth, dayNum);
+            const card = document.createElement('div');
+            card.className = 'day-card';
+            
+            // Check if current day is today
+            if (currentCursorDate.getDate() === state.today.getDate() &&
+                currentCursorDate.getMonth() === state.today.getMonth() &&
+                currentCursorDate.getFullYear() === state.today.getFullYear()) {
+                card.classList.add('today');
+            }
+            
+            // Check if current day is target
+            if (state.targetDate && 
+                currentCursorDate.getDate() === state.targetDate.getDate() &&
+                currentCursorDate.getMonth() === state.targetDate.getMonth() &&
+                currentCursorDate.getFullYear() === state.targetDate.getFullYear()) {
+                card.classList.add('target');
+            }
+
+            card.innerHTML = `
+                <div class="day-meta-group">
+                    <div class="day-name">${daysOfWeek[currentCursorDate.getDay()]}</div>
+                    <div class="day-num">${dayNum}</div>
+                    <div class="day-month-year">${months[viewMonth]} '${String(viewYear).slice(-2)}</div>
+                </div>
+            `;
+
+            card.onclick = () => selectTarget(currentCursorDate);
+            container.appendChild(card);
+        }
+    }
+
+    function selectTarget(date) {
+        state.targetDate = date;
+        
+        // Normalize dates to midnight to calculate precise days-count cleanly
+        const d1 = new Date(state.today.getFullYear(), state.today.getMonth(), state.today.getDate());
+        const d2 = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const msDiff = d2 - d1;
+        const daysFromToday = Math.ceil(msDiff / (1000 * 60 * 60 * 24));
+
+        document.getElementById('days-count').innerText = Math.max(0, daysFromToday);
+        document.getElementById('metric-label').innerText = daysFromToday === 0 ? "Today" : "Days Until";
+        
+        const toast = document.getElementById('detail-box');
+        const fullDateString = `${daysOfWeek[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+        
+        if (daysFromToday === 0) {
+            toast.innerHTML = `<strong>${fullDateString}</strong> selected (Today).`;
+        } else if (daysFromToday < 0) {
+            toast.innerHTML = `Target set: <strong>${fullDateString}</strong> was ${Math.abs(daysFromToday)} day${Math.abs(daysFromToday) > 1 ? 's' : ''} ago.`;
+        } else {
+            toast.innerHTML = `Target set: <strong>${fullDateString}</strong> is ${daysFromToday} day${daysFromToday > 1 ? 's' : ''} away.`;
+        }
+
+        updateTotalTimePanel();
+        renderTimeline();
+    }
+
+    function toggleView() {
+        state.isGridView = !state.isGridView;
+        document.getElementById('view-toggle').innerText = state.isGridView ? 'Switch to List' : 'Switch to Grid';
+        renderTimeline();
+    }
+
+    function renderReminders() {
+        const list = document.getElementById('reminder-list');
+        list.innerHTML = '';
+        reminders.forEach((text, index) => {
+            const li = document.createElement('li');
+            li.className = 'reminder-item';
+            li.innerHTML = `<span>${text}</span><button class="delete-btn" onclick="deleteReminder(${index})">×</button>`;
+            list.appendChild(li);
+        });
+    }
+
+    function addReminder() {
+        const input = document.getElementById('reminder-input');
+        if (!input.value.trim()) return;
+        reminders.push(input.value.trim());
+        localStorage.setItem('track_reminders_universal_v2', JSON.stringify(reminders));
+        input.value = '';
+        renderReminders();
+
+        if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("Reminder Registered", { body: "Your dynamic tracking milestone note is active." });
+        }
+    }
+
+    function deleteReminder(index) {
+        reminders.splice(index, 1);
+        localStorage.setItem('track_reminders_universal_v2', JSON.stringify(reminders));
+        renderReminders();
+    }
+
+    window.onload = initApp;
+</script>
+</body>
+</html>

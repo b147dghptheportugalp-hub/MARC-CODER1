@@ -2027,6 +2027,7 @@ function setGameMode(mode) {
 
 // Active Gameplay session tracking
 let inMatch = false;
+let pointerLockWasActive = false;
 let isGodMode = false;
 let matchTimeLeft = 300; // 5 minute countdown
 let lobbyStateSens = 0.002;
@@ -2634,12 +2635,17 @@ const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 
 
 // Initialize Play Trigger: desktop uses Pointer Lock, mobile skips straight into the match
 document.getElementById("match-play-btn").addEventListener("click", () => {
+    if (inMatch) return;
     if (isTouchDevice) {
         enterMatchMode();
     } else {
         enterMatchMode();
         const pointerLockRequest = document.body.requestPointerLock();
-        if (pointerLockRequest && pointerLockRequest.catch) pointerLockRequest.catch(() => {});
+        if (pointerLockRequest && pointerLockRequest.catch) {
+            pointerLockRequest.catch(() => {
+                pointerLockWasActive = false;
+            });
+        }
     }
 });
 
@@ -2667,13 +2673,16 @@ function requestLandscapeMode() {
 
 document.addEventListener("pointerlockchange", () => {
     if (document.pointerLockElement === document.body) {
+        pointerLockWasActive = true;
         if (!inMatch) enterMatchMode();
-    } else if (inMatch && !isTouchDevice) {
+    } else if (inMatch && !isTouchDevice && pointerLockWasActive) {
+        pointerLockWasActive = false;
         exitMatchMode();
     }
 });
 
 function enterMatchMode() {
+    if (inMatch) return;
     requestLandscapeMode();
     document.getElementById("lobby-overlay").style.display = "none";
     document.getElementById("hud-overlay").style.display = "block";

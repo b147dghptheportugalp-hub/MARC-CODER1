@@ -2506,6 +2506,19 @@ function applyGunMaterial(model, spec) {
         emissive: spec.beamColor,
         emissiveIntensity: 0.12
     });
+
+    if (spec.modelPath === "gun_models/lmg.obj") {
+        const textureLoader = new THREE.TextureLoader();
+        material.map = textureLoader.load("gun_models/minimiColor (2).png", texture => {
+            texture.encoding = THREE.sRGBEncoding;
+            material.needsUpdate = true;
+        });
+        material.normalMap = textureLoader.load("gun_models/minimiNormal (2).png");
+        material.roughnessMap = textureLoader.load("gun_models/minimiRoughness (2).png");
+        material.aoMap = textureLoader.load("gun_models/minimiAO (2).png");
+        material.needsUpdate = true;
+    }
+
     model.traverse(child => {
         if (!child.isMesh) return;
         child.material = material;

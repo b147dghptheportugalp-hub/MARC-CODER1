@@ -1780,7 +1780,8 @@ const weaponsInventory = {
         maxReserve: 120,
         barrelLen: 0.7,
         beamColor: 0xff00ff, // Neon Magenta laser
-        gunStyle: "rifle"
+        gunStyle: "rifle",
+        modelPath: "gun_models/ak47.obj"
     },
     w_rapid_fire: {
         id: "w_rapid_fire",
@@ -1794,7 +1795,7 @@ const weaponsInventory = {
         barrelLen: 0.5,
         beamColor: 0x00ffff, // Neon Cyan
         gunStyle: "smg",
-        modelPath: "smg.obj"
+        modelPath: "gun_models/smg.obj"
     },
     w_demolition: {
         id: "w_demolition",
@@ -1837,7 +1838,7 @@ const weaponsInventory = {
         barrelLen: 0.4,
         beamColor: 0xffffff,
         gunStyle: "pistol",
-        modelPath: "pistol.fbx",
+        modelPath: "gun_models/pistol.obj",
         modelScale: 0.58,
         modelRotation: { x: Math.PI / 2, y: -Math.PI / 2, z: 0 }
     },
@@ -1885,16 +1886,20 @@ const expandedWeaponSpecs = [
 });
 
 const weaponModelByStyle = {
-    pistol: "pistol.fbx",
-    smg: "smg.obj",
+    pistol: "gun_models/pistol.obj",
+    smg: "gun_models/smg.obj",
     sniper: "gun_models/sniper.obj"
 };
-const heavyWeaponModelIds = new Set(["w_titan_lmg", "w_titan_pulse"]);
+const weaponModelOverrides = {
+    w_medic_smg: "gun_models/heavy-smg.obj",
+    w_titan_lmg: "gun_models/lmg.obj"
+};
 Object.values(weaponsInventory).forEach(weapon => {
-    if (!weapon.modelPath && weaponModelByStyle[weapon.gunStyle]) {
+    if (weaponModelOverrides[weapon.id]) {
+        weapon.modelPath = weaponModelOverrides[weapon.id];
+    } else if (!weapon.modelPath && weaponModelByStyle[weapon.gunStyle]) {
         weapon.modelPath = weaponModelByStyle[weapon.gunStyle];
     }
-    if (heavyWeaponModelIds.has(weapon.id)) weapon.modelPath = "heavy-smg.obj";
 });
 
 // Power-up definitions: id, display name, HUD color, effect duration (ms)

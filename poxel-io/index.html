@@ -4581,6 +4581,27 @@ function renderLaserTracer(start, end, colorHex) {
     setTimeout(() => scene.remove(line), 75);
 }
 
+function loadPhantomBulletTemplate() {
+    if (phantomBulletTemplate || phantomBulletLoadPending) return;
+    phantomBulletLoadPending = true;
+
+    const material = new THREE.MeshBasicMaterial({
+        color: weaponsInventory.w_phantom.beamColor
+    });
+    const bodyGeometry = new THREE.CylinderGeometry(0.018, 0.018, 0.28, 8);
+    bodyGeometry.rotateX(Math.PI / 2);
+    const tipGeometry = new THREE.ConeGeometry(0.035, 0.1, 8);
+    tipGeometry.rotateX(-Math.PI / 2);
+
+    phantomBulletTemplate = new THREE.Group();
+    phantomBulletTemplate.add(new THREE.Mesh(bodyGeometry, material));
+
+    const tip = new THREE.Mesh(tipGeometry, material);
+    tip.position.z = -0.18;
+    phantomBulletTemplate.add(tip);
+    phantomBulletLoadPending = false;
+}
+
 function renderPhantomBullet(start, end) {
     if (!phantomBulletTemplate) {
         loadPhantomBulletTemplate();

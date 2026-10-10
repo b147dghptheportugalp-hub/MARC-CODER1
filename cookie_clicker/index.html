@@ -242,6 +242,68 @@
             opacity: 0; z-index: 3000; font-size: 1.1rem;
         }
         #notification.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+        @media (max-width: 900px) {
+            body {
+                min-height: 100vh;
+                min-height: 100svh;
+                overflow-x: hidden;
+                overflow-y: auto;
+            }
+
+            .top-bar {
+                height: auto;
+                min-height: 65px;
+                padding: 10px 16px;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+
+            .game-title { font-size: clamp(0.95rem, 3.5vw, 1.3rem); }
+            .top-stats { gap: 12px; font-size: 0.8rem; }
+            .btn-action { padding: 8px 12px; font-size: 0.8rem; }
+
+            .game-layout {
+                height: auto;
+                min-height: calc(100vh - 65px);
+                min-height: calc(100svh - 65px);
+                padding: 14px;
+                flex-direction: column;
+                gap: 14px;
+            }
+
+            .clicker-section {
+                flex: none;
+                min-height: 300px;
+                padding: 20px 14px;
+            }
+
+            .cookie-counter-box { margin-bottom: 20px; }
+            #cookie-count { font-size: clamp(2.5rem, 9vw, 3.5rem); }
+            .cookie-aura {
+                width: clamp(190px, 55vw, 280px);
+                height: clamp(190px, 55vw, 280px);
+            }
+            #cookie { font-size: clamp(100px, 28vw, 150px); }
+            .click-power-indicator { margin-top: 20px; }
+
+            .shop-section {
+                width: 100%;
+                height: min(62vh, 560px);
+                min-height: 340px;
+                border-radius: 18px;
+            }
+
+            .shop-header { padding: 16px; }
+            .shop-header h2 { font-size: 1.1rem; }
+            .shop-body { padding: 12px; gap: 10px; }
+            .upgrade-btn { padding: 12px; }
+            .upgrade-info { width: auto; flex: 1; min-width: 0; margin-right: 8px; }
+            .upgrade-title { font-size: 0.95rem; }
+            .upgrade-desc { font-size: 0.75rem; }
+            .upgrade-cost-area { flex-shrink: 0; }
+            .upgrade-cost { font-size: 0.9rem; }
+        }
     </style>
 </head>
 <body>

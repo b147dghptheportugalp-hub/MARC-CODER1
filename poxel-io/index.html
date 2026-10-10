@@ -9,7 +9,14 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+            navigator.serviceWorker.getRegistration('./')
+                .then(registration => registration ? registration.unregister() : false)
+                .catch(error => console.warn('Could not unregister the Poxel service worker:', error));
+        }
+        if ('caches' in window) {
+            caches.keys()
+                .then(names => Promise.all(names.filter(name => name.startsWith('poxel-io-')).map(name => caches.delete(name))))
+                .catch(error => console.warn('Could not clear the Poxel offline cache:', error));
         }
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">

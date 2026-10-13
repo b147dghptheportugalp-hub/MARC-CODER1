@@ -61,6 +61,10 @@
             z-index: 1;
         }
 
+        /* Connection diagnostics are gameplay HUD, not part of the menu wallpaper. */
+        body:not(.in-match) #net-status { display: none !important; }
+        body.in-match #net-status { display: block !important; }
+
         /* LOBBY / INTERFACE LAYERS */
         .overlay-screen {
             position: absolute;
@@ -71,7 +75,9 @@
             height: auto;
             min-height: 100vh;
             z-index: 10;
-            background: radial-gradient(circle, rgba(20,10,35,0.85) 0%, rgba(5,5,10,0.95) 100%);
+            background:
+                linear-gradient(90deg, rgba(5,5,10,0.54) 0%, rgba(5,5,10,0.20) 46%, rgba(5,5,10,0.48) 100%),
+                linear-gradient(180deg, rgba(5,5,10,0.24) 0%, rgba(5,5,10,0.03) 42%, rgba(5,5,10,0.34) 100%);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -1418,6 +1424,7 @@
                 <button class="menu-btn active" onclick="showLobby()">LOBBY</button>
                 <button class="menu-btn" onclick="openModal('inventory-modal')">INVENTORY</button>
                 <button class="menu-btn" onclick="openModal('class-modal')">CLASSES</button>
+                <button class="menu-btn" onclick="openModal('character-modal')">OPERATORS</button>
                 <button class="menu-btn" onclick="openModal('map-modal')">MAPS</button>
                 <button class="menu-btn" onclick="openModal('settings-modal')">SETTINGS</button>
             </div>
@@ -1439,6 +1446,14 @@
                     </div>
                 </div>
                 <button class="select-class-panel-btn" onclick="openModal('map-modal')">CHANGE MAP</button>
+                <div class="class-preview">
+                    <div class="class-icon-placeholder" id="lobby-character-icon">🪖</div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-weight:700; font-size:0.9rem;" id="lobby-active-character-name">VANGUARD</div>
+                        <div style="font-size:0.7rem; color:#888;">Selected Operator</div>
+                    </div>
+                    <button class="class-select-trigger-btn" style="width:auto; padding:9px 10px;" onclick="openModal('character-modal')">CHANGE</button>
+                </div>
                 <div class="mode-toggle-row">
                     <button class="mode-toggle-btn active" id="mode-btn-ffa" onclick="setGameMode('ffa')">FREE-FOR-ALL</button>
                     <button class="mode-toggle-btn" id="mode-btn-team" onclick="setGameMode('team')">TEAM DEATHMATCH</button>
@@ -1456,6 +1471,18 @@
             </div>
             <div class="modal-body">
                 <div class="class-grid" id="class-cards-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="character-modal" class="modal-container">
+        <div class="modal-window">
+            <div class="modal-header">
+                <h2>SELECT YOUR OPERATOR</h2>
+                <button class="close-modal-btn" onclick="closeModal('character-modal')">CLOSE</button>
+            </div>
+            <div class="modal-body">
+                <div class="class-grid" id="character-cards-container"></div>
             </div>
         </div>
     </div>
@@ -1680,6 +1707,7 @@ let profileState = {
     xpNeeded: 1000,
     coins: 750,
     gems: 120,
+    characterModel: "vanguard",
     activeClass: "assault",
     equippedWeapons: {
         assault: "w_vanguard",
@@ -2310,9 +2338,11 @@ const mapsConfig = {
 
 let selectedMapId = "neon_road";
 function selectMap(mapId) {
+    if (!mapsConfig[mapId]) return;
     selectedMapId = mapId;
     renderMapCards();
     updateLobbyStats();
+    if (!inMatch) refreshLobbyBackground();
 }
 
 function renderMapCards() {
@@ -2354,68 +2384,239 @@ let matchTimeLeft = 300; // 5 minute countdown
 let lobbyStateSens = 0.002;
 let gameCrosshairColor = "#00ffcc";
 
+// Selectable procedural voxel operators. These are built from meshes in this HTML,
+// so no extra model downloads are required. The chosen operator is saved in profileState.
+const characterModels = {
+    vanguard: { id:"vanguard", name:"Vanguard", icon:"🪖", desc:"Balanced front-line soldier in heavy navy armour.", armor:0x263342, armorLight:0x526475, dark:0x101721, cloth:0x192431, skin:0xb98361, glow:0x00ffcc, accent:0xf0c94e, head:"helmet", build:"standard", gear:"pack" },
+    arctic: { id:"arctic", name:"Arctic Recon", icon:"❄️", desc:"Frost-white scout with insulated armour and blue optics.", armor:0x9db8c8, armorLight:0xe7f4fa, dark:0x293b4b, cloth:0x647b8a, skin:0xc9a88a, glow:0x6be7ff, accent:0x9cecff, head:"hood", build:"slim", gear:"antenna" },
+    desert: { id:"desert", name:"Desert Raider", icon:"🏜️", desc:"Sand-coloured armour, scarf and field gear.", armor:0x8a6840, armorLight:0xc7a66a, dark:0x30291d, cloth:0x66543b, skin:0xb98361, glow:0xffb34f, accent:0xe8d19b, head:"wrap", build:"standard", gear:"pouches" },
+    neon: { id:"neon", name:"Neon Phantom", icon:"🌌", desc:"Stealth plating with vivid magenta and violet lights.", armor:0x291f3e, armorLight:0x624b80, dark:0x100d1c, cloth:0x20162d, skin:0x9b7968, glow:0xff3fcf, accent:0x00e5ff, head:"visor", build:"slim", gear:"antenna" },
+    medic: { id:"medic", name:"Field Medic", icon:"✚", desc:"White-and-green response armour with medical pack.", armor:0xd6e3df, armorLight:0xf5fff9, dark:0x263b39, cloth:0x718e86, skin:0xb98361, glow:0x54ff9b, accent:0xff5a73, head:"helmet", build:"standard", gear:"medkit" },
+    titan: { id:"titan", name:"Titan Heavy", icon:"🛡️", desc:"Bulky reinforced plating and oversized shoulder guards.", armor:0x49383a, armorLight:0x916365, dark:0x201c25, cloth:0x33282d, skin:0x98735e, glow:0xff644d, accent:0xffbd55, head:"heavy", build:"heavy", gear:"heavyPack" },
+    recon: { id:"recon", name:"Recon Ghost", icon:"🎯", desc:"Light grey stealth gear with side optics and a compact rig.", armor:0x55616a, armorLight:0xa9b7c1, dark:0x151c22, cloth:0x343e46, skin:0xa97758, glow:0x9af7ff, accent:0xd8e3eb, head:"goggles", build:"slim", gear:"compact" },
+    hazmat: { id:"hazmat", name:"Hazmat Unit", icon:"☣️", desc:"Sealed protective suit with respirator and hazard-yellow details.", armor:0x536443, armorLight:0x9bb46a, dark:0x20291c, cloth:0x46543a, skin:0x7d9970, glow:0xd8ff42, accent:0xf4de38, head:"respirator", build:"standard", gear:"tank" }
+};
+
+let selectedCharacterId = "vanguard";
 let lobbyPreviewModel = null;
+let lobbyScenePreviewActive = false;
+const LOBBY_PLAYER_Z = 60;
+const LOBBY_CAMERA_DISTANCE = 16.5;
 
 function setupLobbyPlayerShowcase() {
     if (!scene) return;
-    if (lobbyPreviewModel) {
-        scene.remove(lobbyPreviewModel);
-        lobbyPreviewModel = null;
-    }
-    
+    if (lobbyPreviewModel && lobbyPreviewModel.parent) lobbyPreviewModel.parent.remove(lobbyPreviewModel);
+
+    const spec = characterModels[profileState.characterModel] || characterModels.vanguard;
+    selectedCharacterId = spec.id;
     lobbyPreviewModel = new THREE.Group();
+    lobbyPreviewModel.position.set(0, 0, LOBBY_PLAYER_Z);
+    lobbyPreviewModel.scale.setScalar(spec.build === "heavy" ? 1.10 : (spec.build === "slim" ? 1.04 : 1.08));
 
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.7 });
-    const shirtMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.65 });
-    const trimMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.6 });
-    const pantsMat = new THREE.MeshStandardMaterial({ color: 0x111122, roughness: 0.7 });
-    const hairMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-    const gunMat = new THREE.MeshStandardMaterial({ color: 0x222233, roughness: 0.4 });
+    const mat = (color, roughness=0.55, metalness=0.25, emissive=0x000000, emissiveIntensity=0) =>
+        new THREE.MeshStandardMaterial({ color, roughness, metalness, emissive, emissiveIntensity });
+    const armor = mat(spec.armor, 0.48, 0.42);
+    const armorLight = mat(spec.armorLight, 0.42, 0.48);
+    const dark = mat(spec.dark, 0.72, 0.18);
+    const cloth = mat(spec.cloth, 0.83, 0.05);
+    const skin = mat(spec.skin, 0.88, 0.02);
+    const glow = mat(spec.glow, 0.34, 0.3, spec.glow, 0.6);
+    const visor = mat(spec.head === "respirator" ? 0x303b29 : 0x06151c, 0.22, 0.68, spec.glow, 0.28);
+    const gunSteel = mat(0x242b31, 0.3, 0.78);
+    const gunTop = mat(0x414950, 0.36, 0.65);
+    const gunAccent = mat(spec.accent, 0.4, 0.42, spec.accent, 0.05);
 
-    function addBox(w, h, d, mat, x, y, z, parent = lobbyPreviewModel) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-        m.position.set(x, y, z);
-        m.castShadow = true;
-        parent.add(m);
-        return m;
+    function box(w,h,d,material,x,y,z,parent=lobbyPreviewModel,rx=0,ry=0,rz=0) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), material);
+        mesh.position.set(x,y,z); mesh.rotation.set(rx,ry,rz);
+        mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+    }
+    function sphere(rx,ry,rz,material,x,y,z,parent=lobbyPreviewModel) {
+        const mesh = new THREE.Mesh(new THREE.SphereGeometry(1,12,10),material);
+        mesh.scale.set(rx,ry,rz); mesh.position.set(x,y,z); mesh.castShadow=true; parent.add(mesh); return mesh;
+    }
+    function cylinder(rt,rb,h,material,x,y,z,parent=lobbyPreviewModel,rotX=0,rotZ=0) {
+        const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,10),material);
+        mesh.position.set(x,y,z); mesh.rotation.set(rotX,0,rotZ); mesh.castShadow=true; mesh.receiveShadow=true; parent.add(mesh); return mesh;
     }
 
-    addBox(1.2, 1.2, 0.75, shirtMat, 0, 1.35, 0); // Torso
-    addBox(1.24, 0.2, 0.78, trimMat, 0, 1.75, 0); // Neon chest band
-    addBox(0.8, 0.9, 0.35, shirtMat, 0, 1.35, -0.52); // Backpack
-    addBox(1.1, 0.4, 0.7, pantsMat, 0, 0.75, 0); // Pelvis
-    addBox(0.42, 0.9, 0.42, pantsMat, -0.3, 0.15, 0); // Left leg
-    addBox(0.42, 0.9, 0.42, pantsMat, 0.3, 0.15, 0); // Right leg
-    addBox(0.3, 0.9, 0.3, shirtMat, -0.72, 1.15, 0); // Left arm
-    
-    // Head & Helmet
-    const headGroup = new THREE.Group();
-    headGroup.position.set(0, 2.35, 0);
-    addBox(0.8, 0.8, 0.8, skinMat, 0, 0, 0, headGroup);
-    addBox(0.85, 0.2, 0.85, hairMat, 0, 0.4, 0, headGroup);
-    addBox(0.85, 0.2, 0.1, trimMat, 0, 0.05, 0.42, headGroup); // Cyber Visor
-    lobbyPreviewModel.add(headGroup);
+    const heavy = spec.build === "heavy", slim = spec.build === "slim";
+    const legW = heavy ? 0.43 : (slim ? 0.33 : 0.38);
+    const torsoW = heavy ? 1.27 : (slim ? 0.94 : 1.10);
+    const torsoD = heavy ? 0.70 : (slim ? 0.52 : 0.60);
+    const shoulderW = heavy ? 0.60 : (slim ? 0.38 : 0.46);
 
-    // Right Arm holding rifle
-    const armR = new THREE.Group();
-    armR.position.set(0.72, 1.5, 0);
-    addBox(0.3, 0.8, 0.3, shirtMat, 0, -0.3, 0, armR);
-    addBox(0.2, 0.8, 0.2, gunMat, 0, -0.5, 0.4, armR); // Gun body
-    addBox(0.1, 0.1, 0.8, trimMat, 0, -0.3, 0.8, armR); // Gun barrel
-    lobbyPreviewModel.add(armR);
+    // Boots and segmented legs.
+    box(0.47,0.22,0.68,dark,-0.31,0.12,0.12);
+    box(0.47,0.22,0.68,dark, 0.31,0.12,0.12);
+    box(legW,0.62,0.39,cloth,-0.31,0.53,0);
+    box(legW,0.62,0.39,cloth, 0.31,0.53,0);
+    box(legW+0.03,0.20,0.43,armorLight,-0.31,0.66,0.06);
+    box(legW+0.03,0.20,0.43,armorLight, 0.31,0.66,0.06);
+    box(0.92,0.28,0.52,dark,0,0.91,-0.02);
+    box(0.95,0.10,0.55,gunSteel,0,0.99,0.01);
+    box(0.22,0.26,0.24,armorLight,-0.25,0.92,0.29);
+    box(0.22,0.26,0.24,armorLight, 0.25,0.92,0.29);
 
-    lobbyPreviewModel.position.set(0, 0, 0);
+    // Body armour has different proportions per operator archetype.
+    box(torsoW,heavy?1.08:(slim?0.92:0.98),torsoD,cloth,0,1.52,0);
+    box(torsoW+0.08,0.23,torsoD+0.05,armor,0,1.88,0);
+    box(heavy?0.91:(slim?0.67:0.76),0.53,0.12,armorLight,0,1.54,0.33);
+    box(0.56,0.10,0.08,glow,0,1.69,0.405);
+    box(0.22,0.28,0.12,dark,-0.34,1.40,0.36);
+    box(0.22,0.28,0.12,dark, 0.34,1.40,0.36);
+    box(0.18,0.28,0.18,gunAccent,-0.40,1.13,0.33);
+    box(0.18,0.28,0.18,gunAccent, 0.40,1.13,0.33);
+
+    // Backpack/gear silhouettes distinguish the loadouts.
+    const packW = spec.gear === "heavyPack" ? 0.96 : (spec.gear === "compact" ? 0.52 : 0.72);
+    const packH = spec.gear === "heavyPack" ? 0.94 : (spec.gear === "compact" ? 0.64 : 0.84);
+    box(packW,packH,0.30,dark,0,1.49,-0.43);
+    box(packW+0.07,0.13,0.33,armor,0,1.77,-0.44);
+    box(0.12,0.52,0.08,glow,-0.47,1.48,-0.31);
+    if (spec.gear === "medkit") {
+        box(0.36,0.42,0.12,armorLight,0,1.52,-0.61);
+        box(0.09,0.29,0.045,glow,0,1.52,-0.685);
+        box(0.27,0.09,0.045,glow,0,1.52,-0.69);
+    } else if (spec.gear === "tank") {
+        cylinder(0.17,0.17,0.55,armorLight,-0.27,1.51,-0.60, lobbyPreviewModel, 0.10);
+        cylinder(0.17,0.17,0.55,armorLight, 0.27,1.51,-0.60, lobbyPreviewModel, 0.10);
+        box(0.64,0.13,0.14,gunAccent,0,1.83,-0.59);
+    } else if (spec.gear === "pouches") {
+        box(0.23,0.25,0.15,gunAccent,-0.49,1.39,0.31);
+        box(0.23,0.25,0.15,gunAccent, 0.49,1.39,0.31);
+    } else if (spec.gear === "heavyPack") {
+        box(0.36,0.58,0.18,armorLight,0,1.48,-0.62);
+        box(0.16,0.46,0.08,gunAccent,0,1.48,-0.73);
+    }
+
+    // Head, helmet and operator-specific face gear.
+    box(0.30,0.22,0.29,skin,0,2.04,0);
+    const headW = heavy ? 0.78 : (slim ? 0.64 : 0.72);
+    box(headW,0.72,0.62,skin,0,2.43,0.03);
+    if (spec.head === "hood" || spec.head === "wrap") {
+        box(headW+0.14,0.80,0.70,cloth,0,2.45,-0.035);
+        box(headW+0.20,0.20,0.72,armor,0,2.80,-0.02);
+    }
+    if (spec.head === "heavy") {
+        box(0.94,0.36,0.88,armor,0,2.78,-0.02);
+        box(0.82,0.16,0.73,armorLight,0,2.98,-0.02);
+        box(0.76,0.28,0.10,visor,0,2.48,0.36);
+    } else {
+        box(0.86,0.24,0.80,dark,0,2.86,-0.01);
+        box(0.78,0.13,0.65,armorLight,0,2.98,-0.01);
+        box(0.70,0.25,0.08,visor,0,2.48,0.375);
+    }
+    box(0.54,0.045,0.035,glow,0,2.49,0.425);
+    box(0.20,0.13,0.08,dark,-0.29,2.25,0.36);
+    box(0.20,0.13,0.08,dark, 0.29,2.25,0.36);
+    if (spec.head === "respirator") {
+        box(0.44,0.29,0.20,armor,0,2.27,0.39);
+        cylinder(0.105,0.105,0.10,gunSteel,-0.25,2.25,0.43,lobbyPreviewModel,Math.PI/2);
+        cylinder(0.105,0.105,0.10,gunSteel, 0.25,2.25,0.43,lobbyPreviewModel,Math.PI/2);
+        box(0.17,0.13,0.08,gunAccent,0,2.24,0.51);
+    } else if (spec.head === "goggles") {
+        box(0.25,0.14,0.10,gunAccent,-0.17,2.52,0.42);
+        box(0.25,0.14,0.10,gunAccent, 0.17,2.52,0.42);
+        box(0.12,0.05,0.08,dark,0,2.52,0.45);
+    }
+    if (spec.gear === "antenna") {
+        cylinder(0.025,0.025,0.42,gunSteel,0.31,3.13,-0.13,lobbyPreviewModel,0.15);
+        sphere(0.07,0.07,0.07,glow,0.31,3.35,-0.13);
+    }
+    if (spec.id === "medic") {
+        box(0.18,0.18,0.04,glow,-0.71,1.84,0.30);
+        box(0.05,0.14,0.045,gunAccent,-0.71,1.84,0.33);
+        box(0.14,0.05,0.045,gunAccent,-0.71,1.84,0.33);
+    }
+    if (spec.id === "hazmat") {
+        sphere(0.09,0.09,0.09,gunAccent,-0.39,1.52,0.12);
+        sphere(0.09,0.09,0.09,gunAccent, 0.39,1.52,0.12);
+    }
+
+    // Shoulder plates and arms; Titan uses oversized shoulder pads.
+    const armShoulder = heavy ? 0.80 : 0.70;
+    const shoulderH = heavy ? 0.44 : 0.30;
+    box(shoulderW,shoulderH,heavy?0.60:0.52,armorLight,-armShoulder,1.83,0.02,lobbyPreviewModel,0,0,-0.12);
+    box(shoulderW,shoulderH,heavy?0.60:0.52,armorLight, armShoulder,1.83,0.02,lobbyPreviewModel,0,0, 0.12);
+    box(0.31,0.49,0.34,cloth,-0.69,1.53,0.14,lobbyPreviewModel,-0.18,0,-0.10);
+    box(0.31,0.43,0.34,armor,-0.53,1.35,0.39,lobbyPreviewModel,-0.46,0,-0.18);
+    box(0.25,0.23,0.28,dark,-0.46,1.17,0.47);
+    box(0.31,0.46,0.34,cloth,0.68,1.55,0.13,lobbyPreviewModel,-0.15,0,0.10);
+    box(0.31,0.40,0.34,armor,0.53,1.39,0.39,lobbyPreviewModel,-0.36,0,0.10);
+    box(0.25,0.23,0.28,dark,0.42,1.22,0.48);
+
+    // Compact rifle model for all operators, with each one's highlight colour.
+    const rifle = new THREE.Group(); rifle.position.set(0.12,1.48,0.48); rifle.rotation.x=-0.035; lobbyPreviewModel.add(rifle);
+    box(0.22,0.18,0.70,gunSteel,0,0,0.05,rifle);
+    box(0.24,0.09,0.46,gunTop,0,0.115,0.02,rifle);
+    box(0.17,0.22,0.23,dark,0,-0.18,-0.03,rifle,-0.08);
+    box(0.14,0.28,0.20,gunSteel,0,-0.23,0.06,rifle,-0.12);
+    box(0.07,0.12,0.24,dark,0,-0.29,0.07,rifle);
+    box(0.09,0.12,0.34,gunTop,0,0.01,0.43,rifle);
+    cylinder(0.045,0.045,0.45,gunSteel,0,0.01,0.80,rifle,Math.PI/2);
+    cylinder(0.06,0.06,0.10,dark,0,0.01,1.04,rifle,Math.PI/2);
+    box(0.10,0.06,0.08,gunAccent,0,0.14,0.10,rifle);
+    box(0.08,0.07,0.06,dark,0,0.15,0.52,rifle);
+    box(0.05,0.04,0.04,glow,0,0.19,0.52,rifle);
+    box(0.08,0.12,0.17,armorLight,0.13,-0.06,0.35,rifle);
+
     scene.add(lobbyPreviewModel);
+}
+
+function setLobbyPickupsVisible(visible) {
+    (powerUpPickups || []).forEach(pickup => {
+        if (pickup && pickup.mesh) pickup.mesh.visible = visible;
+    });
+    (weaponPickups || []).forEach(pickup => {
+        if (pickup && pickup.mesh) pickup.mesh.visible = visible;
+    });
+}
+
+function refreshLobbyBackground() {
+    if (inMatch || !mapsConfig[selectedMapId]) return;
+
+    // Rebuild the selected map as a clean lobby backdrop; the match rebuilds it
+    // once more on PLAY so bots/pickups start from normal gameplay positions.
+    lobbyPreviewModel = null;
+    buildArenaEnvironment(mapsConfig[selectedMapId]);
+    currentBuiltMapId = selectedMapId;
+    lobbyScenePreviewActive = true;
+
+    // Arrange a few AI characters across the lane behind the player for the menu composition.
+    const displayPositions = [
+        { x: -12, z: 40 }, { x: 12, z: 39 },
+        { x: -22, z: 20 }, { x: 22, z: 19 },
+        { x: -7, z: 31 }, { x: 7, z: 30 }
+    ];
+    bots.forEach((bot, index) => {
+        const pos = displayPositions[index % displayPositions.length];
+        bot.mesh.position.set(pos.x, 0, pos.z);
+        bot.spawnPos = { x: pos.x, z: pos.z };
+        bot._lobbyBaseYaw = bot.mesh.rotation.y;
+    });
+
+    // Keep the wallpaper focused on scenery, character and enemies—not floating pickup/HUD objects.
+    setLobbyPickupsVisible(false);
+    setupLobbyPlayerShowcase();
+
+    camera.position.set(0, 4.35, LOBBY_PLAYER_Z + LOBBY_CAMERA_DISTANCE);
+    camera.fov = 54;
+    camera.lookAt(0, 1.60, LOBBY_PLAYER_Z - 0.45);
+    camera.updateProjectionMatrix();
+    document.body.classList.remove('in-match');
 }
 
 // --- STATE MANAGEMENT CONTROLLERS ---
 function initLobbyUI() {
     updateLobbyStats();
     renderClassCards();
+    renderCharacterCards();
     renderMapCards();
     renderInventoryGrid();
     bindLobbyInteractions();
-    if (typeof setupLobbyPlayerShowcase === "function") setupLobbyPlayerShowcase();
+    // Construct the real selected arena behind the menu at startup.
+    refreshLobbyBackground();
 }
 
 function updateLobbyStats() {
@@ -2438,6 +2639,12 @@ function updateLobbyStats() {
     const activeMap = mapsConfig[selectedMapId];
     document.getElementById("lobby-active-map-name").innerText = activeMap.name;
     document.getElementById("lobby-map-icon").innerText = activeMap.icon;
+
+    const operator = characterModels[profileState.characterModel] || characterModels.vanguard;
+    const operatorName = document.getElementById("lobby-active-character-name");
+    const operatorIcon = document.getElementById("lobby-character-icon");
+    if (operatorName) operatorName.innerText = operator.name.toUpperCase();
+    if (operatorIcon) operatorIcon.innerText = operator.icon;
 }
 
 function editUsername() {
@@ -2450,6 +2657,45 @@ function editUsername() {
     localStorage.setItem('poxel-profile', JSON.stringify(profileState));
     updateLobbyStats();
     showPickupToast(`USERNAME: ${cleanName}`);
+}
+
+// Operator selection menu: eight visibly different armour loadouts built locally with Three.js.
+function renderCharacterCards() {
+    const container = document.getElementById("character-cards-container");
+    if (!container) return;
+    container.innerHTML = "";
+    Object.keys(characterModels).forEach(key => {
+        const operator = characterModels[key];
+        const isSelected = (profileState.characterModel || "vanguard") === key;
+        const card = document.createElement("div");
+        card.className = `class-card ${isSelected ? "selected" : ""}`;
+        card.innerHTML = `
+            <div style="width:100%;height:80px;display:flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(135deg,rgba(255,255,255,.035),rgba(0,0,0,.18));border-radius:7px;border:1px solid #28313b;margin-bottom:8px;">
+                <span style="font-size:2.7rem;filter:drop-shadow(0 0 10px ${'#'+operator.glow.toString(16).padStart(6,'0')});">${operator.icon}</span>
+                <span style="display:block;width:11px;height:48px;border-radius:7px;background:#${operator.armor.toString(16).padStart(6,'0')};box-shadow:0 0 14px #${operator.glow.toString(16).padStart(6,'0')};"></span>
+            </div>
+            <h3>${operator.name}</h3>
+            <p class="class-desc">${operator.desc}</p>
+            <div style="display:flex;gap:5px;width:100%;margin:0 0 14px;">
+                <span style="height:5px;flex:1;border-radius:5px;background:#${operator.armor.toString(16).padStart(6,'0')};"></span>
+                <span style="height:5px;flex:1;border-radius:5px;background:#${operator.armorLight.toString(16).padStart(6,'0')};"></span>
+                <span style="height:5px;flex:1;border-radius:5px;background:#${operator.glow.toString(16).padStart(6,'0')};"></span>
+            </div>
+            <button class="class-select-trigger-btn" onclick="selectCharacter('${key}')">${isSelected ? "ACTIVE OPERATOR" : "SELECT OPERATOR"}</button>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function selectCharacter(characterId) {
+    if (!characterModels[characterId]) return;
+    profileState.characterModel = characterId;
+    selectedCharacterId = characterId;
+    try { localStorage.setItem("poxel-profile", JSON.stringify(profileState)); } catch (_) {}
+    renderCharacterCards();
+    updateLobbyStats();
+    if (!inMatch && scene) setupLobbyPlayerShowcase();
+    closeModal("character-modal");
 }
 
 // Draw list cards into Selector modal dynamically
@@ -3086,6 +3332,7 @@ function enterMatchMode() {
     document.getElementById("lobby-overlay").style.display = "none";
     document.getElementById("hud-overlay").style.display = "block";
     inMatch = true;
+    document.body.classList.add('in-match');
     startGameplayEngine();
 }
 
@@ -3093,7 +3340,9 @@ function exitMatchMode() {
     document.getElementById("lobby-overlay").style.display = "flex";
     document.getElementById("hud-overlay").style.display = "none";
     inMatch = false;
+    document.body.classList.remove('in-match');
     stopGameplayEngine();
+    refreshLobbyBackground();
 }
 
 // Setup active user parameters
@@ -3134,11 +3383,16 @@ function startGameplayEngine() {
     activeBuffs = {};
     renderBuffChips();
 
-    // Build the selected map if this is the first match or the map choice changed
-    if (!scene || currentBuiltMapId !== selectedMapId) {
+    // The lobby uses a cinematic version of the map; rebuild its standard gameplay layout on PLAY.
+    if (lobbyScenePreviewActive && lobbyPreviewModel && scene) {
+        scene.remove(lobbyPreviewModel);
+        lobbyPreviewModel = null;
+    }
+    if (!scene || currentBuiltMapId !== selectedMapId || lobbyScenePreviewActive) {
         buildArenaEnvironment(mapsConfig[selectedMapId]);
         currentBuiltMapId = selectedMapId;
     }
+    lobbyScenePreviewActive = false;
 
     activeWeaponSlot = "primary";
     currentWeaponState = weaponSlots.primary;
@@ -5047,13 +5301,19 @@ function tick() {
 
         renderer.render(scene, camera);
     } else if (scene && renderer && !inMatch) {
-        // Render lobby scene animations gently in background
-        if (typeof lobbyPreviewModel !== 'undefined' && lobbyPreviewModel) {
-            lobbyPreviewModel.rotation.y += 0.015;
+        // Slow cinematic drift: keep the soldier centred while showing the selected arena.
+        const t = performance.now() * 0.00022;
+        if (lobbyPreviewModel) {
+            lobbyPreviewModel.rotation.y = Math.sin(t * 1.6) * 0.075;
+            lobbyPreviewModel.position.y = Math.sin(t * 3.2) * 0.018;
         }
-        const t = performance.now() * 0.0005;
-        camera.position.set(Math.sin(t) * 12 + 0, 6, Math.cos(t) * 12 + 0);
-        camera.lookAt(0, 1.8, 0);
+        camera.position.set(Math.sin(t) * 0.65, 4.32 + Math.sin(t * 1.3) * 0.055, LOBBY_PLAYER_Z + LOBBY_CAMERA_DISTANCE);
+        camera.lookAt(Math.sin(t) * 0.10, 1.58, LOBBY_PLAYER_Z - 0.45);
+        bots.forEach((bot, index) => {
+            if (!bot || !bot.mesh) return;
+            const baseYaw = Number.isFinite(bot._lobbyBaseYaw) ? bot._lobbyBaseYaw : 0;
+            bot.mesh.rotation.y = baseYaw + Math.sin(t * 1.8 + index * 1.1) * 0.045;
+        });
         renderer.render(scene, camera);
     }
 }
@@ -5122,6 +5382,7 @@ function triggerPlayerHitDamage(amt) {
         }
         el.textContent = text;
         el.style.color = good ? '#00ffcc' : '#ff557f';
+        el.style.display = document.body.classList.contains('in-match') ? 'block' : 'none';
     }
 
     function renderOnlineLeaderboard(players) {

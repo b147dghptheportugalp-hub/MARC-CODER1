@@ -3064,8 +3064,10 @@ function buildGunModel(spec, scale = 1) {
 }
 
 const loadedGunModels = new Map();
-let phantomBulletTemplate = null;
-let phantomBulletLoadPending = false;
+let bulletModelTemplate = null;
+let bulletModelLoadPending = false;
+let bulletModelLoadFailed = false;
+const bulletModelMaterials = new Map();
 
 function applyGunMaterial(model, spec) {
     const material = new THREE.MeshStandardMaterial({
@@ -4674,11 +4676,7 @@ function fireWeapon() {
         triggerExplosionSplash(endPoint, null);
     }
 
-    if (currentWeaponState.wepId === 'w_phantom') {
-        renderPhantomBullet(startPoint, endPoint);
-    } else {
-        renderLaserTracer(startPoint, endPoint, currentWeaponState.beamColor);
-    }
+    renderBulletProjectile(startPoint, endPoint, currentWeaponState.beamColor);
 
     // Auto-revert from an emptied special weapon (e.g. Rocket Launcher) back to the primary loadout
     if (activeWeaponSlot === "special" && currentWeaponState.magAmmo <= 0) {
@@ -4835,35 +4833,51 @@ function renderLaserTracer(start, end, colorHex) {
     setTimeout(() => scene.remove(line), 75);
 }
 
-function loadPhantomBulletTemplate() {
-    if (phantomBulletTemplate || phantomBulletLoadPending) return;
-    phantomBulletLoadPending = true;
+function loadBulletModelTemplate() {
+    if (bulletModelTemplate || bulletModelLoadPending || bulletModelLoadFailed) return;
+    bulletModelLoadPending = true;
 
-    const material = new THREE.MeshBasicMaterial({
-        color: weaponsInventory.w_phantom.beamColor
+    new THREE.OBJLoader().load("bullet_model/Bullet.obj", model => {
+        const bounds = new THREE.Box3().setFromObject(model);
+        const center = bounds.getCenter(new THREE.Vector3());
+        const size = bounds.getSize(new THREE.Vector3());
+        const longestSide = Math.max(size.x, size.y, size.z) || 1;
+
+        model.traverse(child => {
+            if (child.isMesh && child.geometry) {
+                child.geometry.translate(-center.x, -center.y, -center.z);
+            }
+        });
+        model.rotation.y = Math.PI / 2;
+        model.scale.setScalar(0.38 / longestSide);
+
+        bulletModelTemplate = new THREE.Group();
+        bulletModelTemplate.add(model);
+        bulletModelLoadPending = false;
+    }, undefined, error => {
+        bulletModelLoadPending = false;
+        bulletModelLoadFailed = true;
+        console.error("Failed to load bullet model at bullet_model/Bullet.obj", error);
     });
-    const bodyGeometry = new THREE.CylinderGeometry(0.018, 0.018, 0.28, 8);
-    bodyGeometry.rotateX(Math.PI / 2);
-    const tipGeometry = new THREE.ConeGeometry(0.035, 0.1, 8);
-    tipGeometry.rotateX(-Math.PI / 2);
-
-    phantomBulletTemplate = new THREE.Group();
-    phantomBulletTemplate.add(new THREE.Mesh(bodyGeometry, material));
-
-    const tip = new THREE.Mesh(tipGeometry, material);
-    tip.position.z = -0.18;
-    phantomBulletTemplate.add(tip);
-    phantomBulletLoadPending = false;
 }
 
-function renderPhantomBullet(start, end) {
-    if (!phantomBulletTemplate) {
-        loadPhantomBulletTemplate();
-        renderLaserTracer(start, end, weaponsInventory.w_phantom.beamColor);
+function renderBulletProjectile(start, end, colorHex) {
+    if (!bulletModelTemplate) {
+        loadBulletModelTemplate();
+        renderLaserTracer(start, end, colorHex);
         return;
     }
 
-    const bullet = phantomBulletTemplate.clone(true);
+    const bullet = bulletModelTemplate.clone(true);
+    let material = bulletModelMaterials.get(colorHex);
+    if (!material) {
+        material = new THREE.MeshBasicMaterial({ color: colorHex });
+        bulletModelMaterials.set(colorHex, material);
+    }
+    bullet.traverse(child => {
+        if (child.isMesh) child.material = material;
+    });
+
     const direction = new THREE.Vector3().subVectors(end, start).normalize();
     bullet.position.copy(start);
     bullet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), direction);
@@ -5264,6 +5278,9 @@ function tick() {
                     bot.heldWeaponRate = bot.friendly ? (300 + Math.random() * 300) : (800 + Math.random() * 1200); 
 
                     const laserColor = bot.friendly ? 0x00e5ff : 0xff0000;
+                    const bulletColor = bot.weaponId === 'w_phantom'
+                        ? weaponsInventory.w_phantom.beamColor
+                        : laserColor;
 
                     // Compute firing accuracy spread
                     const botAccuracy = bot.friendly ? 0.95 : 0.65;
@@ -5273,11 +5290,7 @@ function tick() {
                         } else if (targetBot) {
                             applyDamageToBot(targetBot, 25, targetPos, false, bot);
                         }
-                        if (bot.weaponId === 'w_phantom') {
-                            renderPhantomBullet(bot.mesh.position, targetPos);
-                        } else {
-                            renderLaserTracer(bot.mesh.position, targetPos, laserColor);
-                        }
+                        renderBulletProjectile(bot.mesh.position, targetPos, bulletColor);
                     } else {
                         // Draw offset shot missed tracer
                         const missOffsetVec = new THREE.Vector3(
@@ -5285,11 +5298,7 @@ function tick() {
                             (Math.random() - 0.5) * 8,
                             (Math.random() - 0.5) * 8
                         ).add(targetPos);
-                        if (bot.weaponId === 'w_phantom') {
-                            renderPhantomBullet(bot.mesh.position, missOffsetVec);
-                        } else {
-                            renderLaserTracer(bot.mesh.position, missOffsetVec, laserColor);
-                        }
+                        renderBulletProjectile(bot.mesh.position, missOffsetVec, bulletColor);
                     }
                 }
             } else if (bot.direction.lengthSq() > 0.1) {
@@ -5602,14 +5611,10 @@ function triggerPlayerHitDamage(amt) {
         if (msg.type === 'shot') {
             if (msg.shooterId === net.id) return;
             // Cosmetic tracer for other players.
-            if (typeof renderLaserTracer === 'function' && typeof THREE !== 'undefined' && camera) {
+            if (typeof renderBulletProjectile === 'function' && typeof THREE !== 'undefined' && camera) {
                 const start = new THREE.Vector3(msg.x, msg.y + 1.2, msg.z);
                 const end = start.clone().add(new THREE.Vector3(msg.dx, msg.dy, msg.dz).multiplyScalar(25));
-                if (msg.weaponId === 'w_phantom') {
-                    renderPhantomBullet(start, end);
-                } else {
-                    renderLaserTracer(start, end, msg.weaponId === 'w_rapid_fire' ? 0x00ffff : 0xff007f);
-                }
+                renderBulletProjectile(start, end, msg.weaponId === 'w_rapid_fire' ? 0x00ffff : 0xff007f);
             }
         }
     }
